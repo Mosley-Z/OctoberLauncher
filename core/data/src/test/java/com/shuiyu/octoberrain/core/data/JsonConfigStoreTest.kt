@@ -159,6 +159,43 @@ class JsonConfigStoreTest {
         assertEquals(6, decode(memory.snapshot()!!).version)
     }
 
+    /**
+     * 微信读书迁移状态与成就配置经写盘与重建读取后保持原值。
+     *
+     * 覆盖「导入完成 → 进程重启 → 修改其它设置」流程，避免两节在重新加载时
+     * 回退默认值，随后被无关的配置编辑写回磁盘而丢失。
+     */
+    @Test
+    fun `微信读书两节经重建读取后不回退默认值`() {
+        val memory = MemoryPersistence()
+        val first = JsonConfigStore(memory)
+        first.edit {
+            it.copy(
+                wereadMigration =
+                    it.wereadMigration.copy(
+                        sourceVersionCode = 48,
+                        importedAtMillis = 1_700_000_000_000L,
+                        manifestDigest = "abc123",
+                        complete = true,
+                    ),
+                wereadAchievement =
+                    it.wereadAchievement.copy(rawJson = "{\"week\":1}", updatedAtMillis = 1_700_000_100_000L),
+            )
+        }
+
+        val second = JsonConfigStore(memory)
+        assertEquals(48, second.state.value.wereadMigration.sourceVersionCode)
+        assertEquals(1_700_000_000_000L, second.state.value.wereadMigration.importedAtMillis)
+        assertEquals("abc123", second.state.value.wereadMigration.manifestDigest)
+        assertTrue(second.state.value.wereadMigration.complete)
+        assertEquals("{\"week\":1}", second.state.value.wereadAchievement.rawJson)
+
+        second.edit { it.copy(appearance = it.appearance.copy(themeId = "night")) }
+        val persisted = decode(memory.snapshot()!!)
+        assertEquals(48, persisted.wereadMigration.sourceVersionCode)
+        assertEquals(1_700_000_100_000L, persisted.wereadAchievement.updatedAtMillis)
+    }
+
     /** 高版本配置按可读字段加载，版本号与磁盘内容保持原样，不执行回写。 */
     @Test
     fun `高版本配置不清洗版本号`() {

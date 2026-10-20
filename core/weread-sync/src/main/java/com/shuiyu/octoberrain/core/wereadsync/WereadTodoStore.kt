@@ -33,17 +33,14 @@ class WereadTodoStore(
 ) : WereadTodoHost {
     private val store = WereadStore(root)
 
-    /** 读写互斥锁，避免勾选与新增并发时互相覆盖。 */
-    private val lock = Any()
-
-    override fun list(): List<WereadTodo> = synchronized(lock) { read() }
+    override fun list(): List<WereadTodo> = store.withPrefsLock { read() }
 
     override fun add(
         content: String,
         dateSec: Long,
         minuteOfDay: Int,
     ): List<WereadTodo> =
-        synchronized(lock) {
+        store.withPrefsLock {
             val text = content.trim()
             val current = read()
             if (text.isEmpty()) {
@@ -55,13 +52,13 @@ class WereadTodoStore(
         }
 
     override fun toggle(id: Long): List<WereadTodo> =
-        synchronized(lock) {
+        store.withPrefsLock {
             write(read().map { todo -> if (todo.id == id) todo.copy(done = !todo.done) else todo })
             read()
         }
 
     override fun remove(id: Long): List<WereadTodo> =
-        synchronized(lock) {
+        store.withPrefsLock {
             write(read().filterNot { todo -> todo.id == id })
             read()
         }
@@ -70,7 +67,7 @@ class WereadTodoStore(
         id: Long,
         delta: Int,
     ): List<WereadTodo> =
-        synchronized(lock) {
+        store.withPrefsLock {
             val current = read()
             val index = current.indexOfFirst { todo -> todo.id == id }
             if (index < 0) {
@@ -94,7 +91,7 @@ class WereadTodoStore(
         dateSec: Long,
         minuteOfDay: Int,
     ): List<WereadTodo> =
-        synchronized(lock) {
+        store.withPrefsLock {
             val text = content.trim()
             write(
                 read().map { todo ->

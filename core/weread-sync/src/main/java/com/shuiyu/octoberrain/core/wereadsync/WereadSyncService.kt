@@ -142,11 +142,14 @@ class WereadSyncService(
         val noteCount = writeNotes()
         val total = shelfCount + statCount + billCount + assetCount + noteCount
         val success = total > 0
+        // 已取到数据却没有任何一条确认落盘，说明失败在写入侧而非网络侧。
+        val fetchedSomething = shelf != null || stats.isNotEmpty()
         val message =
-            if (success) {
-                "同步完成：书架 $shelfCount 本、统计 $statCount 期、账单 $billCount 期、资产 $assetCount 本、笔记 $noteCount 篇"
-            } else {
-                "同步未取得数据"
+            when {
+                success ->
+                    "同步完成：书架 $shelfCount 本、统计 $statCount 期、账单 $billCount 期、资产 $assetCount 本、笔记 $noteCount 篇"
+                fetchedSomething -> "同步写入失败，已取到数据但未能存储，请检查存储空间"
+                else -> "同步未取得数据"
             }
         store.putString(KEY_SYNC_STATE, stateJson(success, message, started))
         InkLog.d(TAG, "微读同步结束：$message")
@@ -189,15 +192,14 @@ class WereadSyncService(
         return over
     }
 
-    /** 按预先取到的统计响应写入各周期，返回写入数量。 */
+    /** 按预先取到的统计响应写入各周期，返回确认落盘的数量。 */
     private fun writeStats(stats: Map<String, String>): Int {
         var count = 0
         for ((key, raw) in stats) {
             val period = key.split(':')
             val mode = period.first()
             val base = period.last().toLongOrNull() ?: 0L
-            store.writeStats(mode, base, raw, clock())
-            count += 1
+            if (store.writeStats(mode, base, raw, clock())) count += 1
         }
         return count
     }
@@ -219,13 +221,36 @@ class WereadSyncService(
         shelf: List<WereadShelfBook>?,
         times: Map<String, Int>,
     ): Int {
-        if (shelf.isNullOrEmpty()) return 0
+        // 接口失败（null）时保留本地缓存；合法空列表说明远端书架已清空，需要同步清空本地。
+        val written =
+            when {
+                shelf == null -> 0
+                shelf.isEmpty() -> clearShelf()
+                else -> persistShelf(shelf, times)
+            }
+        return written
+    }
+
+    /** 清空本地书架与当前书目，返回写入数量。 */
+    private fun clearShelf(): Int {
+        store.writeShelf(emptyList(), clock())
+        store.writeShelfIds(emptyList())
+        store.writeCurrentBook(null)
+        return 0
+    }
+
+    /** 合并时长后落盘书架，任一步写盘失败时返回 0 并保留已写入的部分。 */
+    private fun persistShelf(
+        shelf: List<WereadShelfBook>,
+        times: Map<String, Int>,
+    ): Int {
         val enriched =
             shelf.map { book ->
                 book.copy(readingSeconds = times[book.bookId] ?: book.readingSeconds)
             }
-        store.writeShelf(enriched, clock())
-        store.writeShelfIds(enriched.map { book -> book.bookId })
+        // 先写书架本体与标识表，两步都成功后再写当前书目，避免半套数据被下游读到。
+        val stored = store.writeShelf(enriched, clock()) && store.writeShelfIds(enriched.map { book -> book.bookId })
+        if (!stored) return 0
         store.writeCurrentBook(currentOf(enriched, times))
         return enriched.size
     }
@@ -250,18 +275,17 @@ class WereadSyncService(
             ?: shelf.firstOrNull { book -> !book.finished }
     }
 
-    /** 写入各周期统计，返回写入数量。 */
+    /** 写入各周期统计，返回确认落盘的数量。 */
     private suspend fun writeStats(bases: List<WereadSyncPeriod>): Int {
         var count = 0
         for (period in bases) {
             val raw = provider.stats(period.mode, period.baseTimeSec) ?: continue
-            store.writeStats(period.mode, period.baseTimeSec, raw, clock())
-            count += 1
+            if (store.writeStats(period.mode, period.baseTimeSec, raw, clock())) count += 1
         }
         return count
     }
 
-    /** 写入账单快照，返回写入数量。 */
+    /** 写入账单快照，返回确认落盘的数量。 */
     private suspend fun writeBills(
         bases: List<WereadSyncPeriod>,
         stats: Map<String, String>,
@@ -273,8 +297,7 @@ class WereadSyncService(
                 raw?.let { text ->
                     runCatching { provider.bill(period.mode, period.baseTimeSec, text) }.getOrNull()
                 }
-            if (sheet != null) {
-                store.writeBill(period.mode, period.baseTimeSec, sheet)
+            if (sheet != null && store.writeBill(period.mode, period.baseTimeSec, sheet)) {
                 count += 1
             }
         }
@@ -294,8 +317,8 @@ class WereadSyncService(
     ): Int {
         val direct = provider.assets().orEmpty()
         val books = if (direct.isNotEmpty()) direct else shelfAssets(shelf, longestByBook(stats))
-        if (books.isNotEmpty()) store.writeAssets(books)
-        return books.size
+        if (books.isEmpty()) return 0
+        return if (store.writeAssets(books)) books.size else 0
     }
 
     /**
@@ -367,11 +390,12 @@ class WereadSyncService(
         if (id != null && seconds > 0) target.merge(id, seconds, ::maxOf)
     }
 
-    /** 写入笔记索引与逐篇内容，返回写入数量。 */
+    /** 写入笔记索引与逐篇内容，返回确认落盘的数量。 */
     private suspend fun writeNotes(): Int {
-        val batch = provider.notes() ?: return 0
-        store.writeNotes(batch.indexJson, batch.notes)
-        return batch.notes.size
+        val batch = provider.notes()
+        // 接口无数据时保留本地缓存；有数据但写盘失败时返回 0，表示本轮未确认落盘。
+        val written = if (batch != null && store.writeNotes(batch.indexJson, batch.notes)) batch.notes.size else 0
+        return written
     }
 
     /** 生成同步状态 JSON，供设置页展示与幂等判断。 */

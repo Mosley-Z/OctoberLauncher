@@ -70,8 +70,14 @@ internal class WereadGatewayProvider(
                 if (bookId.isBlank()) {
                     null
                 } else {
-                    val marks = WereadGatewayParsing.parseMarks(requestMarks(bookId))
-                    WereadGatewayParsing.noteFileWithMarks(book, marks)
+                    val marksRaw = requestMarks(bookId)
+                    // 划线请求失败时跳过该书的文件写入，保留本地已缓存的正文；
+                    // 请求成功但划线为空时仍写入，用元数据替换正文是预期行为。
+                    if (marksRaw == null) {
+                        null
+                    } else {
+                        WereadGatewayParsing.noteFileWithMarks(book, WereadGatewayParsing.parseMarks(marksRaw))
+                    }
                 }
             }
         return WereadNoteBatch(indexJson = index, notes = files)

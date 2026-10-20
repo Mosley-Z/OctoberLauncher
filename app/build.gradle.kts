@@ -21,8 +21,8 @@ android {
                 .get()
                 .toInt()
         // V1.0.7 外观即时生效与周期窗口、内置页实验室页签常显与走查缺陷修复；版本号同时作为微读共存判定的阈值下限
-        versionCode = 34
-        versionName = "1.0.14"
+        versionCode = 35
+        versionName = "1.0.15"
     }
 
     buildTypes {

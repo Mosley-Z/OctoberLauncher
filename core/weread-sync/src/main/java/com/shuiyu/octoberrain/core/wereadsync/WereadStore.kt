@@ -83,7 +83,7 @@ class WereadStore(
     fun writeShelf(
         books: List<WereadShelfBook>,
         savedAtMillis: Long,
-    ) {
+    ): Boolean {
         val array =
             buildJsonArray {
                 books.forEach { book ->
@@ -101,7 +101,7 @@ class WereadStore(
                     )
                 }
             }
-        writeShelfDocument(array, savedAtMillis)
+        return writeShelfDocument(array, savedAtMillis)
     }
 
     /**
@@ -109,9 +109,9 @@ class WereadStore(
      *
      * @param ids 书目标识，顺序即展示顺序
      */
-    fun writeShelfIds(ids: List<String>) {
+    fun writeShelfIds(ids: List<String>): Boolean {
         val array = buildJsonArray { ids.forEach { add(JsonPrimitive(it)) } }
-        writeText(FILE_SHELF_IDS, buildJsonObject { put("ids", array) }.toString())
+        return writeText(FILE_SHELF_IDS, buildJsonObject { put("ids", array) }.toString())
     }
 
     /**
@@ -119,10 +119,10 @@ class WereadStore(
      *
      * @param book 当前书目，空值表示回到书架
      */
-    fun writeCurrentBook(book: WereadShelfBook?) {
+    fun writeCurrentBook(book: WereadShelfBook?): Boolean {
         if (book == null) {
             fileOf(FILE_BOOK).delete()
-            return
+            return true
         }
         val document =
             buildJsonObject {
@@ -135,7 +135,7 @@ class WereadStore(
                 put("finished", JsonPrimitive(book.finished))
                 put("finishTime", JsonPrimitive(book.finishTimeMillis))
             }
-        writeText(FILE_BOOK, document.toString())
+        return writeText(FILE_BOOK, document.toString())
     }
 
     /**
@@ -155,7 +155,7 @@ class WereadStore(
         baseTimeSec: Long,
         rawJson: String,
         fetchedAtMillis: Long,
-    ) {
+    ): Boolean {
         val prefs = readPrefs()
         val strings = mutableMapOf<String, String>()
         val longs = mutableMapOf<String, Long>()
@@ -179,8 +179,9 @@ class WereadStore(
         }
         strings[statsKey] = rawJson
         longs[timeKey] = fetchedAtMillis
-        savePrefs(prefs.merge(strings = strings, longs = longs))
-        mergeStatsFile(statsKey, rawJson)
+        val saved = savePrefs(prefs.merge(strings = strings, longs = longs))
+        val merged = mergeStatsFile(statsKey, rawJson)
+        return saved && merged
     }
 
     /**
@@ -194,11 +195,12 @@ class WereadStore(
         mode: String,
         periodStartSec: Long,
         sheetJson: String,
-    ) {
+    ): Boolean {
         val normalized = if (mode == MODE_MONTHLY) MODE_MONTHLY else MODE_WEEKLY
         val key = "bill_${normalized}_$periodStartSec"
-        savePrefs(readPrefs().merge(strings = mapOf(key to sheetJson)))
-        mergeBillFile(key, sheetJson)
+        val saved = savePrefs(readPrefs().merge(strings = mapOf(key to sheetJson)))
+        val merged = mergeBillFile(key, sheetJson)
+        return saved && merged
     }
 
     /**
@@ -206,7 +208,7 @@ class WereadStore(
      *
      * @param books 资产条目，按累计时长降序由调用方排好
      */
-    fun writeAssets(books: List<WereadAssetBook>) {
+    fun writeAssets(books: List<WereadAssetBook>): Boolean {
         val array =
             buildJsonArray {
                 books.forEach { book ->
@@ -224,7 +226,7 @@ class WereadStore(
                     )
                 }
             }
-        writeText(FILE_ASSETS, buildJsonObject { put("books", array) }.toString())
+        return writeText(FILE_ASSETS, buildJsonObject { put("books", array) }.toString())
     }
 
     /**
@@ -232,53 +234,76 @@ class WereadStore(
      *
      * @param indexJson 笔记索引原始 JSON
      * @param notes 逐篇笔记文件
+     * @return true 表示索引与所有逐篇文件均已确认落盘
      */
     fun writeNotes(
         indexJson: String,
         notes: List<WereadNoteFile>,
-    ) {
-        writeText(FILE_NOTE_INDEX, indexJson)
-        notes.forEach { note -> writeText(note.name, note.rawJson) }
+    ): Boolean {
+        var allSaved = writeText(FILE_NOTE_INDEX, indexJson)
+        notes.forEach { note ->
+            if (!writeText(note.name, note.rawJson)) allSaved = false
+        }
+        return allSaved
     }
+
+    /**
+     * 在偏好文件锁内执行一段读改写逻辑。
+     *
+     * 供同模块的待办存储使用：待办的新增、勾选与删除都是「先读整表再写回」，
+     * 与同步服务的偏好写入必须共用同一把锁，否则后写者会覆盖先写者的结果。
+     *
+     * @param block 在锁内执行的逻辑
+     * @return block 的返回值
+     */
+    internal fun <T> withPrefsLock(block: () -> T): T = synchronized(PREFS_LOCK) { block() }
 
     /**
      * 写入一条字符串偏好，用于密钥、菜单与缓存键。
      *
+     * 读改写全过程与其它写入者共用 [PREFS_LOCK]，避免同步与待办各自持锁时互相覆盖。
+     *
      * @param key 偏好键
      * @param value 偏好值
+     * @return true 表示已确认落盘
      */
     fun putString(
         key: String,
         value: String,
-    ) {
-        savePrefs(readPrefs().merge(strings = mapOf(key to value)))
-    }
+    ): Boolean =
+        synchronized(PREFS_LOCK) {
+            savePrefs(readPrefs().merge(strings = mapOf(key to value)))
+        }
 
     /**
      * 写入一条整数偏好。
      *
      * @param key 偏好键
      * @param value 偏好值
+     * @return true 表示已确认落盘
      */
     fun putInt(
         key: String,
         value: Int,
-    ) {
-        savePrefs(readPrefs().merge(ints = mapOf(key to value)))
-    }
+    ): Boolean =
+        synchronized(PREFS_LOCK) {
+            savePrefs(readPrefs().merge(ints = mapOf(key to value)))
+        }
 
     /**
      * 写入一条布尔偏好。
      *
      * @param key 偏好键
      * @param value 偏好值
+     * @return true 表示已确认落盘
      */
     fun putBool(
         key: String,
         value: Boolean,
-    ) {
-        savePrefs(readPrefs().merge(booleans = mapOf(key to value)))
-    }
+    ): Boolean =
+        synchronized(PREFS_LOCK) {
+            savePrefs(readPrefs().merge(booleans = mapOf(key to value)))
+        }
 
     /**
      * 读取一条字符串偏好，缺失时返回空值。
@@ -293,13 +318,15 @@ class WereadStore(
      *
      * @param key 偏好键
      * @param value 偏好值
+     * @return true 表示已确认落盘
      */
     fun putLong(
         key: String,
         value: Long,
-    ) {
-        savePrefs(readPrefs().merge(longs = mapOf(key to value)))
-    }
+    ): Boolean =
+        synchronized(PREFS_LOCK) {
+            savePrefs(readPrefs().merge(longs = mapOf(key to value)))
+        }
 
     /**
      * 读取一条长整数偏好，缺失时返回空值。
@@ -318,31 +345,31 @@ class WereadStore(
     private fun writeShelfDocument(
         books: JsonArray,
         savedAtMillis: Long,
-    ) {
+    ): Boolean {
         val document =
             buildJsonObject {
                 put("books", books)
                 put("savedAt", JsonPrimitive(savedAtMillis))
             }
-        writeText(FILE_SHELF, document.toString())
+        return writeText(FILE_SHELF, document.toString())
     }
 
     private fun mergeStatsFile(
         key: String,
         rawJson: String,
-    ) {
+    ): Boolean {
         val current = readJsonObject(fileOf(FILE_STATS)) ?: JsonObject(emptyMap())
         val merged = JsonObject(current.toMutableMap().apply { put(key, JsonPrimitive(rawJson)) })
-        writeText(FILE_STATS, merged.toString())
+        return writeText(FILE_STATS, merged.toString())
     }
 
     private fun mergeBillFile(
         key: String,
         sheetJson: String,
-    ) {
+    ): Boolean {
         val current = readJsonObject(fileOf(FILE_BILLS)) ?: JsonObject(emptyMap())
         val merged = JsonObject(current.toMutableMap().apply { put(key, JsonPrimitive(sheetJson)) })
-        writeText(FILE_BILLS, merged.toString())
+        return writeText(FILE_BILLS, merged.toString())
     }
 
     private fun readPrefs(): PrefsDocument {
@@ -363,7 +390,7 @@ class WereadStore(
         return node.toMap()
     }
 
-    private fun savePrefs(prefs: PrefsDocument) {
+    private fun savePrefs(prefs: PrefsDocument): Boolean {
         val document =
             buildJsonObject {
                 put(GROUP_STRING, JsonObject(prefs.strings))
@@ -371,7 +398,7 @@ class WereadStore(
                 put(GROUP_INT, JsonObject(prefs.ints))
                 put(GROUP_BOOL, JsonObject(prefs.booleans))
             }
-        writeText(FILE_PREFS, document.toString())
+        return writeText(FILE_PREFS, document.toString())
     }
 
     private fun readJsonObject(file: File): JsonObject? {
@@ -457,6 +484,14 @@ class WereadStore(
 
     companion object {
         private const val TAG = "WereadStore"
+
+        /**
+         * 偏好文件读改写锁。
+         *
+         * 同步服务与待办存储各自持有独立的 [WereadStore] 实例，实例级锁无法互斥，
+         * 故锁放在伴生对象上；同一进程内所有写入者共用同一把锁。
+         */
+        private val PREFS_LOCK = Any()
 
         /** 书架文件。 */
         const val FILE_SHELF: String = "shelf.json"

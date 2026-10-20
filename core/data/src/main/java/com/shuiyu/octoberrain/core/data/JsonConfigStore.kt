@@ -115,33 +115,7 @@ class JsonConfigStore(
         val version =
             (root[KEY_VERSION] as? JsonPrimitive)?.content?.toIntOrNull()
                 ?: defaults.version
-        val parsed =
-            LauncherConfig(
-                version = version,
-                desktop = readSection(root, KEY_DESKTOP, DesktopConfig.serializer(), defaults.desktop),
-                appearance = readSection(root, KEY_APPEARANCE, AppearanceConfig.serializer(), defaults.appearance),
-                tray = readSection(root, KEY_TRAY, TrayConfig.serializer(), defaults.tray),
-                lock = readSection(root, KEY_LOCK, LockConfig.serializer(), defaults.lock),
-                integrations =
-                    readSection(root, KEY_INTEGRATIONS, IntegrationsConfig.serializer(), defaults.integrations),
-                onboarding = readSection(root, KEY_ONBOARDING, OnboardingConfig.serializer(), defaults.onboarding),
-                notifications =
-                    readSection(root, KEY_NOTIFICATIONS, NotificationConfig.serializer(), defaults.notifications),
-                wereadMigration =
-                    readSection(
-                        root,
-                        KEY_WEREAD_MIGRATION,
-                        WereadMigrationState.serializer(),
-                        defaults.wereadMigration,
-                    ),
-                wereadAchievement =
-                    readSection(
-                        root,
-                        KEY_WEREAD_ACHIEVEMENT,
-                        WereadAchievementConfig.serializer(),
-                        defaults.wereadAchievement,
-                    ),
-            )
+        val parsed = decodeSections(root, version, defaults)
         if (parsed.version > LauncherConfig.CURRENT_VERSION) {
             _newerVersionDetected.value = true
             InkLog.w(
@@ -159,6 +133,49 @@ class JsonConfigStore(
         }
         return migrated
     }
+
+    /**
+     * 逐节解码配置，单节失败时回退到该类默认值。
+     *
+     * 独立成方法使 [load] 保持短小；新增配置节时只需在此处追加一行，
+     * 并保持与 [LauncherConfig] 的构造参数一一对应。
+     *
+     * @param root 配置根对象
+     * @param version 磁盘上的版本号
+     * @param defaults 默认配置，用于取各节默认值
+     * @return 解码后的配置
+     */
+    private fun decodeSections(
+        root: JsonObject,
+        version: Int,
+        defaults: LauncherConfig,
+    ): LauncherConfig =
+        LauncherConfig(
+            version = version,
+            desktop = readSection(root, KEY_DESKTOP, DesktopConfig.serializer(), defaults.desktop),
+            appearance = readSection(root, KEY_APPEARANCE, AppearanceConfig.serializer(), defaults.appearance),
+            tray = readSection(root, KEY_TRAY, TrayConfig.serializer(), defaults.tray),
+            lock = readSection(root, KEY_LOCK, LockConfig.serializer(), defaults.lock),
+            integrations =
+                readSection(root, KEY_INTEGRATIONS, IntegrationsConfig.serializer(), defaults.integrations),
+            onboarding = readSection(root, KEY_ONBOARDING, OnboardingConfig.serializer(), defaults.onboarding),
+            notifications =
+                readSection(root, KEY_NOTIFICATIONS, NotificationConfig.serializer(), defaults.notifications),
+            wereadMigration =
+                readSection(
+                    root,
+                    KEY_WEREAD_MIGRATION,
+                    WereadMigrationState.serializer(),
+                    defaults.wereadMigration,
+                ),
+            wereadAchievement =
+                readSection(
+                    root,
+                    KEY_WEREAD_ACHIEVEMENT,
+                    WereadAchievementConfig.serializer(),
+                    defaults.wereadAchievement,
+                ),
+        )
 
     /**
      * 把配置序列化并写入持久化层。

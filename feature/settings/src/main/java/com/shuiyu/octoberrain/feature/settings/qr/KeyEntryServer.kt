@@ -1,9 +1,11 @@
 package com.shuiyu.octoberrain.feature.settings.qr
 
+import com.shuiyu.octoberrain.core.common.InkLog
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
@@ -45,6 +47,9 @@ internal class KeyEntryServer {
 
     /** 服务是否处于运行状态。 */
     private val running = AtomicBoolean(false)
+
+    /** 过期通知是否已发出，避免轮询与请求处理重复回调。 */
+    private val expiredNotified = AtomicBoolean(false)
 
     /** 服务启动时刻，用于计算存活时长。 */
     private var startedAt: Long = 0L
@@ -115,10 +120,9 @@ internal class KeyEntryServer {
         listener: Listener,
     ) {
         try {
-            var active = true
-            while (active && running.get() && !expired(listener)) {
+            while (running.get() && !expired(listener)) {
                 val client = accept(socket)
-                active = client != null && !dispatch(client, listener)
+                if (client != null && dispatch(client, listener)) return
             }
         } finally {
             running.set(false)
@@ -131,27 +135,57 @@ internal class KeyEntryServer {
         client: Socket,
         listener: Listener,
     ): Boolean {
-        val key = KeyEntryHandler { token }.handle(client) ?: return false
-        listener.onKey(key)
-        return true
+        // 连接可能在上一次轮询之后才到达，处理前再核对一次有效期，
+        // 避免超时后的旧链接仍然提交密钥。
+        val key =
+            if (expired(listener)) {
+                runCatching { client.close() }
+                null
+            } else {
+                KeyEntryHandler { token }.handle(client)
+            }
+        if (key != null) listener.onKey(key)
+        return key != null
     }
 
-    /** 判断服务是否超过存活上限，超时时通知调用方。 */
+    /** 判断服务是否超过存活上限，首次超时时通知调用方。 */
     private fun expired(listener: Listener): Boolean {
         val overtime = System.currentTimeMillis() - startedAt > LIFETIME_MS
-        if (overtime) listener.onClosed("页面已过期，请重新生成")
+        if (overtime && expiredNotified.compareAndSet(false, true)) {
+            listener.onClosed("页面已过期，请重新生成")
+        }
         return overtime
     }
 
-    /** 接受一个连接，套接字关闭时返回 null。 */
-    private fun accept(socket: ServerSocket): Socket? = runCatching { socket.accept() }.getOrNull()
+    /**
+     * 有界等待一个连接。
+     *
+     * 监听套接字设置轮询超时，超时返回 null 让主循环重新核对有效期；
+     * 套接字已被关闭时同样返回 null，主循环依据 running 标志退出。
+     *
+     * @param socket 监听套接字
+     * @return 已建立的连接，超时或关闭时返回 null
+     */
+    private fun accept(socket: ServerSocket): Socket? {
+        socket.soTimeout = ACCEPT_POLL_MS
+        return runCatching { socket.accept() }.getOrElse { error ->
+            if (error !is SocketTimeoutException) InkLog.w(TAG, "接受连接失败：${error.message}")
+            null
+        }
+    }
 
     /** 服务内部常量。 */
     private companion object {
         /** 服务最长存活时间，单位毫秒。 */
         const val LIFETIME_MS = 5 * 60 * 1000L
 
+        /** 接受连接的轮询间隔，单位毫秒，用于在无连接时也能按时过期。 */
+        const val ACCEPT_POLL_MS = 1_000
+
         /** 令牌随机字节数。 */
         const val TOKEN_BYTES = 16
+
+        /** 日志标签。 */
+        const val TAG = "KeyEntryServer"
     }
 }

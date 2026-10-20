@@ -1,5 +1,7 @@
 package com.shuiyu.octoberrain.core.wereadsync
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -262,6 +264,39 @@ class WereadSyncServiceTest {
         assertEquals(secOf(week.minusWeeks(weekIndex.toLong())), periods[weekIndex].baseTimeSec)
         assertEquals(secOf(month.minusMonths(monthOffset.toLong())), periods[monthIndex].baseTimeSec)
         assertEquals(secOf(year.minusYears(yearOffset.toLong())), periods[yearIndex].baseTimeSec)
+    }
+
+    /**
+     * 并发写入不同偏好键时各键都保留。
+     *
+     * 内核偏好是「读文档、改一组、写回」的流程，不加锁时并发调用会互相覆盖；
+     * 这里以八个协程同时写不同键，验证读回后全部存在。
+     */
+    @Test
+    fun `并发写入不同偏好键不互相覆盖`() =
+        runBlocking {
+            val target = WereadStore(File(folder.root, "weread"))
+            (1..8)
+                .map { index ->
+                    launch(Dispatchers.IO) { target.putString("slot_$index", "value_$index") }
+                }.forEach { it.join() }
+
+            (1..8).forEach { index ->
+                assertEquals("value_$index", target.getString("slot_$index"))
+            }
+        }
+
+    /** 目标目录不可写时写入返回失败，不抛出异常。 */
+    @Test
+    fun `目录不可写时写入返回失败`() {
+        val root = File(folder.root, "weread_blocked")
+        // 用普通文件占用目标目录路径，使建目录与写盘都失败。
+        root.writeText("blocked")
+
+        val blocked = WereadStore(root)
+
+        assertFalse(blocked.putString("k", "v"))
+        assertFalse(blocked.writeShelfIds(listOf("b1")))
     }
 }
 
