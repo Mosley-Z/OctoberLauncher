@@ -379,17 +379,27 @@ class WereadStore(
         return runCatching { Json.parseToJsonElement(file.readText()).jsonObject }.getOrNull()
     }
 
+    /**
+     * 把一段文本原子写入数据目录。
+     *
+     * 临时文件名带纳秒后缀，避免同步与待办两个写入者共用同一个临时文件互相覆盖；
+     * 写入、改名与兜底拷贝任一环节失败都返回 false，由调用方统计真实落盘数量。
+     *
+     * @param name 目标文件名
+     * @param text 待写入内容
+     * @return true 表示已确认落到目标文件，false 表示写入失败
+     */
     private fun writeText(
         name: String,
         text: String,
-    ) {
-        runCatching {
-            if (!root.exists() && !root.mkdirs()) {
-                InkLog.w(TAG, "微读数据目录创建失败：${root.absolutePath}")
-                return@runCatching
-            }
-            val target = fileOf(name)
-            val temp = File(root, "$name.tmp")
+    ): Boolean {
+        if (!root.exists() && !root.mkdirs()) {
+            InkLog.w(TAG, "微读数据目录创建失败：${root.absolutePath}")
+            return false
+        }
+        val target = fileOf(name)
+        val temp = File(root, "$name.${System.nanoTime()}.tmp")
+        return runCatching {
             temp.writeText(text)
             if (!temp.renameTo(target)) {
                 target.delete()
@@ -398,7 +408,12 @@ class WereadStore(
                     temp.delete()
                 }
             }
-        }.onFailure { error -> InkLog.w(TAG, "写入 $name 失败：${error.message}") }
+            true
+        }.getOrElse { error ->
+            InkLog.w(TAG, "写入 $name 失败：${error.message}")
+            temp.delete()
+            false
+        }
     }
 
     private fun fileOf(name: String): File = File(root, name)

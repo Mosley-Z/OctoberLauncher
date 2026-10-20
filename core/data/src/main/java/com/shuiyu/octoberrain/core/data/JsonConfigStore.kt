@@ -12,6 +12,8 @@ import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.common.NotificationConfig
 import com.shuiyu.octoberrain.core.common.OnboardingConfig
 import com.shuiyu.octoberrain.core.common.TrayConfig
+import com.shuiyu.octoberrain.core.common.WereadAchievementConfig
+import com.shuiyu.octoberrain.core.common.WereadMigrationState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -125,6 +127,20 @@ class JsonConfigStore(
                 onboarding = readSection(root, KEY_ONBOARDING, OnboardingConfig.serializer(), defaults.onboarding),
                 notifications =
                     readSection(root, KEY_NOTIFICATIONS, NotificationConfig.serializer(), defaults.notifications),
+                wereadMigration =
+                    readSection(
+                        root,
+                        KEY_WEREAD_MIGRATION,
+                        WereadMigrationState.serializer(),
+                        defaults.wereadMigration,
+                    ),
+                wereadAchievement =
+                    readSection(
+                        root,
+                        KEY_WEREAD_ACHIEVEMENT,
+                        WereadAchievementConfig.serializer(),
+                        defaults.wereadAchievement,
+                    ),
             )
         if (parsed.version > LauncherConfig.CURRENT_VERSION) {
             _newerVersionDetected.value = true
@@ -208,5 +224,7 @@ class JsonConfigStore(
         const val KEY_INTEGRATIONS = "integrations"
         const val KEY_ONBOARDING = "onboarding"
         const val KEY_NOTIFICATIONS = "notifications"
+        const val KEY_WEREAD_MIGRATION = "wereadMigration"
+        const val KEY_WEREAD_ACHIEVEMENT = "wereadAchievement"
     }
 }

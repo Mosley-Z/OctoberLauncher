@@ -25,6 +25,10 @@ _tools/*.jar
 _tools/**/*.jar
 _tools/node_modules/
 
+# 构建日志与一次性运行记录不入库
+_analysis/**/*.log
+*.log
+
 # 打包产物不入库，只保留内核 jar 与校验文件
 app/build/
 */build/
