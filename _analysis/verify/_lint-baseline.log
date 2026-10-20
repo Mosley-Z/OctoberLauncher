@@ -1,0 +1,1277 @@
+> Task :feature:content:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :service:preBuild UP-TO-DATE
+> Task :feature:tray:preBuild UP-TO-DATE
+> Task :core:data:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:render:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:widget-api:preBuild UP-TO-DATE
+> Task :core:device:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:settings:preBuild UP-TO-DATE
+> Task :core:data:preBuild UP-TO-DATE
+> Task :feature:content:preDebugBuild UP-TO-DATE
+> Task :feature:home:preBuild UP-TO-DATE
+> Task :core:widget-api:preDebugBuild UP-TO-DATE
+> Task :feature:widgets:preBuild UP-TO-DATE
+> Task :core:design:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:data:preDebugBuild UP-TO-DATE
+> Task :core:design:preBuild UP-TO-DATE
+> Task :core:common:preBuild UP-TO-DATE
+> Task :core:device:preBuild UP-TO-DATE
+> Task :core:device:preDebugBuild UP-TO-DATE
+> Task :feature:home:preDebugBuild UP-TO-DATE
+> Task :core:render:preBuild UP-TO-DATE
+> Task :core:render:preDebugBuild UP-TO-DATE
+> Task :core:device:generateDebugResValues UP-TO-DATE
+> Task :core:widget-api:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:tray:preDebugBuild UP-TO-DATE
+> Task :feature:home:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:settings:preDebugBuild UP-TO-DATE
+> Task :service:preDebugBuild UP-TO-DATE
+> Task :core:device:generateDebugResources UP-TO-DATE
+> Task :core:render:generateDebugResValues UP-TO-DATE
+> Task :core:design:preDebugBuild UP-TO-DATE
+> Task :feature:settings:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:render:generateDebugResources UP-TO-DATE
+> Task :core:design:generateDebugResValues UP-TO-DATE
+> Task :service:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :core:data:generateDebugResValues UP-TO-DATE
+> Task :feature:home:mergeDebugNativeLibs NO-SOURCE
+> Task :core:design:generateDebugResources UP-TO-DATE
+> Task :core:device:packageDebugResources UP-TO-DATE
+> Task :feature:widgets:preDebugBuild UP-TO-DATE
+> Task :feature:content:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:data:generateDebugResources UP-TO-DATE
+> Task :core:common:preDebugBuild UP-TO-DATE
+> Task :feature:settings:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:widgets:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:widget-api:mergeDebugNativeLibs NO-SOURCE
+> Task :core:common:generateDebugResValues UP-TO-DATE
+> Task :feature:tray:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:home:stripDebugDebugSymbols NO-SOURCE
+> Task :feature:content:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:settings:stripDebugDebugSymbols NO-SOURCE
+> Task :core:common:generateDebugResources UP-TO-DATE
+> Task :feature:widgets:mergeDebugNativeLibs NO-SOURCE
+> Task :core:widget-api:stripDebugDebugSymbols NO-SOURCE
+> Task :core:design:packageDebugResources UP-TO-DATE
+> Task :core:data:packageDebugResources UP-TO-DATE
+> Task :service:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:home:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :core:widget-api:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :core:widget-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:render:packageDebugResources UP-TO-DATE
+> Task :feature:content:stripDebugDebugSymbols NO-SOURCE
+> Task :feature:home:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:widgets:stripDebugDebugSymbols NO-SOURCE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :service:stripDebugDebugSymbols NO-SOURCE
+> Task :core:widget-api:generateDebugResValues UP-TO-DATE
+> Task :feature:content:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:settings:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:tray:mergeDebugNativeLibs NO-SOURCE
+> Task :service:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:tray:stripDebugDebugSymbols NO-SOURCE
+> Task :feature:home:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :feature:tray:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:content:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:tray:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:widgets:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :service:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:widget-api:generateDebugResources UP-TO-DATE
+> Task :feature:settings:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:home:generateDebugResources UP-TO-DATE
+> Task :feature:widgets:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:tray:generateDebugResValues UP-TO-DATE
+> Task :feature:widgets:generateDebugResValues UP-TO-DATE
+> Task :feature:content:generateDebugResValues UP-TO-DATE
+> Task :feature:tray:generateDebugResources UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :service:generateDebugResValues UP-TO-DATE
+> Task :feature:content:generateDebugResources UP-TO-DATE
+> Task :core:common:packageDebugResources UP-TO-DATE
+> Task :feature:settings:generateDebugResValues UP-TO-DATE
+> Task :feature:settings:generateDebugResources UP-TO-DATE
+> Task :core:widget-api:packageDebugResources UP-TO-DATE
+> Task :feature:widgets:generateDebugResources UP-TO-DATE
+> Task :service:generateDebugResources UP-TO-DATE
+> Task :core:design:parseDebugLocalResources UP-TO-DATE
+> Task :feature:home:packageDebugResources UP-TO-DATE
+> Task :service:packageDebugResources UP-TO-DATE
+> Task :feature:tray:packageDebugResources UP-TO-DATE
+> Task :feature:content:packageDebugResources UP-TO-DATE
+> Task :feature:widgets:packageDebugResources UP-TO-DATE
+> Task :feature:settings:packageDebugResources UP-TO-DATE
+> Task :core:design:generateDebugRFile UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :core:design:javaPreCompileDebug UP-TO-DATE
+> Task :core:design:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:device:parseDebugLocalResources UP-TO-DATE
+> Task :core:design:mergeDebugNativeLibs NO-SOURCE
+> Task :core:design:stripDebugDebugSymbols NO-SOURCE
+> Task :core:device:generateDebugRFile UP-TO-DATE
+> Task :core:design:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :core:device:javaPreCompileDebug UP-TO-DATE
+> Task :core:design:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :core:device:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:design:mergeDebugShaders UP-TO-DATE
+> Task :core:device:mergeDebugNativeLibs NO-SOURCE
+> Task :core:design:compileDebugShaders NO-SOURCE
+> Task :feature:widgets:parseDebugLocalResources UP-TO-DATE
+> Task :core:design:generateDebugAssets UP-TO-DATE
+> Task :core:device:stripDebugDebugSymbols NO-SOURCE
+> Task :core:design:packageDebugAssets UP-TO-DATE
+> Task :core:device:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:widgets:generateDebugRFile UP-TO-DATE
+> Task :core:design:prepareDebugArtProfile UP-TO-DATE
+> Task :feature:widgets:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :feature:widgets:javaPreCompileDebug UP-TO-DATE
+> Task :core:design:prepareLintJarForPublish UP-TO-DATE
+> Task :core:device:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :feature:widgets:mergeDebugShaders UP-TO-DATE
+> Task :core:device:mergeDebugShaders UP-TO-DATE
+> Task :feature:widgets:compileDebugShaders NO-SOURCE
+> Task :feature:widgets:generateDebugAssets UP-TO-DATE
+> Task :service:parseDebugLocalResources UP-TO-DATE
+> Task :core:design:processDebugManifest UP-TO-DATE
+> Task :feature:widgets:packageDebugAssets UP-TO-DATE
+> Task :core:device:compileDebugShaders NO-SOURCE
+> Task :core:device:generateDebugAssets UP-TO-DATE
+> Task :feature:widgets:prepareDebugArtProfile UP-TO-DATE
+> Task :core:device:packageDebugAssets UP-TO-DATE
+> Task :service:generateDebugRFile UP-TO-DATE
+> Task :feature:widgets:prepareLintJarForPublish UP-TO-DATE
+> Task :feature:home:parseDebugLocalResources UP-TO-DATE
+> Task :service:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :core:design:writeDebugAarMetadata UP-TO-DATE
+> Task :service:javaPreCompileDebug UP-TO-DATE
+> Task :feature:home:generateDebugRFile UP-TO-DATE
+> Task :feature:widgets:processDebugManifest UP-TO-DATE
+> Task :core:device:prepareDebugArtProfile UP-TO-DATE
+> Task :core:design:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:widgets:writeDebugAarMetadata UP-TO-DATE
+> Task :service:mergeDebugShaders UP-TO-DATE
+> Task :feature:home:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :feature:home:javaPreCompileDebug UP-TO-DATE
+> Task :feature:content:parseDebugLocalResources UP-TO-DATE
+> Task :feature:widgets:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:home:mergeDebugShaders UP-TO-DATE
+> Task :feature:widgets:compileDebugLibraryResources UP-TO-DATE
+> Task :service:compileDebugShaders NO-SOURCE
+> Task :core:design:compileDebugLibraryResources UP-TO-DATE
+> Task :service:generateDebugAssets UP-TO-DATE
+> Task :feature:content:generateDebugRFile UP-TO-DATE
+> Task :service:packageDebugAssets UP-TO-DATE
+> Task :feature:content:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :feature:widgets:writeDebugLintModelMetadata UP-TO-DATE
+> Task :feature:home:compileDebugShaders NO-SOURCE
+> Task :service:prepareDebugArtProfile UP-TO-DATE
+> Task :core:design:writeDebugLintModelMetadata UP-TO-DATE
+> Task :core:device:prepareLintJarForPublish UP-TO-DATE
+> Task :feature:widgets:extractProguardFiles UP-TO-DATE
+> Task :feature:widgets:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:design:extractProguardFiles UP-TO-DATE
+> Task :service:prepareLintJarForPublish UP-TO-DATE
+> Task :feature:widgets:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:design:preDebugAndroidTestBuild UP-TO-DATE
+> Task :feature:home:generateDebugAssets UP-TO-DATE
+> Task :feature:widgets:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:content:javaPreCompileDebug UP-TO-DATE
+> Task :core:design:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:design:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:settings:parseDebugLocalResources UP-TO-DATE
+> Task :feature:content:mergeDebugShaders UP-TO-DATE
+> Task :feature:home:packageDebugAssets UP-TO-DATE
+> Task :core:device:processDebugManifest UP-TO-DATE
+> Task :feature:content:compileDebugShaders NO-SOURCE
+> Task :service:processDebugManifest UP-TO-DATE
+> Task :feature:settings:generateDebugRFile UP-TO-DATE
+> Task :feature:home:prepareDebugArtProfile UP-TO-DATE
+> Task :core:device:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:content:generateDebugAssets UP-TO-DATE
+> Task :core:render:parseDebugLocalResources UP-TO-DATE
+> Task :service:writeDebugAarMetadata UP-TO-DATE
+> Task :core:render:generateDebugRFile UP-TO-DATE
+> Task :service:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:settings:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :feature:home:prepareLintJarForPublish UP-TO-DATE
+> Task :core:widget-api:parseDebugLocalResources UP-TO-DATE
+> Task :feature:settings:javaPreCompileDebug UP-TO-DATE
+> Task :service:compileDebugLibraryResources UP-TO-DATE
+> Task :core:device:extractDeepLinksDebug UP-TO-DATE
+> Task :core:render:javaPreCompileDebug UP-TO-DATE
+> Task :feature:content:packageDebugAssets UP-TO-DATE
+> Task :core:render:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:home:processDebugManifest UP-TO-DATE
+> Task :feature:content:prepareDebugArtProfile UP-TO-DATE
+> Task :core:device:compileDebugLibraryResources UP-TO-DATE
+> Task :service:writeDebugLintModelMetadata UP-TO-DATE
+> Task :feature:home:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:settings:mergeDebugShaders UP-TO-DATE
+> Task :core:widget-api:generateDebugRFile UP-TO-DATE
+> Task :core:render:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:content:prepareLintJarForPublish UP-TO-DATE
+> Task :core:widget-api:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :service:extractProguardFiles UP-TO-DATE
+> Task :core:render:stripDebugDebugSymbols NO-SOURCE
+> Task :core:widget-api:javaPreCompileDebug UP-TO-DATE
+> Task :feature:home:extractDeepLinksDebug UP-TO-DATE
+> Task :core:widget-api:mergeDebugShaders UP-TO-DATE
+> Task :core:render:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:home:compileDebugLibraryResources UP-TO-DATE
+> Task :core:widget-api:compileDebugShaders NO-SOURCE
+> Task :feature:tray:parseDebugLocalResources UP-TO-DATE
+> Task :core:widget-api:generateDebugAssets UP-TO-DATE
+> Task :core:render:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :core:device:writeDebugLintModelMetadata UP-TO-DATE
+> Task :service:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:widget-api:packageDebugAssets UP-TO-DATE
+> Task :core:render:mergeDebugShaders UP-TO-DATE
+> Task :feature:home:writeDebugLintModelMetadata UP-TO-DATE
+> Task :service:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :feature:tray:generateDebugRFile UP-TO-DATE
+> Task :core:render:compileDebugShaders NO-SOURCE
+> Task :core:render:generateDebugAssets UP-TO-DATE
+> Task :feature:settings:compileDebugShaders NO-SOURCE
+> Task :core:widget-api:prepareDebugArtProfile UP-TO-DATE
+> Task :feature:settings:generateDebugAssets UP-TO-DATE
+> Task :core:render:packageDebugAssets UP-TO-DATE
+> Task :feature:tray:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :core:render:prepareDebugArtProfile UP-TO-DATE
+> Task :core:widget-api:prepareLintJarForPublish UP-TO-DATE
+> Task :feature:home:extractProguardFiles UP-TO-DATE
+> Task :service:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:tray:javaPreCompileDebug UP-TO-DATE
+> Task :core:render:prepareLintJarForPublish UP-TO-DATE
+> Task :feature:settings:packageDebugAssets UP-TO-DATE
+> Task :feature:home:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:widget-api:processDebugManifest UP-TO-DATE
+> Task :core:widget-api:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:home:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:render:processDebugManifest UP-TO-DATE
+> Task :feature:tray:mergeDebugShaders UP-TO-DATE
+> Task :feature:settings:prepareDebugArtProfile UP-TO-DATE
+> Task :feature:content:processDebugManifest UP-TO-DATE
+> Task :core:device:extractProguardFiles UP-TO-DATE
+> Task :core:device:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:widget-api:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:home:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:tray:compileDebugShaders NO-SOURCE
+> Task :feature:tray:generateDebugAssets UP-TO-DATE
+> Task :feature:content:writeDebugAarMetadata UP-TO-DATE
+> Task :core:widget-api:compileDebugLibraryResources UP-TO-DATE
+> Task :core:device:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :feature:content:extractDeepLinksDebug UP-TO-DATE
+> Task :core:device:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:tray:packageDebugAssets UP-TO-DATE
+> Task :core:render:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:tray:prepareDebugArtProfile UP-TO-DATE
+> Task :feature:content:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:tray:prepareLintJarForPublish UP-TO-DATE
+> Task :feature:settings:prepareLintJarForPublish UP-TO-DATE
+> Task :core:widget-api:writeDebugLintModelMetadata UP-TO-DATE
+> Task :core:render:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:content:writeDebugLintModelMetadata UP-TO-DATE
+> Task :core:render:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:content:extractProguardFiles UP-TO-DATE
+> Task :core:render:writeDebugLintModelMetadata UP-TO-DATE
+> Task :feature:content:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:widget-api:extractProguardFiles UP-TO-DATE
+> Task :core:widget-api:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:data:parseDebugLocalResources UP-TO-DATE
+> Task :feature:settings:processDebugManifest UP-TO-DATE
+> Task :feature:content:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :feature:tray:processDebugManifest UP-TO-DATE
+> Task :feature:settings:writeDebugAarMetadata UP-TO-DATE
+> Task :feature:content:preDebugUnitTestBuild UP-TO-DATE
+> Task :core:widget-api:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :feature:settings:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:tray:writeDebugAarMetadata UP-TO-DATE
+> Task :core:render:extractProguardFiles UP-TO-DATE
+> Task :core:widget-api:preDebugUnitTestBuild UP-TO-DATE
+> Task :core:data:generateDebugRFile UP-TO-DATE
+> Task :core:render:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:render:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:render:preDebugUnitTestBuild UP-TO-DATE
+> Task :core:data:javaPreCompileDebug UP-TO-DATE
+> Task :feature:tray:extractDeepLinksDebug UP-TO-DATE
+> Task :feature:settings:compileDebugLibraryResources UP-TO-DATE
+> Task :core:data:mergeDebugJniLibFolders UP-TO-DATE
+> Task :feature:settings:writeDebugLintModelMetadata UP-TO-DATE
+> Task :core:common:parseDebugLocalResources UP-TO-DATE
+> Task :core:data:mergeDebugNativeLibs NO-SOURCE
+> Task :feature:tray:compileDebugLibraryResources UP-TO-DATE
+> Task :feature:settings:extractProguardFiles UP-TO-DATE
+> Task :feature:settings:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:data:stripDebugDebugSymbols NO-SOURCE
+> Task :feature:tray:writeDebugLintModelMetadata UP-TO-DATE
+> Task :feature:settings:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :feature:settings:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:tray:extractProguardFiles UP-TO-DATE
+> Task :feature:tray:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:data:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :feature:tray:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:common:generateDebugRFile UP-TO-DATE
+> Task :feature:tray:preDebugUnitTestBuild UP-TO-DATE
+> Task :core:data:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :core:data:mergeDebugShaders UP-TO-DATE
+> Task :core:data:compileDebugShaders NO-SOURCE
+> Task :core:data:generateDebugAssets UP-TO-DATE
+> Task :core:data:packageDebugAssets UP-TO-DATE
+> Task :core:data:prepareDebugArtProfile UP-TO-DATE
+> Task :core:data:prepareLintJarForPublish UP-TO-DATE
+> Task :core:data:processDebugManifest UP-TO-DATE
+> Task :core:data:writeDebugAarMetadata UP-TO-DATE
+> Task :core:data:extractDeepLinksDebug UP-TO-DATE
+> Task :core:data:compileDebugLibraryResources UP-TO-DATE
+> Task :core:data:writeDebugLintModelMetadata UP-TO-DATE
+> Task :core:data:extractProguardFiles UP-TO-DATE
+> Task :core:data:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:data:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:data:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :app:extractProguardFiles UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :core:common:compileDebugKotlin UP-TO-DATE
+> Task :core:common:javaPreCompileDebug UP-TO-DATE
+> Task :core:common:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:common:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:common:mergeDebugJniLibFolders UP-TO-DATE
+> Task :core:common:mergeDebugNativeLibs NO-SOURCE
+> Task :core:common:stripDebugDebugSymbols NO-SOURCE
+> Task :core:common:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :core:common:extractDebugAnnotations UP-TO-DATE
+> Task :core:common:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :core:common:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:common:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:common:mergeDebugShaders UP-TO-DATE
+> Task :core:common:compileDebugShaders NO-SOURCE
+> Task :core:common:generateDebugAssets UP-TO-DATE
+> Task :core:common:packageDebugAssets UP-TO-DATE
+> Task :core:common:prepareDebugArtProfile UP-TO-DATE
+> Task :core:common:prepareLintJarForPublish UP-TO-DATE
+> Task :core:device:compileDebugKotlin UP-TO-DATE
+> Task :core:device:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:common:processDebugManifest UP-TO-DATE
+> Task :core:device:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:common:processDebugJavaRes UP-TO-DATE
+> Task :core:common:mergeDebugJavaResource UP-TO-DATE
+> Task :core:common:syncDebugLibJars UP-TO-DATE
+> Task :core:common:writeDebugAarMetadata UP-TO-DATE
+> Task :core:device:extractDebugAnnotations UP-TO-DATE
+> Task :core:common:bundleDebugLocalLintAar UP-TO-DATE
+> Task :core:common:extractDeepLinksDebug UP-TO-DATE
+> Task :core:device:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:common:compileDebugLibraryResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :core:common:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:device:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:common:createFullJarDebug UP-TO-DATE
+> Task :core:common:writeDebugLintModelMetadata UP-TO-DATE
+> Task :core:common:extractProguardFiles UP-TO-DATE
+> Task :core:device:processDebugJavaRes UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :core:device:mergeDebugJavaResource UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :core:device:syncDebugLibJars UP-TO-DATE
+> Task :core:device:bundleDebugLocalLintAar UP-TO-DATE
+> Task :core:device:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:device:createFullJarDebug UP-TO-DATE
+> Task :core:design:compileDebugKotlin UP-TO-DATE
+> Task :core:design:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:design:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :core:design:extractDebugAnnotations UP-TO-DATE
+> Task :core:common:generateDebugLintModel
+> Task :core:design:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:design:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:design:processDebugJavaRes UP-TO-DATE
+> Task :core:design:mergeDebugJavaResource UP-TO-DATE
+> Task :core:design:syncDebugLibJars UP-TO-DATE
+> Task :core:design:bundleDebugLocalLintAar UP-TO-DATE
+> Task :core:design:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:design:createFullJarDebug UP-TO-DATE
+> Task :core:device:generateDebugAndroidTestLintModel
+> Task :core:render:compileDebugKotlin UP-TO-DATE
+> Task :core:render:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:render:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:render:extractDebugAnnotations UP-TO-DATE
+> Task :core:render:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:render:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:render:processDebugJavaRes UP-TO-DATE
+> Task :core:render:mergeDebugJavaResource UP-TO-DATE
+> Task :core:common:preDebugAndroidTestBuild UP-TO-DATE
+> Task :core:common:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :core:device:generateDebugLintModel
+> Task :core:render:syncDebugLibJars UP-TO-DATE
+> Task :core:render:bundleDebugLocalLintAar UP-TO-DATE
+> Task :core:render:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:render:createFullJarDebug UP-TO-DATE
+> Task :core:data:compileDebugKotlin UP-TO-DATE
+> Task :core:data:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:data:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:design:generateDebugAndroidTestLintModel
+> Task :core:data:extractDebugAnnotations UP-TO-DATE
+> Task :core:data:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:data:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:data:processDebugJavaRes UP-TO-DATE
+> Task :core:data:mergeDebugJavaResource UP-TO-DATE
+> Task :core:render:generateDebugAndroidTestLintModel
+> Task :feature:content:compileDebugKotlin UP-TO-DATE
+> Task :service:compileDebugKotlin UP-TO-DATE
+> Task :core:widget-api:compileDebugKotlin UP-TO-DATE
+> Task :feature:tray:compileDebugKotlin UP-TO-DATE
+> Task :core:data:syncDebugLibJars UP-TO-DATE
+> Task :core:data:bundleDebugLocalLintAar UP-TO-DATE
+> Task :service:extractDebugAnnotations UP-TO-DATE
+> Task :core:widget-api:extractDebugAnnotations UP-TO-DATE
+> Task :core:widget-api:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:device:generateDebugUnitTestLintModel
+> Task :service:compileDebugJavaWithJavac NO-SOURCE
+> Task :service:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:widget-api:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:widget-api:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:data:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:content:extractDebugAnnotations UP-TO-DATE
+> Task :feature:tray:extractDebugAnnotations UP-TO-DATE
+> Task :core:widget-api:processDebugJavaRes UP-TO-DATE
+> Task :core:data:createFullJarDebug UP-TO-DATE
+> Task :core:common:generateDebugAndroidTestLintModel
+> Task :service:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :core:common:preDebugUnitTestBuild UP-TO-DATE
+> Task :feature:tray:compileDebugJavaWithJavac NO-SOURCE
+> Task :feature:content:compileDebugJavaWithJavac NO-SOURCE
+> Task :service:processDebugJavaRes UP-TO-DATE
+> Task :feature:tray:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :feature:content:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :core:design:generateDebugLintModel
+> Task :feature:tray:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :feature:content:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :service:mergeDebugJavaResource UP-TO-DATE
+> Task :core:widget-api:mergeDebugJavaResource UP-TO-DATE
+> Task :feature:tray:processDebugJavaRes UP-TO-DATE
+> Task :feature:content:processDebugJavaRes UP-TO-DATE
+> Task :core:widget-api:syncDebugLibJars UP-TO-DATE
+> Task :service:syncDebugLibJars UP-TO-DATE
+> Task :feature:tray:mergeDebugJavaResource UP-TO-DATE
+> Task :feature:content:mergeDebugJavaResource UP-TO-DATE
+> Task :service:bundleDebugLocalLintAar UP-TO-DATE
+> Task :core:widget-api:bundleDebugLocalLintAar UP-TO-DATE
+> Task :core:widget-api:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :service:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:content:syncDebugLibJars UP-TO-DATE
+> Task :feature:tray:syncDebugLibJars UP-TO-DATE
+> Task :core:widget-api:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :service:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:widget-api:createFullJarDebug UP-TO-DATE
+> Task :service:createFullJarDebug UP-TO-DATE
+> Task :feature:tray:bundleDebugLocalLintAar UP-TO-DATE
+> Task :feature:content:bundleDebugLocalLintAar UP-TO-DATE
+> Task :feature:content:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:tray:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:content:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:tray:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:content:createFullJarDebug UP-TO-DATE
+> Task :feature:tray:createFullJarDebug UP-TO-DATE
+> Task :core:render:generateDebugUnitTestLintModel
+> Task :feature:widgets:compileDebugKotlin UP-TO-DATE
+> Task :feature:home:compileDebugKotlin UP-TO-DATE
+> Task :feature:settings:compileDebugKotlin UP-TO-DATE
+> Task :feature:widgets:extractDebugAnnotations UP-TO-DATE
+> Task :feature:widgets:compileDebugJavaWithJavac NO-SOURCE
+> Task :feature:home:extractDebugAnnotations UP-TO-DATE
+> Task :feature:widgets:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :feature:widgets:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :feature:home:compileDebugJavaWithJavac NO-SOURCE
+> Task :feature:settings:extractDebugAnnotations UP-TO-DATE
+> Task :feature:widgets:processDebugJavaRes UP-TO-DATE
+> Task :feature:home:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :feature:widgets:mergeDebugJavaResource UP-TO-DATE
+> Task :feature:settings:compileDebugJavaWithJavac NO-SOURCE
+> Task :feature:home:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :feature:widgets:syncDebugLibJars UP-TO-DATE
+> Task :feature:settings:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :feature:settings:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :feature:settings:processDebugJavaRes UP-TO-DATE
+> Task :feature:home:processDebugJavaRes UP-TO-DATE
+> Task :core:data:generateDebugAndroidTestLintModel
+> Task :feature:settings:mergeDebugJavaResource UP-TO-DATE
+> Task :feature:widgets:bundleDebugLocalLintAar UP-TO-DATE
+> Task :feature:home:mergeDebugJavaResource UP-TO-DATE
+> Task :feature:settings:syncDebugLibJars UP-TO-DATE
+> Task :core:common:generateDebugUnitTestLintModel
+> Task :feature:settings:bundleDebugLocalLintAar UP-TO-DATE
+> Task :feature:home:syncDebugLibJars UP-TO-DATE
+> Task :feature:widgets:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:settings:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:widgets:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:widgets:createFullJarDebug UP-TO-DATE
+> Task :feature:settings:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:home:bundleDebugLocalLintAar UP-TO-DATE
+> Task :feature:settings:createFullJarDebug UP-TO-DATE
+> Task :feature:home:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:home:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:home:createFullJarDebug UP-TO-DATE
+> Task :feature:content:generateDebugAndroidTestLintModel
+> Task :core:design:generateDebugUnitTestLintModel
+> Task :feature:tray:generateDebugAndroidTestLintModel
+> Task :core:render:generateDebugLintModel
+> Task :service:generateDebugAndroidTestLintModel
+> Task :core:common:generateDebugLintReportModel
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :core:design:generateDebugLintReportModel
+> Task :core:data:generateDebugUnitTestLintModel
+> Task :core:device:generateDebugLintReportModel
+> Task :feature:home:generateDebugAndroidTestLintModel
+> Task :feature:settings:generateDebugAndroidTestLintModel
+> Task :core:widget-api:generateDebugAndroidTestLintModel
+> Task :feature:tray:generateDebugUnitTestLintModel
+> Task :service:generateDebugUnitTestLintModel
+> Task :core:render:generateDebugLintReportModel
+> Task :feature:content:generateDebugUnitTestLintModel
+> Task :feature:home:generateDebugUnitTestLintModel
+> Task :core:data:generateDebugLintModel
+> Task :feature:widgets:generateDebugAndroidTestLintModel
+> Task :core:widget-api:generateDebugUnitTestLintModel
+> Task :feature:settings:generateDebugUnitTestLintModel
+> Task :app:generateDebugAndroidTestLintModel
+> Task :feature:tray:generateDebugLintModel
+> Task :feature:content:generateDebugLintModel
+> Task :service:generateDebugLintModel
+> Task :core:data:generateDebugLintReportModel
+> Task :core:widget-api:generateDebugLintModel
+> Task :feature:content:generateDebugLintReportModel
+> Task :feature:tray:generateDebugLintReportModel
+> Task :service:generateDebugLintReportModel
+> Task :feature:widgets:generateDebugUnitTestLintModel
+> Task :feature:settings:generateDebugLintModel
+> Task :feature:home:generateDebugLintModel
+> Task :core:widget-api:generateDebugLintReportModel
+> Task :feature:widgets:generateDebugLintModel
+> Task :app:generateDebugUnitTestLintModel
+> Task :feature:settings:generateDebugLintReportModel
+> Task :feature:home:generateDebugLintReportModel
+> Task :feature:widgets:generateDebugLintReportModel
+> Task :app:generateDebugLintReportModel
+> Task :core:device:lintAnalyzeDebugAndroidTest
+> Task :core:device:lintAnalyzeDebugUnitTest
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+> Task :service:lintAnalyzeDebugAndroidTest
+> Task :service:lintAnalyzeDebugUnitTest
+> Task :core:common:lintAnalyzeDebug
+> Task :core:data:lintAnalyzeDebugAndroidTest
+> Task :core:common:lintAnalyzeDebugAndroidTest
+> Task :core:design:lintAnalyzeDebugAndroidTest
+> Task :core:data:lintAnalyzeDebugUnitTest
+> Task :core:device:lintAnalyzeDebug
+> Task :core:render:lintAnalyzeDebugAndroidTest
+> Task :core:common:lintAnalyzeDebugUnitTest
+> Task :core:design:lintAnalyzeDebugUnitTest
+> Task :core:render:lintAnalyzeDebugUnitTest
+> Task :core:widget-api:lintAnalyzeDebugAndroidTest
+> Task :core:widget-api:lintAnalyzeDebugUnitTest
+> Task :feature:content:lintAnalyzeDebugAndroidTest
+> Task :feature:content:lintAnalyzeDebugUnitTest
+> Task :feature:home:lintAnalyzeDebugAndroidTest
+> Task :core:design:lintAnalyzeDebug
+> Task :feature:settings:lintAnalyzeDebugAndroidTest
+> Task :feature:home:lintAnalyzeDebugUnitTest
+> Task :feature:settings:lintAnalyzeDebugUnitTest
+> Task :feature:tray:lintAnalyzeDebugAndroidTest
+> Task :core:render:lintAnalyzeDebug
+> Task :feature:tray:lintAnalyzeDebugUnitTest
+> Task :feature:widgets:lintAnalyzeDebugAndroidTest
+
+> Task :core:common:updateLintBaselineDebug
+No issues found.
+
+> Task :core:common:updateLintBaseline
+
+> Task :core:design:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkGlyphs.kt:295: Warning: Custom view GlyphView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class GlyphView(
+              ~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkWidgets.kt:216: Warning: Custom view InkPage is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class InkPage(
+      ~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+0 errors, 2 warnings
+
+> Task :core:design:updateLintBaseline
+
+> Task :core:device:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\core\device\src\main\java\com\shuiyu\octoberrain\core\device\PermissionCenter.kt:44: Error: Call requires API level 29 (current min is 26): android.app.AppOpsManager#unsafeCheckOpNoThrow [NewApi]
+                appOps.unsafeCheckOpNoThrow(
+                       ~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "NewApi":
+   This check scans through all the Android API calls in the application and
+   warns about any calls that are not available on all versions targeted by
+   this application (according to its minimum SDK attribute in the manifest).
+
+   If you really want to use this API and don't need to support older devices
+   just set the minSdkVersion in your build.gradle or AndroidManifest.xml
+   files.
+
+   If your code is deliberately accessing newer APIs, and you have ensured
+   (e.g. with conditional execution) that this code will only ever be called
+   on a supported platform, then you can annotate your class or method with
+   the @TargetApi annotation specifying the local minimum SDK to apply, such
+   as @TargetApi(11), such that this check considers 11 rather than your
+   manifest file's minimum SDK as the required API level.
+
+   If you are deliberately setting android: attributes in style definitions,
+   make sure you place this in a values-vNN folder in order to avoid running
+   into runtime conflicts on certain devices where manufacturers have added
+   custom attributes whose ids conflict with the new ones on later platforms.
+
+   Similarly, you can use tools:targetApi="11" in an XML file to indicate that
+   the element will only be inflated in an adequate context.
+
+D:\DSHStation\OctoberLauncher\core\device\src\main\java\com\shuiyu\octoberrain\core\device\DeviceProfileDetector.kt:92: Warning: Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. R.foo.bar) than by name (e.g. getIdentifier("bar", "foo", null)). [DiscouragedApi]
+        val id = context.resources.getIdentifier(name, "dimen", "android")
+                                   ~~~~~~~~~~~~~
+
+   Explanation for issues of type "DiscouragedApi":
+   Discouraged APIs are allowed and are not deprecated, but they may be unfit
+   for common use (e.g. due to slow performance or subtle behavior).
+
+1 errors, 1 warnings
+
+> Task :core:device:updateLintBaseline
+
+> Task :core:render:updateLintBaselineDebug
+No issues found.
+
+> Task :core:render:updateLintBaseline
+> Task :feature:widgets:lintAnalyzeDebugUnitTest
+> Task :core:data:lintAnalyzeDebug
+
+> Task :core:data:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\SystemControlsImpl.kt:96: Error: Missing permissions required by BluetoothAdapter.disable: android.permission.BLUETOOTH_CONNECT [MissingPermission]
+            if (enabled) adapter.enable() else adapter.disable()
+                                               ~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\SystemControlsImpl.kt:96: Error: Missing permissions required by BluetoothAdapter.enable: android.permission.BLUETOOTH_CONNECT [MissingPermission]
+            if (enabled) adapter.enable() else adapter.disable()
+                         ~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\SystemControlsImpl.kt:257: Error: Missing permissions required by BluetoothAdapter.getProfileConnectionState: android.permission.BLUETOOTH_CONNECT [MissingPermission]
+                val connected = adapter?.getProfileConnectionState(android.bluetooth.BluetoothProfile.A2DP)
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\SystemControlsImpl.kt:259: Error: Missing permissions required by BluetoothAdapter.getBondedDevices: android.permission.BLUETOOTH_CONNECT [MissingPermission]
+                    adapter?.bondedDevices?.firstOrNull()?.name
+                    ~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\SystemControlsImpl.kt:259: Error: Missing permissions required by BluetoothDevice.getName: android.permission.BLUETOOTH_CONNECT [MissingPermission]
+                    adapter?.bondedDevices?.firstOrNull()?.name
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "MissingPermission":
+   This check scans through your code and libraries and looks at the APIs
+   being used, and checks this against the set of permissions required to
+   access those APIs. If the code using those APIs is called at runtime, then
+   the program will crash.
+
+   Furthermore, for permissions that are revocable (with targetSdkVersion 23),
+   client code must also be prepared to handle the calls throwing an exception
+   if the user rejects the request for permission at runtime.
+
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\IconPackResolver.kt:60: Warning: Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. R.foo.bar) than by name (e.g. getIdentifier("bar", "foo", null)). [DiscouragedApi]
+            val resourceId = pack.resources.getIdentifier(APP_FILTER_NAME, "xml", pack.packageName)
+                                            ~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\IconPackResolver.kt:148: Warning: Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. R.foo.bar) than by name (e.g. getIdentifier("bar", "foo", null)). [DiscouragedApi]
+        val resourceId = pack.resources.getIdentifier(APP_FILTER_NAME, "xml", pack.packageName)
+                                        ~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\core\data\src\main\java\com\shuiyu\octoberrain\core\data\IconPackResolver.kt:211: Warning: Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. R.foo.bar) than by name (e.g. getIdentifier("bar", "foo", null)). [DiscouragedApi]
+            val resourceId = pack.resources.getIdentifier(drawableName, type, pack.packageName)
+                                            ~~~~~~~~~~~~~
+
+   Explanation for issues of type "DiscouragedApi":
+   Discouraged APIs are allowed and are not deprecated, but they may be unfit
+   for common use (e.g. due to slow performance or subtle behavior).
+
+5 errors, 3 warnings
+
+> Task :core:data:updateLintBaseline
+> Task :core:widget-api:lintAnalyzeDebug
+> Task :service:lintAnalyzeDebug
+> Task :feature:tray:lintAnalyzeDebug
+> Task :feature:home:lintAnalyzeDebug
+> Task :feature:content:lintAnalyzeDebug
+
+> Task :service:updateLintBaselineDebug
+No issues found.
+
+> Task :service:updateLintBaseline
+
+> Task :core:widget-api:updateLintBaselineDebug
+No issues found.
+
+> Task :core:widget-api:updateLintBaseline
+
+> Task :feature:content:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\feature\content\src\main\java\com\shuiyu\octoberrain\feature\content\data\WereadClient.kt:363: Warning: Implicitly using the default locale is a common source of bugs: Use String.format(Locale, ...) instead [DefaultLocale]
+                put("month", String.format("%04d-%02d", calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1))
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DefaultLocale":
+   Calling String#toLowerCase() or #toUpperCase() without specifying an
+   explicit locale is a common source of bugs. The reason for that is that
+   those methods will use the current locale on the user's device, and even
+   though the code appears to work correctly when you are developing the app,
+   it will fail in some locales. For example, in the Turkish locale, the
+   uppercase replacement for i is not I.
+
+   If you want the methods to just perform ASCII replacement, for example to
+   convert an enum name, call String#toUpperCase(Locale.ROOT) instead. If you
+   really want to use the current locale, call
+   String#toUpperCase(Locale.getDefault()) instead.
+
+   https://developer.android.com/reference/java/util/Locale.html#default_locale
+
+D:\DSHStation\OctoberLauncher\feature\content\src\main\java\com\shuiyu\octoberrain\feature\content\data\ContentPaths.kt:46: Warning: Do not hardcode "/sdcard/"; use Environment.getExternalStorageDirectory().getPath() instead [SdCardPath]
+                File("/sdcard/koreader"),
+                      ~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\content\src\main\java\com\shuiyu\octoberrain\feature\content\data\KoreaderRepository.kt:247: Warning: Do not hardcode "/sdcard/"; use Environment.getExternalStorageDirectory().getPath() instead [SdCardPath]
+        if (path.startsWith("/sdcard/")) candidates.add(File(external, path.removePrefix("/sdcard/")))
+                             ~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\content\src\main\java\com\shuiyu\octoberrain\feature\content\data\KoreaderRepository.kt:247: Warning: Do not hardcode "/sdcard/"; use Environment.getExternalStorageDirectory().getPath() instead [SdCardPath]
+        if (path.startsWith("/sdcard/")) candidates.add(File(external, path.removePrefix("/sdcard/")))
+                                                                                          ~~~~~~~~
+
+   Explanation for issues of type "SdCardPath":
+   Your code should not reference the /sdcard path directly; instead use
+   Environment.getExternalStorageDirectory().getPath().
+
+   Similarly, do not reference the /data/data/ path directly; it can vary in
+   multi-user scenarios. Instead, use Context.getFilesDir().getPath().
+
+   https://developer.android.com/training/data-storage#filesExternal
+
+D:\DSHStation\OctoberLauncher\feature\content\src\main\java\com\shuiyu\octoberrain\feature\content\RecentsScreen.kt:624: Warning: Custom view KeyFrameLayout is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class KeyFrameLayout(
+              ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+D:\DSHStation\OctoberLauncher\feature\content\src\main\java\com\shuiyu\octoberrain\feature\content\ui\BookshelfNegativeModule.kt:284: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        rowsLabel?.text = "$rows ��"
+                          ~~~~~~~~~
+
+   Explanation for issues of type "SetTextI18n":
+   When calling TextView#setText
+   * Never call Number#toString() to format numbers; it will not handle
+   fraction separators and locale-specific digits properly. Consider using
+   String#format with proper format specifications (%d or %f) instead.
+   * Do not pass a string literal (e.g. "Hello") to display text. Hardcoded
+   text can not be properly translated to other languages. Consider using
+   Android resource strings instead.
+   * Do not build messages by concatenating text chunks. Such messages can not
+   be properly translated.
+
+   https://developer.android.com/guide/topics/resources/localization.html
+
+0 errors, 6 warnings
+
+> Task :feature:content:updateLintBaseline
+
+> Task :feature:home:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\feature\home\src\main\java\com\shuiyu\octoberrain\feature\home\HomeView.kt:842: Warning: Custom view HomeView overrides onTouchEvent but not performClick [ClickableViewAccessibility]
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+                 ~~~~~~~~~~~~
+
+   Explanation for issues of type "ClickableViewAccessibility":
+   If a View that overrides onTouchEvent or uses an OnTouchListener does not
+   also implement performClick and call it when clicks are detected, the View
+   may not handle accessibility actions properly. Logic handling the click
+   actions should ideally be placed in View#performClick as some accessibility
+   services invoke performClick when a click action should occur.
+
+0 errors, 1 warnings
+
+> Task :feature:home:updateLintBaseline
+
+> Task :feature:tray:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\feature\tray\src\main\java\com\shuiyu\octoberrain\feature\tray\TrayPanelView.kt:778: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            val rect = RectF(left, top, right, bottom)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DrawAllocation":
+   You should avoid allocating objects during a drawing or layout operation.
+   These are called frequently, so a smooth UI can be interrupted by garbage
+   collection pauses caused by the object allocations.
+
+   The way this is generally handled is to allocate the needed objects up
+   front and to reuse them for each drawing operation.
+
+   Some methods allocate memory on your behalf (such as Bitmap.create), and
+   these should be handled in the same way.
+
+D:\DSHStation\OctoberLauncher\feature\tray\src\main\java\com\shuiyu\octoberrain\feature\tray\TrayPanelView.kt:36: Warning: Custom view TrayPanelView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class TrayPanelView(
+      ~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\tray\src\main\java\com\shuiyu\octoberrain\feature\tray\TrayPanelView.kt:707: Warning: Custom view DismissibleScrollView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class DismissibleScrollView(
+              ~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\tray\src\main\java\com\shuiyu\octoberrain\feature\tray\TrayPanelView.kt:741: Warning: Custom view LevelBarView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class LevelBarView(
+              ~~~~~~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+D:\DSHStation\OctoberLauncher\feature\tray\src\main\java\com\shuiyu\octoberrain\feature\tray\TrayPanelView.kt:758: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        setOnTouchListener { _, event ->
+                           ^
+
+   Explanation for issues of type "ClickableViewAccessibility":
+   If a View that overrides onTouchEvent or uses an OnTouchListener does not
+   also implement performClick and call it when clicks are detected, the View
+   may not handle accessibility actions properly. Logic handling the click
+   actions should ideally be placed in View#performClick as some accessibility
+   services invoke performClick when a click action should occur.
+
+0 errors, 5 warnings
+
+> Task :feature:tray:updateLintBaseline
+> Task :feature:widgets:lintAnalyzeDebug
+
+> Task :feature:widgets:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\feature\widgets\src\main\java\com\shuiyu\octoberrain\feature\widgets\ClockStyleScreen.kt:162: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            val preview = RectF(0f, rowTop, previewSize.toFloat(), rowBottom)
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\widgets\src\main\java\com\shuiyu\octoberrain\feature\widgets\ClockStyleScreen.kt:165: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            val dial = RectF(preview).apply { inset(innerInset, innerInset) }
+                       ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DrawAllocation":
+   You should avoid allocating objects during a drawing or layout operation.
+   These are called frequently, so a smooth UI can be interrupted by garbage
+   collection pauses caused by the object allocations.
+
+   The way this is generally handled is to allocate the needed objects up
+   front and to reuse them for each drawing operation.
+
+   Some methods allocate memory on your behalf (such as Bitmap.create), and
+   these should be handled in the same way.
+
+D:\DSHStation\OctoberLauncher\feature\widgets\src\main\java\com\shuiyu\octoberrain\feature\widgets\ClockStyleScreen.kt:111: Warning: Custom view ClockStylePreviewList is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+internal class ClockStylePreviewList(
+               ~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+0 errors, 3 warnings
+
+> Task :feature:widgets:updateLintBaseline
+> Task :feature:settings:lintAnalyzeDebug
+
+> Task :feature:settings:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyArrowViews.kt:57: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val path = Path()
+                   ~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyArrowViews.kt:123: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val path = Path()
+                   ~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyScreen.kt:533: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val path = Path()
+                           ~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:444: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                            RectF(left, top, left + cell, top + cell),
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:454: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val rect = RectF(cx - size * 0.3f, cy - size * 0.08f, cx + size * 0.3f, cy + size * 0.24f)
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:461: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    RectF(cx - radius, cy - radius * 1.1f, cx + radius, cy + radius),
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:487: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    RectF(cx - radius, cy - radius * 0.2f, cx + radius, cy + radius * 0.9f),
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:493: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    RectF(cx - radius * 0.6f, cy - radius, cx + radius * 0.6f, cy + radius * 0.4f),
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:502: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val path = Path()
+                           ~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:523: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                canvas.drawRect(RectF(cx - radius, cy - radius, cx - radius * 0.35f, cy + radius * 0.7f), paint)
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:524: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                canvas.drawRect(RectF(cx - radius * 0.15f, cy - radius * 0.7f, cx + radius * 0.35f, cy + radius * 0.7f), paint)
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:530: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    RectF(cx - radius, cy - radius * 0.4f, cx + radius, cy + radius),
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:548: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    RectF(cx - radius, cy - radius, cx + radius, cy + radius),
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsHomeScreen.kt:409: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                        RectF(
+                        ^
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsHomeScreen.kt:431: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                                RectF(
+                                ^
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsHomeScreen.kt:443: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                        RectF(
+                        ^
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsHomeScreen.kt:457: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                        android.graphics.Path().apply {
+                        ~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DrawAllocation":
+   You should avoid allocating objects during a drawing or layout operation.
+   These are called frequently, so a smooth UI can be interrupted by garbage
+   collection pauses caused by the object allocations.
+
+   The way this is generally handled is to allocate the needed objects up
+   front and to reuse them for each drawing operation.
+
+   Some methods allocate memory on your behalf (such as Bitmap.create), and
+   these should be handled in the same way.
+
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsUi.kt:69: Warning: Do not place Android context classes in static fields (static reference to InkPage which has field content pointing to LinearLayout); this is a memory leak [StaticFieldLeak]
+    /** ���ι�����ͳ�Ƶ�ҳ���������� */
+    ^
+
+   Explanation for issues of type "StaticFieldLeak":
+   A static field will leak contexts.
+
+   Non-static inner classes have an implicit reference to their outer class.
+   If that outer class is for example a Fragment or Activity, then this
+   reference means that the long-running handler/loader/task will hold a
+   reference to the activity which prevents it from getting garbage
+   collected.
+
+   Similarly, direct field references to activities and fragments from these
+   longer running instances can cause leaks.
+
+   ViewModel classes should never point to Views or non-application Contexts.
+
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyArrowViews.kt:20: Warning: Custom view ArrowButtonView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+internal class ArrowButtonView(
+               ~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyArrowViews.kt:95: Warning: Custom view PageArrowView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+internal class PageArrowView(
+               ~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyScreen.kt:482: Warning: Custom view BottomGlyphView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class BottomGlyphView(
+              ~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:395: Warning: Custom view PrefGlyphView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class PrefGlyphView(
+              ~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsUi.kt:660: Warning: Custom view StepSliderView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+private class StepSliderView(
+              ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:186: Warning: Custom view `LinearLayout` has setOnTouchListener called on it but does not override performClick [ClickableViewAccessibility]
+        row.setOnTouchListener(pressFeedback)
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\LauncherPrefsScreen.kt:221: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        View.OnTouchListener { view, event ->
+                             ^
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsHomeScreen.kt:251: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        view.setOnTouchListener { target, event ->
+                                ^
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsUi.kt:701: Warning: Custom view StepSliderView overrides onTouchEvent but not performClick [ClickableViewAccessibility]
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+                 ~~~~~~~~~~~~
+
+   Explanation for issues of type "ClickableViewAccessibility":
+   If a View that overrides onTouchEvent or uses an OnTouchListener does not
+   also implement performClick and call it when clicks are detected, the View
+   may not handle accessibility actions properly. Logic handling the click
+   actions should ideally be placed in View#performClick as some accessibility
+   services invoke performClick when a click action should occur.
+
+0 errors, 27 warnings
+
+> Task :feature:settings:updateLintBaseline
+> Task :app:lintAnalyzeDebug
+
+> Task :app:updateLintBaselineDebug
+D:\DSHStation\OctoberLauncher\app\src\main\AndroidManifest.xml:29: Warning: The Google Play store has a policy that limits usage of MANAGE_EXTERNAL_STORAGE [ScopedStorage]
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ScopedStorage":
+   Scoped storage is enforced on Android 10+ (or Android 11+ if using
+   requestLegacyExternalStorage). In particular, WRITE_EXTERNAL_STORAGE will
+   no longer provide write access to all files; it will provide the equivalent
+   of READ_EXTERNAL_STORAGE instead.
+
+   As of Android 13, if you need to query or interact with MediaStore or media
+   files on the shared storage, you should be using instead one or more new
+   storage permissions:
+   * android.permission.READ_MEDIA_IMAGES
+   * android.permission.READ_MEDIA_VIDEO
+   * android.permission.READ_MEDIA_AUDIO
+
+   and then add maxSdkVersion="33" to the older permission. See the developer
+   guide for how to do this:
+   https://developer.android.com/about/versions/13/behavior-changes-13#granula
+   r-media-permissions
+
+   The MANAGE_EXTERNAL_STORAGE permission can be used to manage all files, but
+   it is rarely necessary and most apps on Google Play are not allowed to use
+   it. Most apps should instead migrate to use scoped storage. To modify or
+   delete files, apps should request write access from the user as described
+   at https://goo.gle/android-mediastore-createwriterequest.
+
+   To learn more, read these resources: Play policy:
+   https://goo.gle/policy-storage-help Allowable use cases:
+   https://goo.gle/policy-storage-usecases
+
+   https://goo.gle/android-storage-usecases
+
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\OnboardingScreen.kt:244: Error: Call requires API level 29 (current min is 26): android.app.AppOpsManager#unsafeCheckOpNoThrow [NewApi]
+                appOps.unsafeCheckOpNoThrow(
+                       ~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "NewApi":
+   This check scans through all the Android API calls in the application and
+   warns about any calls that are not available on all versions targeted by
+   this application (according to its minimum SDK attribute in the manifest).
+
+   If you really want to use this API and don't need to support older devices
+   just set the minSdkVersion in your build.gradle or AndroidManifest.xml
+   files.
+
+   If your code is deliberately accessing newer APIs, and you have ensured
+   (e.g. with conditional execution) that this code will only ever be called
+   on a supported platform, then you can annotate your class or method with
+   the @TargetApi annotation specifying the local minimum SDK to apply, such
+   as @TargetApi(11), such that this check considers 11 rather than your
+   manifest file's minimum SDK as the required API level.
+
+   If you are deliberately setting android: attributes in style definitions,
+   make sure you place this in a values-vNN folder in order to avoid running
+   into runtime conflicts on certain devices where manufacturers have added
+   custom attributes whose ids conflict with the new ones on later platforms.
+
+   Similarly, you can use tools:targetApi="11" in an XML file to indicate that
+   the element will only be inflated in an adequate context.
+
+D:\DSHStation\OctoberLauncher\app\src\main\AndroidManifest.xml:20: Error: Permission is only granted to system apps [ProtectedPermissions]
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ProtectedPermissions":
+   Permissions with the protection level signature, privileged or
+   signatureOrSystem are only granted to system apps (unless they also include
+   appop). If an app is a regular non-system app, it will never be able to use
+   these permissions.
+
+D:\DSHStation\OctoberLauncher\app\src\main\AndroidManifest.xml:51: Warning: Should not restrict activity to fixed orientation. This may not be suitable for different form factors, causing the app to be letterboxed. [DiscouragedApi]
+            android:screenOrientation="behind"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DiscouragedApi":
+   Discouraged APIs are allowed and are not deprecated, but they may be unfit
+   for common use (e.g. due to slow performance or subtle behavior).
+
+D:\DSHStation\OctoberLauncher\app\src\main\AndroidManifest.xml:36: Warning: The attribute android:allowBackup is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute android:dataExtractionRules specifying an @xml resource which configures cloud backups and device transfers on Android 12 and higher. [DataExtractionRules]
+        android:allowBackup="false"
+                             ~~~~~
+
+   Explanation for issues of type "DataExtractionRules":
+   Before Android 12, the attributes android:allowBackup and
+   android:fullBackupContent were used to configure all forms of backup,
+   including cloud backups, device-to-device transfers and adb backup.
+
+   In Android 12 and higher, these attributes have been deprecated and will
+   only apply to cloud backups. You should instead use the attribute
+   android:dataExtractionRules, specifying an @xml resource that configures
+   which files to back up, for cloud backups and for device-to-device
+   transfers, separately. If your minSdkVersion supports older versions,
+   you'll still want to specify an android:fullBackupContent resource if the
+   default behavior is not right for your app.
+
+   https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   https://goo.gle/DataExtractionRules
+
+D:\DSHStation\OctoberLauncher\app\src\main\AndroidManifest.xml:32: Error: A <queries> declaration should generally be used instead of QUERY_ALL_PACKAGES; see https://g.co/dev/packagevisibility for details [QueryAllPackagesPermission]
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "QueryAllPackagesPermission":
+   If you need to query or interact with other installed apps, you should be
+   using a <queries> declaration in your manifest. Using the
+   QUERY_ALL_PACKAGES permission in order to see all installed apps is rarely
+   necessary, and most apps on Google Play are not allowed to have this
+   permission.
+
+   https://g.co/dev/packagevisibility
+
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\LockOverlayView.kt:82: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val rect = RectF(left + 2f, top + 2f, left + cellWidth - 2f, top + cellHeight - 2f)
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\WallpaperView.kt:107: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val target = Rect(0, 0, width, height)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DrawAllocation":
+   You should avoid allocating objects during a drawing or layout operation.
+   These are called frequently, so a smooth UI can be interrupted by garbage
+   collection pauses caused by the object allocations.
+
+   The way this is generally handled is to allocate the needed objects up
+   front and to reuse them for each drawing operation.
+
+   Some methods allocate memory on your behalf (such as Bitmap.create), and
+   these should be handled in the same way.
+
+D:\DSHStation\OctoberLauncher\app\src\main\res\mipmap-anydpi-v26: Warning: This folder configuration (v26) is unnecessary; minSdkVersion is 26. Merge all the resources in this folder into mipmap-anydpi. [ObsoleteSdkInt]
+
+   Explanation for issues of type "ObsoleteSdkInt":
+   This check flags version checks that are not necessary, because the
+   minSdkVersion (or surrounding known API level) is already at least as high
+   as the version checked for.
+
+   Similarly, it also looks for resources in -vNN folders, such as values-v14
+   where the version qualifier is less than or equal to the minSdkVersion,
+   where the contents should be merged into the best folder.
+
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\InkRefreshController.kt:24: Warning: Do not place Android context classes in static fields (static reference to InkRefreshController which has field root pointing to View); this is a memory leak [StaticFieldLeak]
+/**
+^
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\InkRefreshController.kt:42: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private var root: View? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\LauncherRouter.kt:10: Warning: Do not place Android context classes in static fields (static reference to LauncherRouter which has field activity pointing to Activity); this is a memory leak [StaticFieldLeak]
+/**
+^
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\LauncherRouter.kt:18: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private var activity: android.app.Activity? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "StaticFieldLeak":
+   A static field will leak contexts.
+
+   Non-static inner classes have an implicit reference to their outer class.
+   If that outer class is for example a Fragment or Activity, then this
+   reference means that the long-running handler/loader/task will hold a
+   reference to the activity which prevents it from getting garbage
+   collected.
+
+   Similarly, direct field references to activities and fragments from these
+   longer running instances can cause leaks.
+
+   ViewModel classes should never point to Views or non-application Contexts.
+
+D:\DSHStation\OctoberLauncher\app\src\main\res\mipmap-anydpi-v26\ic_launcher.xml:2: Warning: The application adaptive icon is missing a monochrome tag [MonochromeLauncherIcon]
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+^
+D:\DSHStation\OctoberLauncher\app\src\main\res\mipmap-anydpi-v26\ic_launcher_round.xml:2: Warning: The application adaptive roundIcon is missing a monochrome tag [MonochromeLauncherIcon]
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+^
+
+   Explanation for issues of type "MonochromeLauncherIcon":
+   If android:roundIcon and android:icon are both in your manifest, you must
+   either remove the reference to android:roundIcon if it is not needed; or,
+   supply the monochrome icon in the drawable defined by the android:roundIcon
+   and android:icon attribute.
+
+   For example, if android:roundIcon and android:icon are both in the
+   manifest, a launcher might choose to use android:roundIcon over
+   android:icon to display the adaptive app icon. Therefore, your themed
+   application iconwill not show if your monochrome attribute is not also
+   specified in android:roundIcon.
+
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\LockOverlayView.kt:18: Warning: Custom view LockOverlayView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class LockOverlayView(
+      ~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+D:\DSHStation\OctoberLauncher\app\src\main\java\com\shuiyu\octoberrain\LockOverlayView.kt:98: Warning: Custom view LockOverlayView overrides onTouchEvent but not performClick [ClickableViewAccessibility]
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+                 ~~~~~~~~~~~~
+
+   Explanation for issues of type "ClickableViewAccessibility":
+   If a View that overrides onTouchEvent or uses an OnTouchListener does not
+   also implement performClick and call it when clicks are detected, the View
+   may not handle accessibility actions properly. Logic handling the click
+   actions should ideally be placed in View#performClick as some accessibility
+   services invoke performClick when a click action should occur.
+
+3 errors, 14 warnings
+
+> Task :app:updateLintBaseline
+
+BUILD SUCCESSFUL in 34s
+493 actionable tasks: 103 executed, 390 up-to-date

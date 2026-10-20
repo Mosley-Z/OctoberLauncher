@@ -1,0 +1,115 @@
+name: 构建 测试与静态检查
+
+# 推送与合并请求都会执行完整门禁；手工触发用于在分支上验证 Gradle 脚本与依赖变更。
+# 门禁顺序与 docs/15-V1.0开发计划.md 一致：构建检查 → 测试检查 → 静态检查。
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: 构建 测试与静态检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 配置 Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # 仓库未提交 local.properties，SDK 路径由该步骤写入环境变量；
+          # 平台与构建工具显式声明，避免构建期间临时下载失败导致整次运行失败
+          packages: "platforms;android-35,build-tools;35.0.0"
+
+      - name: 配置 Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # 与 scripts/build.ps1 使用的 Gradle 版本保持一致
+          gradle-version: "8.11.1"
+
+      # 门禁一：构建检查。本机等价命令为 scripts/build.ps1 -Variant debug
+      # 与 scripts/build.ps1 -Variant release，二者分别执行 assembleDebug 与 assembleRelease。
+      - name: 构建检查
+        run: >
+          gradle
+          :app:assembleDebug
+          :app:assembleRelease
+          --console=plain
+          --stacktrace
+
+      # 门禁二：测试检查。本机等价命令为 gradle testDebugUnitTest。
+      - name: 测试检查
+        run: >
+          gradle
+          testDebugUnitTest
+          --continue
+          --console=plain
+          --stacktrace
+
+      # 门禁三：静态检查。0.9.2 起失败即中止，新增 ktlint 或 detekt 告警直接使该步骤失败。
+      - name: 静态检查
+        if: always()
+        run: >
+          gradle
+          ktlintCheck
+          detekt
+          --continue
+          --console=plain
+          --stacktrace
+
+      - name: 上传单元测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: "**/build/reports/tests/**"
+          # 无测试报告时保留其他产物，不判定为失败
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: 上传静态检查报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            **/build/reports/detekt/**
+            **/build/reports/ktlint/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: 上传调试包
+        uses: actions/upload-artifact@v4
+        with:
+          name: octoberlauncher-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传发布包与混淆映射
+        uses: actions/upload-artifact@v4
+        with:
+          name: octoberlauncher-release-apk
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 14

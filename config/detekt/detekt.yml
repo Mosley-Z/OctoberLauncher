@@ -1,0 +1,18 @@
+# detekt 规则配置：在默认规则集之上只调整与既有工程风格相关的少量参数。
+# 0.9.1 首版以报告形式运行，基线文件由 detektBaseline 生成后逐模块保存于 config/detekt/。
+build:
+  # 默认规则集之外的附加检查，保持默认值
+  maxIssues: 0
+
+style:
+  MaxLineLength:
+    # 行宽标准为 120 列，与仓库根 .editorconfig 的 max_line_length 保持一致
+    maxLineLength: 120
+  # 界面常量与尺寸换算代码中大量出现字面数值，首版不对魔法数设限
+  MagicNumber:
+    active: false
+
+complexity:
+  # 既有界面类采用多参数构造函数传递尺寸与配置，首版不对参数数量设限
+  LongParameterList:
+    active: false

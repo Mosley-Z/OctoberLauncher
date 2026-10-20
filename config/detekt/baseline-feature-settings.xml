@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:LauncherPrefsScreen.kt$PrefGlyphView$override fun onDraw(canvas: Canvas)</ID>
+    <ID>CyclomaticComplexMethod:SettingsModule.kt$SettingsProvider$override fun create(destination: Destination): Screen?</ID>
+    <ID>CyclomaticComplexMethod:UpdateScreen.kt$UpdateScreen$override fun build( page: InkPage, config: LauncherConfig, )</ID>
+    <ID>LongMethod:BeautifyIconPanel.kt$internal fun BeautifyScreen.buildAppColumn( context: Context, entries: List&lt;LauncherEntry&gt;, snapshot: DesktopLayoutSnapshot, ): View</ID>
+    <ID>LongMethod:BeautifyIconPanel.kt$internal fun BeautifyScreen.moveSelection(delta: Int)</ID>
+    <ID>LongMethod:BeautifyImagePanel.kt$internal fun BeautifyScreen.buildImageColumn(context: Context): View</ID>
+    <ID>LongMethod:BeautifyScreen.kt$BottomGlyphView$override fun onDraw(canvas: Canvas)</ID>
+    <ID>LongMethod:LauncherPrefsScreen.kt$LauncherPrefsScreen$private fun prefGroups( context: Context, config: LauncherConfig, ): List&lt;PrefGroup&gt;</ID>
+    <ID>LongMethod:LauncherPrefsScreen.kt$PrefGlyphView$override fun onDraw(canvas: Canvas)</ID>
+    <ID>LongMethod:SettingsHomeScreen.kt$SettingsHomeScreen.CardGlyphView$override fun onDraw(canvas: Canvas)</ID>
+    <ID>LongMethod:SettingsSpecRenderer.kt$SettingsSpecRenderer$private fun renderRow( section: SettingsSection, spec: SettingSpec, sink: SettingEffectSink, actions: Map&lt;String, () -&gt; Unit&gt;, customs: Map&lt;String, (SettingsSection) -&gt; Unit&gt;, )</ID>
+    <ID>LoopWithTooManyJumpStatements:IconPackPickerScreen.kt$IconPackPickerScreen$for</ID>
+    <ID>LoopWithTooManyJumpStatements:SettingsUi.kt$SettingsUi$for</ID>
+    <ID>MatchingDeclarationName:BeautifyImagePanel.kt$ImageCell</ID>
+    <ID>ReturnCount:BeautifyIconPanel.kt$internal fun BeautifyScreen.applyImage(cell: ImageCell)</ID>
+    <ID>ReturnCount:BeautifyIconPanel.kt$internal fun BeautifyScreen.moveSelection(delta: Int)</ID>
+    <ID>ReturnCount:BeautifyIconPanel.kt$private fun BeautifyScreen.moveToEdge(first: Boolean)</ID>
+    <ID>ReturnCount:BeautifyIconPanel.kt$private fun BeautifyScreen.refreshRowIcon(entry: LauncherEntry)</ID>
+    <ID>ReturnCount:BeautifyIconPanel.kt$private fun BeautifyScreen.swapInPage( from: Int, to: Int, )</ID>
+    <ID>ReturnCount:BeautifyPreviewPanel.kt$internal fun BeautifyScreen.refreshLeftNow()</ID>
+    <ID>ReturnCount:ImageDirectoryStore.kt$ImageDirectoryStore$fun directoryOf(uri: Uri): File?</ID>
+    <ID>ReturnCount:SettingsUi.kt$SettingsUi$private fun walk( dir: File, extensions: Set&lt;String&gt;, out: MutableList&lt;File&gt;, depth: Int, )</ID>
+    <ID>ReturnCount:SettingsUi.kt$StepSliderView$override fun onTouchEvent(event: MotionEvent): Boolean</ID>
+    <ID>ReturnCount:WereadKeyValidator.kt$WereadKeyValidator$fun validateOrNull(key: String): String?</ID>
+    <ID>TooManyFunctions:BeautifyIconPanel.kt$com.shuiyu.octoberrain.feature.settings.BeautifyIconPanel.kt</ID>
+    <ID>TooManyFunctions:BeautifyScreen.kt$BeautifyScreen : Screen</ID>
+    <ID>TooManyFunctions:BeautifyThemePanel.kt$com.shuiyu.octoberrain.feature.settings.BeautifyThemePanel.kt</ID>
+    <ID>TooManyFunctions:DesktopPrefsScreen.kt$DesktopPrefsScreen : SettingsBaseScreen</ID>
+    <ID>TooManyFunctions:IconPickerScreen.kt$IconPickerScreen : Screen</ID>
+    <ID>TooManyFunctions:LauncherPrefsScreen.kt$LauncherPrefsScreen : SettingsBaseScreen</ID>
+    <ID>TooManyFunctions:PreviewScreen.kt$PreviewScreen : Screen</ID>
+    <ID>TooManyFunctions:SettingsBaseScreen.kt$SettingsBaseScreen : Screen</ID>
+    <ID>TooManyFunctions:SettingsSpecBuilders.kt$com.shuiyu.octoberrain.feature.settings.SettingsSpecBuilders.kt</ID>
+    <ID>TooManyFunctions:SettingsUi.kt$SettingsSection</ID>
+    <ID>TooManyFunctions:SettingsUi.kt$SettingsUi</ID>
+    <ID>UnusedParameter:SettingsUi.kt$SettingsUi$context: Context</ID>
+  </CurrentIssues>
+</SmellBaseline>

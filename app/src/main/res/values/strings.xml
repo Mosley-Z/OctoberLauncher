@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">十雨桌面</string>
+    <string name="service_notification">十雨桌面通知读取</string>
+    <string name="service_accessibility">十雨桌面状态栏覆盖</string>
+</resources>

@@ -1,0 +1,393 @@
+package com.shuiyu.octoberrain.service
+
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.KeyEvent
+import android.view.View
+import android.view.WindowManager
+import android.view.accessibility.AccessibilityEvent
+import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.MinuteTicker
+import com.shuiyu.octoberrain.core.design.DesignRuntime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+
+/**
+ * 无障碍悬浮服务：在桌面之外显示悬浮状态栏与悬浮托盘，并提供整屏闪烁刷新。
+ *
+ * 服务按前台应用包名判断归属：前台为十雨桌面时隐藏全部悬浮窗口，避免与 Activity 内
+ * 的状态栏重复；其余情况在配置开启悬浮状态栏后挂载悬浮窗口。
+ * 音量键翻转在服务内完成按键对调，注入失败时放行原始按键。
+ */
+class OverlayAccessibilityService : AccessibilityService() {
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private var windowManager: WindowManager? = null
+
+    private var statusView: OverlayStatusBarView? = null
+
+    private var statusParams: WindowManager.LayoutParams? = null
+
+    private var statusAttached = false
+
+    private var trayView: View? = null
+
+    private var trayParams: WindowManager.LayoutParams? = null
+
+    private var trayAttached = false
+
+    private var flashView: View? = null
+
+    private var flashing = false
+
+    private var foregroundPackage: String = ""
+
+    private var injectingVolume = false
+
+    private val statusTicker = MinuteTicker { updateStatus() }
+
+    private val debounce = Runnable { applyOverlayVisibility() }
+
+    /**
+     * 悬浮托盘开合监视器。
+     *
+     * 托盘控制器没有对外状态流，服务侧以短周期读取 [AppServices.tray] 的 isOpen：
+     * 托盘收起后立刻移除全屏窗口，避免不可见窗口继续拦截触摸。
+     */
+    private val trayWatcher =
+        object : Runnable {
+            override fun run() {
+                if (!trayAttached) return
+                val open =
+                    runCatching { AppServices.hasTray() && AppServices.tray.isOpen }
+                        .getOrDefault(false)
+                if (open) {
+                    handler.postDelayed(this, TRAY_WATCH_MS)
+                } else {
+                    removeTrayWindow()
+                }
+            }
+        }
+
+    override fun onCreate() {
+        super.onCreate()
+        windowManager = runCatching { getSystemService(WindowManager::class.java) }.getOrNull()
+        foregroundPackage = packageName
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        // 运行时补充过滤按键的事件标志，上游同样在连接后重设
+        val info = serviceInfo ?: AccessibilityServiceInfo()
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        serviceInfo = info
+        windowManager = runCatching { getSystemService(WindowManager::class.java) }.getOrNull()
+        observeStates()
+        applyOverlayVisibility()
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val pkg = event.packageName?.toString().orEmpty()
+        if (pkg.isEmpty()) return
+        foregroundPackage = pkg
+        // 200 毫秒去抖，避免窗口连续变化时重复挂载窗口
+        handler.removeCallbacks(debounce)
+        handler.postDelayed(debounce, DEBOUNCE_MS)
+    }
+
+    override fun onInterrupt() = Unit
+
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        // 悬浮托盘展开时拦截返回键的按下与抬起，抬起时收起托盘，
+        // 避免前台应用同时响应返回操作
+        val trayOpen =
+            trayAttached &&
+                runCatching { AppServices.hasTray() && AppServices.tray.isOpen }.getOrDefault(false)
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && trayOpen) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                runCatching { AppServices.tray.close() }
+            }
+            return true
+        }
+        if (!shouldInvertVolume(event)) return false
+        return injectOpposite(event)
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        statusTicker.stop()
+        removeStatusWindow()
+        removeTrayWindow()
+        removeFlashWindow()
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    /** 订阅电池、网络与托盘配置，状态变化时刷新悬浮界面。 */
+    private fun observeStates() {
+        val system = runCatching { AppServices.system }.getOrNull() ?: return
+        scope.launch { system.battery.collect { updateStatus() } }
+        scope.launch { system.wifi.collect { updateStatus() } }
+        scope.launch { AppServices.config.state.collect { applyOverlayVisibility() } }
+    }
+
+    /** 依据前台包名与配置决定悬浮窗口的挂载状态。 */
+    private fun applyOverlayVisibility() {
+        val config = runCatching { AppServices.config.state.value.tray }.getOrNull() ?: return
+        val launcherVisible = foregroundPackage == packageName
+        val overlayEnabled = config.enabled && config.overlayEnabled
+        if (launcherVisible || !overlayEnabled) {
+            if (trayAttached) {
+                runCatching { AppServices.tray.close() }
+                removeTrayWindow()
+            }
+            removeStatusWindow()
+            statusTicker.stop()
+            return
+        }
+        showStatusWindow()
+        statusTicker.start()
+        if (trayAttached) {
+            if (AppServices.hasTray() && AppServices.tray.isOpen) {
+                attachTrayWindow()
+            } else {
+                removeTrayWindow()
+            }
+        }
+    }
+
+    /** 挂载悬浮状态栏窗口。 */
+    private fun showStatusWindow() {
+        val manager = windowManager ?: return
+        if (statusAttached) {
+            updateStatus()
+            return
+        }
+        val view =
+            statusView ?: OverlayStatusBarView(this, ::flashScreen, ::openTray).also {
+                statusView = it
+                statusParams =
+                    overlayParams(
+                        width = WindowManager.LayoutParams.MATCH_PARENT,
+                        height = DesignRuntime.tokens.statusBarHeight,
+                        flags = WINDOW_FLAGS,
+                    )
+            }
+        val params = statusParams ?: return
+        val attached =
+            runCatching {
+                manager.addView(view, params)
+                true
+            }.getOrDefault(false)
+        statusAttached = attached
+        updateStatus()
+    }
+
+    /** 移除悬浮状态栏窗口。 */
+    private fun removeStatusWindow() {
+        val manager = windowManager ?: return
+        val view = statusView ?: return
+        if (!statusAttached) return
+        runCatching { manager.removeView(view) }
+        statusAttached = false
+    }
+
+    /** 刷新悬浮状态栏显示。 */
+    private fun updateStatus() {
+        statusView?.refresh()
+    }
+
+    /** 打开悬浮托盘：首次使用时创建全屏窗口，之后只切换可见性。 */
+    private fun openTray() {
+        if (!AppServices.hasTray()) return
+        val manager = windowManager ?: return
+        if (trayView == null) {
+            trayView = AppServices.tray.createOverlay(this)
+            trayParams =
+                overlayParams(
+                    width = WindowManager.LayoutParams.MATCH_PARENT,
+                    height = WindowManager.LayoutParams.MATCH_PARENT,
+                    flags = WINDOW_FLAGS,
+                )
+        }
+        attachTrayWindow()
+        AppServices.tray.open()
+    }
+
+    /** 挂载悬浮托盘窗口，并启动开合监视。 */
+    private fun attachTrayWindow() {
+        val manager = windowManager ?: return
+        if (trayAttached) return
+        val view = trayView ?: return
+        val base = trayParams ?: return
+        // 每次挂载都重建窗口参数，避免沿用上一次的不可触摸标志
+        val params = overlayParams(base.width, base.height, WINDOW_FLAGS)
+        val attached =
+            runCatching {
+                manager.addView(view, params)
+                true
+            }.getOrDefault(false)
+        trayAttached = attached
+        if (attached) {
+            handler.removeCallbacks(trayWatcher)
+            handler.postDelayed(trayWatcher, TRAY_WATCH_MS)
+        }
+    }
+
+    /**
+     * 移除悬浮托盘窗口。
+     *
+     * 先切换为不可触摸与不可获焦并更新窗口参数，再执行移除；
+     * 移除调用失败时窗口也不会继续拦截输入。
+     */
+    private fun removeTrayWindow() {
+        val manager = windowManager ?: return
+        val view = trayView ?: return
+        if (!trayAttached) return
+        handler.removeCallbacks(trayWatcher)
+        val base = trayParams
+        if (base != null) {
+            val safe =
+                overlayParams(
+                    base.width,
+                    base.height,
+                    WINDOW_FLAGS or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                )
+            runCatching { manager.updateViewLayout(view, safe) }
+        }
+        runCatching { manager.removeView(view) }
+        trayAttached = false
+    }
+
+    /** 整屏闪烁刷新：黑屏 500 毫秒后转白，再 500 毫秒后移除覆盖层。 */
+    private fun flashScreen() {
+        val manager = windowManager ?: return
+        if (flashing) return
+        flashing = true
+        val view = View(this).apply { setBackgroundColor(Color.BLACK) }
+        flashView = view
+        val params =
+            overlayParams(
+                width = WindowManager.LayoutParams.MATCH_PARENT,
+                height = WindowManager.LayoutParams.MATCH_PARENT,
+                flags = WINDOW_FLAGS,
+            )
+        val added =
+            runCatching {
+                manager.addView(view, params)
+                true
+            }.getOrDefault(false)
+        if (!added) {
+            flashing = false
+            flashView = null
+            return
+        }
+        handler.postDelayed({
+            runCatching { view.setBackgroundColor(Color.WHITE) }
+        }, FLASH_STEP_MS)
+        handler.postDelayed({
+            runCatching { manager.removeView(view) }
+            flashView = null
+            flashing = false
+        }, FLASH_STEP_MS * 2)
+    }
+
+    /** 移除残留的闪烁覆盖层。 */
+    private fun removeFlashWindow() {
+        val manager = windowManager ?: return
+        val view = flashView ?: return
+        runCatching { manager.removeView(view) }
+        flashView = null
+        flashing = false
+    }
+
+    /** 是否需要对调当前音量键。 */
+    private fun shouldInvertVolume(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP &&
+            event.keyCode != KeyEvent.KEYCODE_VOLUME_DOWN
+        ) {
+            return false
+        }
+        val config = runCatching { AppServices.config.state.value.tray }.getOrNull() ?: return false
+        if (!config.volumeKeyFlip) return false
+        if (foregroundPackage.isEmpty() || foregroundPackage == packageName) return false
+        return true
+    }
+
+    /** 注入对调后的音量键；失败时返回 false 交给系统处理原始按键。 */
+    private fun injectOpposite(event: KeyEvent): Boolean {
+        if (injectingVolume) return false
+        injectingVolume = true
+        val keyCode =
+            if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                KeyEvent.KEYCODE_VOLUME_DOWN
+            } else {
+                KeyEvent.KEYCODE_VOLUME_UP
+            }
+        val copy = KeyEvent(event.downTime, event.eventTime, event.action, keyCode, event.repeatCount)
+        val injected =
+            runCatching {
+                val input = getSystemService("input") ?: return@runCatching false
+                val method =
+                    input.javaClass.methods.firstOrNull {
+                        it.name == "injectInputEvent" && it.parameterTypes.size == 2
+                    } ?: return@runCatching false
+                method.isAccessible = true
+                method.invoke(input, copy, 0) as? Boolean ?: false
+            }.getOrDefault(false)
+        injectingVolume = false
+        return injected
+    }
+
+    /** 构造悬浮窗口参数。 */
+    private fun overlayParams(
+        width: Int,
+        height: Int,
+        flags: Int,
+    ): WindowManager.LayoutParams =
+        WindowManager
+            .LayoutParams(
+                width,
+                height,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                flags,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+
+    private companion object {
+        /** 不可获焦、不阻塞触摸、布局到屏幕物理区域。 */
+        const val WINDOW_FLAGS =
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+
+        const val DEBOUNCE_MS = 200L
+
+        /** 悬浮托盘开合读取周期，毫秒。 */
+        const val TRAY_WATCH_MS = 120L
+
+        const val FLASH_STEP_MS = 500L
+    }
+}

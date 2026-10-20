@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:InkGlyphs.kt$InkGlyphs$private fun drawOnce( canvas: Canvas, kind: Kind, cx: Float, cy: Float, size: Float, paint: Paint, extraStroke: Float, )</ID>
+    <ID>LongMethod:InkGlyphs.kt$InkGlyphs$private fun drawOnce( canvas: Canvas, kind: Kind, cx: Float, cy: Float, size: Float, paint: Paint, extraStroke: Float, )</ID>
+    <ID>ReturnCount:DesignRuntime.kt$DesignRuntime$fun typeface(id: String): Typeface</ID>
+    <ID>ReturnCount:ThemeTokensCodec.kt$ThemeTokensCodec$fun decode(raw: String): ThemeTokens?</ID>
+    <ID>ReturnCount:ThemeTokensCodec.kt$ThemeTokensCodec$private fun parseColor(raw: String): Int?</ID>
+    <ID>ReturnCount:ThemeTokensCodec.kt$ThemeTokensCodec$private fun readColor( objectValue: JsonObject, key: String, default: Int, ): Int?</ID>
+    <ID>TooManyFunctions:DesignRuntime.kt$DesignRuntime</ID>
+    <ID>TooManyFunctions:InkWidgets.kt$InkWidgets</ID>
+    <ID>TooManyFunctions:ThemeTokensCodec.kt$ThemeTokensCodec</ID>
+  </CurrentIssues>
+</SmellBaseline>

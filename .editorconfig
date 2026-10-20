@@ -1,0 +1,5 @@
+root = true
+
+# Kotlin 源码与构建脚本的排版约定，行宽与 detekt 的 MaxLineLength 规则共同约束。
+[*.{kt,kts}]
+max_line_length = 120

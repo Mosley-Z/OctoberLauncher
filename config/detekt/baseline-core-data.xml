@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:ThemeRepositoryImpl.kt$ThemeRepositoryImpl$override suspend fun importTheme(uri: Uri): Boolean</ID>
+    <ID>LoopWithTooManyJumpStatements:AppCatalogImpl.kt$AppCatalogImpl$for</ID>
+    <ID>LoopWithTooManyJumpStatements:IconPackResolver.kt$for</ID>
+    <ID>ReturnCount:AppCatalogImpl.kt$AppCatalogImpl$override suspend fun loadIcon( packageName: String, sizePx: Int, ): Bitmap?</ID>
+    <ID>ReturnCount:AppearanceRepositoryImpl.kt$AppearanceRepositoryImpl$private fun decodeSampled( path: String, width: Int, height: Int, ): Bitmap?</ID>
+    <ID>ReturnCount:BackupServiceImpl.kt$BackupServiceImpl$private fun manifestWarning(bytes: ByteArray?): String?</ID>
+    <ID>ReturnCount:BackupServiceImpl.kt$BackupServiceImpl$private fun parseTheme(bytes: ByteArray): AppearanceConfig?</ID>
+    <ID>ReturnCount:FontsRepository.kt$FontsRepository$override fun labelTypeface(): Typeface?</ID>
+    <ID>ReturnCount:IconOverrideStoreImpl.kt$IconOverrideStoreImpl$override fun loadOverride( packageName: String, sizePx: Int, ): Bitmap?</ID>
+    <ID>ReturnCount:IconPackResolver.kt$IconPackResolver$private fun indexFor(pack: PackContext): PackIndex?</ID>
+    <ID>ReturnCount:IconPackResolver.kt$IconPackResolver$private fun loadDrawable( pack: PackContext, drawableName: String, ): Drawable?</ID>
+    <ID>ReturnCount:IconPackResolver.kt$IconPackResolver$private fun packContext(): PackContext?</ID>
+    <ID>ReturnCount:IconPackResolver.kt$internal fun parseComponentRef(raw: String?): ComponentRef?</ID>
+    <ID>ReturnCount:JsonConfigStore.kt$JsonConfigStore$private fun &lt;T&gt; readSection( root: JsonObject, key: String, serializer: KSerializer&lt;T&gt;, default: T, ): T</ID>
+    <ID>ReturnCount:JsonConfigStore.kt$JsonConfigStore$private fun load(): LauncherConfig</ID>
+    <ID>ReturnCount:NotificationCenter.kt$NotificationCenter$fun appLabelFor(packageName: String): String</ID>
+    <ID>ReturnCount:NotificationCenter.kt$NotificationCenter$override fun canRead(): Boolean</ID>
+    <ID>TooManyFunctions:AppCatalogImpl.kt$AppCatalogImpl : AppCatalog</ID>
+    <ID>TooManyFunctions:AppearanceRepositoryImpl.kt$AppearanceRepositoryImpl : AppearanceRepository</ID>
+    <ID>TooManyFunctions:IconPackResolver.kt$IconPackResolver</ID>
+    <ID>TooManyFunctions:NotificationCenter.kt$NotificationCenter : NotificationFeed</ID>
+    <ID>TooManyFunctions:SystemControlsImpl.kt$SystemControlsImpl : SystemControls</ID>
+    <ID>TooManyFunctions:ThemeRepositoryImpl.kt$ThemeRepositoryImpl : ThemeRepository</ID>
+  </CurrentIssues>
+</SmellBaseline>

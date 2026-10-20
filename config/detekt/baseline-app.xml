@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>EmptyFunctionBlock:InkRefreshController.kt$InkRefreshController${ }</ID>
+    <ID>LongMethod:MainActivity.kt$MainActivity$private fun buildLayout()</ID>
+    <ID>ReturnCount:HostFilePicker.kt$HostFilePicker$private fun launch( requestCode: Int, intent: Intent, onPicked: (Uri?) -&gt; Unit, ): Boolean</ID>
+    <ID>ReturnCount:InkRefreshController.kt$InkRefreshController$override fun requestFullRefresh(reason: RefreshReason)</ID>
+    <ID>ReturnCount:LockGateImpl.kt$LockGateImpl$override fun unlock(pin: String): Boolean</ID>
+    <ID>ReturnCount:LockOverlayView.kt$LockOverlayView$override fun onTouchEvent(event: MotionEvent): Boolean</ID>
+    <ID>ReturnCount:MainActivity.kt$MainActivity$override fun onKeyDown( keyCode: Int, event: android.view.KeyEvent, ): Boolean</ID>
+    <ID>ReturnCount:MainActivity.kt$MainActivity$private fun goBack(): Boolean</ID>
+    <ID>ReturnCount:MainActivity.kt$MainActivity$private fun onReturnedToForeground()</ID>
+    <ID>ReturnCount:MainActivity.kt$MainActivity$private fun requestHomeRoleIfNeeded()</ID>
+    <ID>ReturnCount:WallpaperView.kt$WallpaperView$private fun load(path: String?)</ID>
+    <ID>TooManyFunctions:MainActivity.kt$MainActivity : Activity</ID>
+    <ID>TooManyFunctions:OnboardingScreen.kt$OnboardingScreen : Screen</ID>
+  </CurrentIssues>
+</SmellBaseline>

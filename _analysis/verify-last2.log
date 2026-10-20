@@ -1,0 +1,15 @@
+# V1.0.1 验收记录 20261020-120516
+
+JDK：D:\DSHStation\.toolchain\jdk\jdk17.0.20_12
+SDK：D:\DSHStation\.toolchain\android-sdk
+
+设备：SA4B03CN2608081096X
+
+配置备份：D:\DSHStation\OctoberLauncher\_analysis\verify\20261020-120516\cfg-backup.xml
+
+## 产物
+- app-debug.apk  4163120 字节  sha256=c5a5b6493785d5f13479f27df998d02819934da764dbc7e7bfc1a001c612b0c3
+- app-release.apk  631306 字节  sha256=3947c310c64c67f4fbc0aac0ae6c18a8c4143256aeacf0260b76d4dc122a23fa
+- mapping.txt  10623723 字节  sha256=8e18e41e14b59f847556b66c07f2ca036f2d524804d9a2b6cb7b1e9cb9b808e0
+
+## 真机验证

@@ -1,0 +1,16 @@
+> Task :core:device:detekt
+> Task :core:render:detekt
+> Task :service:detekt
+> Task :app:detekt
+> Task :core:common:detekt
+> Task :core:design:detekt
+> Task :core:widget-api:detekt
+> Task :feature:widgets:detekt
+> Task :feature:settings:detekt
+> Task :feature:home:detekt
+> Task :core:data:detekt
+> Task :feature:tray:detekt
+> Task :feature:content:detekt
+
+BUILD SUCCESSFUL in 2s
+13 actionable tasks: 13 executed

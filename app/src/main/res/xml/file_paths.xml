@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path
+        name="updates"
+        path="updates/" />
+    <files-path
+        name="themes"
+        path="themes/" />
+    <!-- 文件页分享外部存储中的文件，路径由 FileProvider 按需授予读取权限 -->
+    <external-path
+        name="files_share"
+        path="." />
+    <!-- 二次存储卷不在主存储根下，分享前先复制到缓存目录，再由该条目授权读取 -->
+    <cache-path
+        name="files_share_cache"
+        path="share/" />
+    <!-- 微读墨记迁移包写入位置，导出组件按授权写入单个文件 -->
+    <cache-path
+        name="weread_import"
+        path="weread-import/" />
+</paths>

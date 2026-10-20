@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ReturnCount:NotificationRelayService.kt$NotificationRelayService$private fun toItem(sbn: StatusBarNotification): NotificationItem?</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$override fun onAccessibilityEvent(event: AccessibilityEvent?)</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$override fun onKeyEvent(event: KeyEvent): Boolean</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$private fun attachTrayWindow()</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$private fun flashScreen()</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$private fun removeStatusWindow()</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$private fun removeTrayWindow()</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$private fun shouldInvertVolume(event: KeyEvent): Boolean</ID>
+    <ID>ReturnCount:OverlayAccessibilityService.kt$OverlayAccessibilityService$private fun showStatusWindow()</ID>
+    <ID>TooManyFunctions:NotificationRelayService.kt$NotificationRelayService : NotificationListenerService</ID>
+    <ID>TooManyFunctions:OverlayAccessibilityService.kt$OverlayAccessibilityService : AccessibilityService</ID>
+  </CurrentIssues>
+</SmellBaseline>

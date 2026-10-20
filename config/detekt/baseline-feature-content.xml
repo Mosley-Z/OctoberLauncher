@@ -1,0 +1,92 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:WeatherClient.kt$WeatherClient$configuredLatitude != null &amp;&amp; configuredLongitude != null &amp;&amp; !(configuredLatitude == 0.0 &amp;&amp; configuredLongitude == 0.0)</ID>
+    <ID>CyclomaticComplexMethod:BookshelfScreen.kt$BookshelfScreen$private fun renderPage(token: Int)</ID>
+    <ID>CyclomaticComplexMethod:EpubCover.kt$EpubCover$fun extract( epub: File, targetDirectory: File, stem: String, ): File?</ID>
+    <ID>CyclomaticComplexMethod:FilesScreen.kt$FilesScreen$private suspend fun renderBrowser( container: LinearLayout, library: FileLibrary, directory: File, hasStorage: Boolean, )</ID>
+    <ID>CyclomaticComplexMethod:KoreaderRepository.kt$KoreaderRepository$suspend fun recentEntries( limit: Int = 20, deadlineMs: Long = 5000L, ): List&lt;KoreaderEntry&gt;</ID>
+    <ID>CyclomaticComplexMethod:RecentsRepository.kt$RecentsRepository$suspend fun usage( span: UsageSpan, limit: Int = MAX_ENTRIES, ): UsageSummary</ID>
+    <ID>CyclomaticComplexMethod:WeatherClient.kt$WeatherClient$private fun describeWeatherCode(code: Int): String</ID>
+    <ID>CyclomaticComplexMethod:WereadClient.kt$WereadClient$private fun extractDailySeconds(payload: JSONObject): Map&lt;Int, Long&gt;</ID>
+    <ID>CyclomaticComplexMethod:WereadClient.kt$WereadClient$private fun parseShelf(payload: JSONObject): List&lt;WereadShelfItem&gt;</ID>
+    <ID>CyclomaticComplexMethod:WereadClient.kt$WereadClient$suspend fun highlights(limit: Int = 5): List&lt;WereadHighlight&gt;</ID>
+    <ID>ImplicitDefaultLocale:WereadClient.kt$WereadClient$String.format("%04d-%02d", calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)</ID>
+    <ID>LongMethod:BookshelfScreen.kt$BookshelfScreen$private fun renderPage(token: Int)</ID>
+    <ID>LongMethod:FilesScreen.kt$FilesScreen$private suspend fun renderBrowser( container: LinearLayout, library: FileLibrary, directory: File, hasStorage: Boolean, )</ID>
+    <ID>LongMethod:SearchScreen.kt$SearchScreen$private fun buildUi()</ID>
+    <ID>LongMethod:WereadClient.kt$WereadClient$private fun parseShelf(payload: JSONObject): List&lt;WereadShelfItem&gt;</ID>
+    <ID>LoopWithTooManyJumpStatements:BookshelfRepository.kt$BookshelfRepository$for</ID>
+    <ID>LoopWithTooManyJumpStatements:KoreaderRepository.kt$KoreaderRepository$for</ID>
+    <ID>LoopWithTooManyJumpStatements:RecentsRepository.kt$RecentsRepository$for</ID>
+    <ID>LoopWithTooManyJumpStatements:RecentsRepository.kt$RecentsRepository$while</ID>
+    <ID>LoopWithTooManyJumpStatements:UsageRepository.kt$UsageRepository$for</ID>
+    <ID>LoopWithTooManyJumpStatements:WeatherClient.kt$WeatherClient$for</ID>
+    <ID>LoopWithTooManyJumpStatements:WereadClient.kt$WereadClient$for</ID>
+    <ID>NestedBlockDepth:EpubCover.kt$EpubCover$private fun parseOpf(text: String): OpfData</ID>
+    <ID>NestedBlockDepth:FilesScreen.kt$FilesScreen$private suspend fun renderBrowser( container: LinearLayout, library: FileLibrary, directory: File, hasStorage: Boolean, )</ID>
+    <ID>ReturnCount:BookshelfRepository.kt$BookshelfRepository$private fun isCollectionDirectory(name: String): Boolean</ID>
+    <ID>ReturnCount:BookshelfRepository.kt$BookshelfRepository$private fun readSidecar(book: File): SidecarInfo</ID>
+    <ID>ReturnCount:ContentScreen.kt$ContentScreen$protected fun openFile(file: java.io.File): Boolean</ID>
+    <ID>ReturnCount:ContentSourceImpl.kt$ContentSourceImpl$fun cachedShelfData( local: Boolean, weread: Boolean, ): ShelfData?</ID>
+    <ID>ReturnCount:ContentSourceImpl.kt$ContentSourceImpl$override suspend fun searchBooks(query: String): List&lt;BookItem&gt;</ID>
+    <ID>ReturnCount:ContentSourceImpl.kt$ContentSourceImpl$private suspend fun localBooks(force: Boolean): List&lt;BookItem&gt;</ID>
+    <ID>ReturnCount:ContentSourceImpl.kt$ContentSourceImpl$private suspend fun wereadReadingSnapshot(): ReadingSnapshot?</ID>
+    <ID>ReturnCount:ContentSourceImpl.kt$ContentSourceImpl$private suspend fun wereadShelfItems(force: Boolean): List&lt;WereadShelfItem&gt;</ID>
+    <ID>ReturnCount:ContentUi.kt$ContentUi$private fun decodeCover( coverPath: String?, sidePx: Int, ): Bitmap?</ID>
+    <ID>ReturnCount:CoverResolver.kt$CoverResolver$fun resolve( context: Context, book: File, ): String?</ID>
+    <ID>ReturnCount:CoverResolver.kt$CoverResolver$fun sidecarCover(book: File): File?</ID>
+    <ID>ReturnCount:CoverResolver.kt$CoverResolver$private fun findByStem( directory: File, stem: String, ): File?</ID>
+    <ID>ReturnCount:EpubCover.kt$EpubCover$private fun chooseCoverHref(data: OpfData): String?</ID>
+    <ID>ReturnCount:EpubCover.kt$EpubCover$private fun readEntryText( zip: ZipFile, path: String, ): String?</ID>
+    <ID>ReturnCount:EpubCover.kt$EpubCover$private fun readOpfPath(zip: ZipFile): String?</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$fun copyOrMove( source: File, destinationDirectory: File, move: Boolean, ): FileResult</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$fun createDirectory( parent: File, name: String, ): FileResult</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$fun delete(target: File): FileResult</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$fun openIntent(file: File): Intent?</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$fun rename( target: File, newName: String, ): FileResult</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$private fun copyDirectory( source: File, destination: File, ): Boolean</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$private fun copyToOpenCache(file: File): File?</ID>
+    <ID>ReturnCount:FileLibrary.kt$FileLibrary$private fun normalizeName( target: File, raw: String, ): String?</ID>
+    <ID>ReturnCount:KoreaderRepository.kt$KoreaderRepository$private fun readHistory(root: File): List&lt;String&gt;</ID>
+    <ID>ReturnCount:KoreaderRepository.kt$KoreaderRepository$private fun readLastFile(root: File): String?</ID>
+    <ID>ReturnCount:KoreaderRepository.kt$KoreaderRepository$private fun readMetadata(book: File): BookMetadata</ID>
+    <ID>ReturnCount:KoreaderScreen.kt$KoreaderScreen$private fun heatColor( minutes: Int, maxMinutes: Int, ): Int</ID>
+    <ID>ReturnCount:RecentsScreen.kt$KeyFrameLayout$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
+    <ID>ReturnCount:RecentsScreen.kt$RecentsScreen$private fun activateSelected(): Boolean</ID>
+    <ID>ReturnCount:RecentsScreen.kt$RecentsScreen$private fun scrollRowIntoView(view: View)</ID>
+    <ID>ReturnCount:WeatherClient.kt$WeatherClient$private fun fetch( latitude: Double, longitude: Double, city: String, ): WeatherSnapshot?</ID>
+    <ID>ReturnCount:WeatherClient.kt$WeatherClient$private fun formatDay(isoDate: String): String</ID>
+    <ID>ReturnCount:WeatherClient.kt$WeatherClient$private fun parseDaily(payload: JSONObject): List&lt;WeatherDay&gt;</ID>
+    <ID>ReturnCount:WeatherClient.kt$WeatherClient$private fun parseHourly( payload: JSONObject, currentTime: String, ): List&lt;WeatherHour&gt;</ID>
+    <ID>ReturnCount:WeatherClient.kt$WeatherClient$private fun parseLocation(payload: JSONObject): Location?</ID>
+    <ID>ReturnCount:WereadClient.kt$WereadClient$private fun callGateway( apiKey: String, apiName: String, business: JSONObject, timeoutMs: Int = DEFAULT_TIMEOUT_MS, ): JSONObject?</ID>
+    <ID>ReturnCount:WereadClient.kt$WereadClient$private fun downloadCover( url: String, bookId: String, ): String?</ID>
+    <ID>ReturnCount:WereadClient.kt$WereadClient$private fun resolveDay(key: String): Int?</ID>
+    <ID>ReturnCount:WereadClient.kt$WereadClient$private suspend fun attachProgress( key: String, items: List&lt;WereadShelfItem&gt;, ): List&lt;WereadShelfItem&gt;</ID>
+    <ID>ReturnCount:WereadScreen.kt$WereadScreen$private suspend fun render(container: LinearLayout)</ID>
+    <ID>SwallowedException:ContentSourceImpl.kt$ContentSourceImpl$error: TimeoutCancellationException</ID>
+    <ID>TooGenericExceptionCaught:BookshelfScreen.kt$BookshelfScreen$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ContentScreen.kt$ContentScreen$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ContentSourceImpl.kt$ContentSourceImpl$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SearchScreen.kt$SearchScreen$error: Throwable</ID>
+    <ID>TooManyFunctions:BookshelfNegativeModule.kt$BookshelfNegativeModule : NegativeModule</ID>
+    <ID>TooManyFunctions:BookshelfRepository.kt$BookshelfRepository</ID>
+    <ID>TooManyFunctions:BookshelfScreen.kt$BookshelfScreen : ContentScreen</ID>
+    <ID>TooManyFunctions:ContentScreen.kt$ContentScreen : Screen</ID>
+    <ID>TooManyFunctions:ContentSourceImpl.kt$ContentSourceImpl : ContentSource</ID>
+    <ID>TooManyFunctions:ContentUi.kt$ContentUi</ID>
+    <ID>TooManyFunctions:FileLibrary.kt$FileLibrary</ID>
+    <ID>TooManyFunctions:FilesScreen.kt$FilesScreen : ContentScreen</ID>
+    <ID>TooManyFunctions:KoreaderRepository.kt$KoreaderRepository</ID>
+    <ID>TooManyFunctions:KoreaderScreen.kt$KoreaderScreen : ContentScreen</ID>
+    <ID>TooManyFunctions:RecentsRepository.kt$RecentsRepository</ID>
+    <ID>TooManyFunctions:RecentsScreen.kt$RecentsScreen : ContentScreen</ID>
+    <ID>TooManyFunctions:WeatherClient.kt$WeatherClient</ID>
+    <ID>TooManyFunctions:WereadClient.kt$WereadClient</ID>
+    <ID>TooManyFunctions:WereadScreen.kt$WereadScreen : ContentScreen</ID>
+    <ID>UnusedPrivateProperty:BookshelfRepository.kt$BookshelfRepository$private val scanning = AtomicBoolean(false)</ID>
+    <ID>UnusedPrivateProperty:ContentUi.kt$ContentUi$private const val MAX_BITMAP_SIDE = 320</ID>
+  </CurrentIssues>
+</SmellBaseline>

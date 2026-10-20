@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 墨水屏骨架主题：白底、无标题栏、无窗口动画 -->
+    <style name="Theme.OctoberRain" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:colorBackground">@android:color/white</item>
+    </style>
+</resources>

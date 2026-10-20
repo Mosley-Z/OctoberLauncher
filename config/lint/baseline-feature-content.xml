@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.7.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.7.3)" variant="all" version="8.7.3">
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="                put(&quot;month&quot;, String.format(&quot;%04d-%02d&quot;, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1))"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/WereadClient.kt"
+            line="363"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="SdCardPath"
+        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
+        errorLine1="                File(&quot;/sdcard/koreader&quot;),"
+        errorLine2="                      ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/ContentPaths.kt"
+            line="46"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="SdCardPath"
+        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
+        errorLine1="        if (path.startsWith(&quot;/sdcard/&quot;)) candidates.add(File(external, path.removePrefix(&quot;/sdcard/&quot;)))"
+        errorLine2="                             ~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/KoreaderRepository.kt"
+            line="247"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="SdCardPath"
+        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
+        errorLine1="        if (path.startsWith(&quot;/sdcard/&quot;)) candidates.add(File(external, path.removePrefix(&quot;/sdcard/&quot;)))"
+        errorLine2="                                                                                          ~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/KoreaderRepository.kt"
+            line="247"
+            column="91"/>
+    </issue>
+
+    <issue
+        id="ViewConstructor"
+        message="Custom view `KeyFrameLayout` is missing constructor used by tools: `(Context)` or `(Context,AttributeSet)` or `(Context,AttributeSet,int)`"
+        errorLine1="private class KeyFrameLayout("
+        errorLine2="              ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/content/RecentsScreen.kt"
+            line="624"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        rowsLabel?.text = &quot;$rows 行&quot;"
+        errorLine2="                          ~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/content/ui/BookshelfNegativeModule.kt"
+            line="284"
+            column="27"/>
+    </issue>
+
+</issues>

@@ -1,0 +1,395 @@
+> Task :core:data:loadKtlintReporters UP-TO-DATE
+> Task :core:device:loadKtlintReporters UP-TO-DATE
+> Task :core:render:loadKtlintReporters UP-TO-DATE
+> Task :core:widget-api:loadKtlintReporters UP-TO-DATE
+> Task :feature:widgets:loadKtlintReporters UP-TO-DATE
+> Task :core:common:loadKtlintReporters UP-TO-DATE
+> Task :service:loadKtlintReporters UP-TO-DATE
+> Task :core:design:loadKtlintReporters UP-TO-DATE
+> Task :feature:home:loadKtlintReporters UP-TO-DATE
+> Task :feature:content:loadKtlintReporters UP-TO-DATE
+> Task :app:loadKtlintReporters UP-TO-DATE
+> Task :feature:settings:loadKtlintReporters UP-TO-DATE
+> Task :feature:tray:loadKtlintReporters UP-TO-DATE
+> Task :feature:content:runKtlintFormatOverKotlinScripts
+> Task :feature:content:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:content:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintReleaseSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :feature:content:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :feature:content:ktlintKotlinScriptFormat
+> Task :feature:widgets:runKtlintFormatOverKotlinScripts
+> Task :feature:widgets:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintReleaseSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :feature:widgets:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :feature:widgets:ktlintKotlinScriptFormat
+> Task :core:widget-api:runKtlintFormatOverKotlinScripts
+> Task :core:widget-api:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintDebugSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverKotlinScripts
+> Task :core:render:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:render:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :core:render:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :core:render:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverKotlinScripts
+> Task :core:widget-api:ktlintKotlinScriptFormat
+> Task :core:render:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintReleaseSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :core:render:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:render:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :core:render:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :core:render:runKtlintFormatOverTestSourceSet NO-SOURCE
+> Task :core:render:ktlintTestSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintReleaseSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :core:render:ktlintKotlinScriptFormat
+> Task :feature:settings:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:settings:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:settings:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :feature:settings:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:settings:ktlintKotlinScriptFormat
+> Task :core:widget-api:runKtlintFormatOverTestSourceSet
+> Task :core:widget-api:ktlintTestSourceSetFormat
+> Task :feature:settings:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintReleaseSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :feature:settings:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverKotlinScripts
+> Task :service:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :service:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :service:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :service:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :service:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverKotlinScripts
+> Task :service:ktlintKotlinScriptFormat
+> Task :service:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :service:ktlintReleaseSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :service:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :service:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :service:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :service:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :service:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :service:runKtlintFormatOverTestSourceSet NO-SOURCE
+> Task :service:ktlintTestSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:tray:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:tray:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:tray:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :feature:tray:ktlintDebugSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverKotlinScripts
+> Task :core:common:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverKotlinScripts
+> Task :core:common:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :core:data:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :core:data:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :core:data:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintDebugSourceSetFormat SKIPPED
+> Task :core:data:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :core:data:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :core:data:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:tray:ktlintKotlinScriptFormat
+> Task :feature:home:runKtlintFormatOverKotlinScripts
+> Task :core:common:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintReleaseSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :core:common:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :core:common:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :core:common:ktlintKotlinScriptFormat
+> Task :core:data:ktlintKotlinScriptFormat
+> Task :core:data:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintReleaseSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :core:data:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:data:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :core:data:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverKotlinScripts
+> Task :core:device:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:device:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :core:device:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :core:device:ktlintDebugSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverKotlinScripts
+> Task :core:design:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :core:design:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintDebugSourceSetFormat SKIPPED
+> Task :core:device:ktlintKotlinScriptFormat
+> Task :core:design:ktlintKotlinScriptFormat
+> Task :core:design:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintReleaseSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :core:design:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :core:design:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverKotlinScripts
+> Task :app:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :app:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :app:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :app:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :app:ktlintDebugSourceSetFormat SKIPPED
+> Task :core:widget-api:runKtlintFormatOverMainSourceSet
+> Task :app:ktlintKotlinScriptFormat
+> Task :feature:settings:runKtlintFormatOverTestSourceSet
+> Task :app:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :app:ktlintReleaseSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :app:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :app:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :app:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :app:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :app:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :app:runKtlintFormatOverTestSourceSet NO-SOURCE
+> Task :app:ktlintTestSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintReleaseSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :core:device:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:device:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :core:device:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :core:device:runKtlintFormatOverTestSourceSet
+> Task :core:device:ktlintTestSourceSetFormat
+> Task :core:widget-api:ktlintMainSourceSetFormat
+> Task :core:widget-api:ktlintFormat
+> Task :feature:home:runKtlintFormatOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintAndroidTestDebugSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintAndroidTestReleaseSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:home:ktlintAndroidTestSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintDebugSourceSetFormat SKIPPED
+> Task :feature:home:ktlintKotlinScriptFormat
+> Task :core:render:runKtlintFormatOverMainSourceSet
+> Task :core:render:ktlintMainSourceSetFormat
+> Task :core:render:ktlintFormat
+> Task :feature:home:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintReleaseSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :feature:home:runKtlintFormatOverTestSourceSet
+> Task :feature:home:ktlintTestSourceSetFormat
+> Task :feature:settings:ktlintTestSourceSetFormat
+> Task :core:device:runKtlintFormatOverMainSourceSet
+> Task :core:design:runKtlintFormatOverTestSourceSet
+> Task :core:device:ktlintMainSourceSetFormat
+> Task :core:device:ktlintFormat
+> Task :feature:tray:runKtlintFormatOverReleaseSourceSet NO-SOURCE
+> Task :feature:tray:ktlintReleaseSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverTestDebugSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestDebugSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestFixturesDebugSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestFixturesReleaseSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestFixturesSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverTestReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintTestSourceSetFormat
+> Task :feature:tray:ktlintTestReleaseSourceSetFormat SKIPPED
+> Task :feature:tray:runKtlintFormatOverTestSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestSourceSetFormat SKIPPED
+> Task :core:data:runKtlintFormatOverTestSourceSet
+> Task :core:common:runKtlintFormatOverTestSourceSet
+> Task :core:data:ktlintTestSourceSetFormat
+> Task :core:common:ktlintTestSourceSetFormat
+> Task :service:runKtlintFormatOverMainSourceSet
+> Task :service:ktlintMainSourceSetFormat
+> Task :service:ktlintFormat
+> Task :feature:widgets:runKtlintFormatOverMainSourceSet
+
+> Task :feature:widgets:ktlintMainSourceSetFormat
+D:\DSHStation\OctoberLauncher\feature\widgets\src\main\java\com\shuiyu\octoberrain\feature\widgets\ClockStyleScreen.kt:99:27 Exceeded max line length (140) (cannot be auto-corrected)
+
+> Task :feature:content:runKtlintFormatOverTestSourceSet
+> Task :feature:content:ktlintTestSourceSetFormat
+> Task :app:runKtlintFormatOverMainSourceSet
+> Task :app:ktlintMainSourceSetFormat
+> Task :app:ktlintFormat
+> Task :feature:widgets:runKtlintFormatOverTestSourceSet
+> Task :feature:widgets:ktlintTestSourceSetFormat
+> Task :feature:widgets:ktlintFormat
+> Task :core:common:runKtlintFormatOverMainSourceSet
+
+> Task :core:common:ktlintMainSourceSetFormat
+D:\DSHStation\OctoberLauncher\core\common\src\main\java\com\shuiyu\octoberrain\core\common\Json.kt:1:1 File 'Json.kt' contains a single top level declaration and should be named 'AppJson.kt' (cannot be auto-corrected)
+
+> Task :core:common:ktlintFormat
+> Task :feature:home:runKtlintFormatOverMainSourceSet
+
+> Task :feature:home:ktlintMainSourceSetFormat
+D:\DSHStation\OctoberLauncher\feature\home\src\main\java\com\shuiyu\octoberrain\feature\home\HomeModule.kt:29:19 Class or object name should start with an uppercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\home\src\main\java\com\shuiyu\octoberrain\feature\home\HomeModule.kt:29:20 Class or object name should start with an uppercase letter and use camel case (cannot be auto-corrected)
+
+> Task :feature:home:ktlintFormat
+> Task :feature:tray:runKtlintFormatOverMainSourceSet
+> Task :feature:tray:ktlintMainSourceSetFormat
+> Task :feature:tray:ktlintFormat
+> Task :core:design:runKtlintFormatOverMainSourceSet
+
+> Task :core:design:ktlintMainSourceSetFormat
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:16:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:21:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:26:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:31:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:36:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:41:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:46:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:51:8 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+
+> Task :core:design:ktlintFormat
+> Task :core:data:runKtlintFormatOverMainSourceSet
+> Task :core:data:ktlintMainSourceSetFormat
+> Task :core:data:ktlintFormat
+> Task :feature:content:runKtlintFormatOverMainSourceSet
+> Task :feature:content:ktlintMainSourceSetFormat
+> Task :feature:content:ktlintFormat
+> Task :feature:settings:runKtlintFormatOverMainSourceSet
+
+> Task :feature:settings:ktlintMainSourceSetFormat
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyIconPanel.kt:28:34 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyIconPanel.kt:31:4 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyImagePanel.kt:28:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyPreviewPanel.kt:17:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyThemePanel.kt:27:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsSpecBuilders.kt:14:2 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+
+> Task :feature:settings:ktlintFormat
+
+BUILD SUCCESSFUL in 27s
+83 actionable tasks: 70 executed, 13 up-to-date

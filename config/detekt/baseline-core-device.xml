@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ReturnCount:PermissionCenter.kt$PermissionCenter$fun hasAccessibility(): Boolean</ID>
+    <ID>SwallowedException:DeviceProfileDetector.kt$DeviceProfileDetector$e: Exception</ID>
+    <ID>SwallowedException:PermissionCenter.kt$PermissionCenter$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DeviceProfileDetector.kt$DeviceProfileDetector$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:PermissionCenter.kt$PermissionCenter$e: Exception</ID>
+    <ID>TooManyFunctions:PermissionCenter.kt$PermissionCenter : Permissions</ID>
+  </CurrentIssues>
+</SmellBaseline>

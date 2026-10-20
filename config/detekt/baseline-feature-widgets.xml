@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:HeatMonthWidget.kt$HeatMonthWidget$override fun drawWidget( canvas: Canvas, width: Int, height: Int, )</ID>
+    <ID>EmptyFunctionBlock:ClockStyleScreen.kt$ClockStyleScreen${ }</ID>
+    <ID>LongMethod:CalendarWidget.kt$CalendarWidget$override fun drawWidget( canvas: Canvas, width: Int, height: Int, )</ID>
+    <ID>LongMethod:ClockFaces.kt$ClockFaces$fun drawAnalog( canvas: Canvas, area: RectF, time: ClockTime, paint: Paint, baseSize: Float, )</ID>
+    <ID>NestedBlockDepth:ImageWidget.kt$ImageWidget$private fun copyToInternal(uri: Uri): File?</ID>
+    <ID>ReturnCount:ClockStyleScreen.kt$ClockStylePreviewList$override fun onTouchEvent(event: MotionEvent): Boolean</ID>
+    <ID>ReturnCount:ClockWidget.kt$ClockWidget$private fun drawStackedLayout( canvas: Canvas, face: ClockFace, time: ClockTime, date: String, left: Float, right: Float, top: Float, bottom: Float, height: Int, typeface: android.graphics.Typeface, datePaint: android.graphics.Paint, )</ID>
+    <ID>ReturnCount:HeatMonthWidget.kt$HeatMonthWidget$override fun drawWidget( canvas: Canvas, width: Int, height: Int, )</ID>
+    <ID>ReturnCount:ImageWidget.kt$ImageWidget$override suspend fun loadData(force: Boolean): Boolean</ID>
+    <ID>ReturnCount:InkWidgetView.kt$InkDraw$fun ellipsize( text: String, paint: Paint, maxWidth: Float, ): String</ID>
+    <ID>ReturnCount:InkWidgetView.kt$InkDraw$fun wrap( text: String, paint: Paint, maxWidth: Float, maxLines: Int, ): List&lt;String&gt;</ID>
+    <ID>ReturnCount:UsageWidget.kt$UsageWidget$override fun drawWidget( canvas: Canvas, width: Int, height: Int, )</ID>
+    <ID>ReturnCount:WeatherWidget.kt$WeatherWidget$override fun drawWidget( canvas: Canvas, width: Int, height: Int, )</ID>
+    <ID>TooGenericExceptionCaught:ImageWidget.kt$ImageWidget$error: Exception</ID>
+    <ID>TooManyFunctions:InkWidgetView.kt$InkWidgetView : BaseWidgetView</ID>
+    <ID>UnusedPrivateProperty:ClockFaces.kt$ClockFaces$val lineY = area.centerY()</ID>
+  </CurrentIssues>
+</SmellBaseline>

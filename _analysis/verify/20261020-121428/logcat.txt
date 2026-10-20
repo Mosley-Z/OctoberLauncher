@@ -1,0 +1,538 @@
+--------- beginning of system
+10-20 12:14:36.862 12530 11039 I ActivityManager: Force stopping com.shuiyu.octoberrain appid=10125 user=0: from pid 15002
+10-20 12:14:36.865 12530 12548 V WindowManager: getPackagePerformanceMode -- ComponentInfo{com.inkread.weekread/com.inkread.weekread.shell.MainActivity} -- com.inkread.weekread -- mode=0
+--------- beginning of main
+10-20 12:14:36.873 12821 12821 E PhoneInterfaceManager: [PhoneIntfMgr] getCarrierPackageNamesForIntentAndPhone: No UICC
+10-20 12:14:36.873 12821 12821 D CarrierSvcBindHelper: No carrier app for: 0
+10-20 12:14:37.829 12530 11039 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.shuiyu.octoberrain/.MainActivity} from uid 2000
+10-20 12:14:37.849   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:37.852   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:37.852   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337129, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:37.852   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:37.852   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:37.876 12530 12548 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10125; state: DISABLED
+10-20 12:14:37.877 12530 12555 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10125; state: ENABLED
+10-20 12:14:37.903   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:37.903   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'Splash Screen com.shuiyu.octoberrain#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x933, consumer_usage : 0x933, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337130, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:37.903   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:37.903   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:37.904 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:37.927 12459 12459 D Zygote  : Forked child process 15010
+10-20 12:14:37.932 12530 12555 W ActivityManager: Slow operation: 60ms so far, now at startProcess: returned from zygote!
+10-20 12:14:37.933 12530 12555 W ActivityManager: Slow operation: 60ms so far, now at startProcess: done updating battery stats
+10-20 12:14:37.933 12530 12555 W ActivityManager: Slow operation: 60ms so far, now at startProcess: building log message
+10-20 12:14:37.933 12530 12555 I ActivityManager: Start proc 15010:com.shuiyu.octoberrain/u0a125 for pre-top-activity {com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity}
+10-20 12:14:37.933 12530 12555 W ActivityManager: Slow operation: 60ms so far, now at startProcess: starting to update pids map
+10-20 12:14:37.933 12530 12555 W ActivityManager: Slow operation: 60ms so far, now at startProcess: done updating pids map
+10-20 12:14:37.948 15010 15010 I iyu.octoberrai: Late-enabling -Xcheck:jni
+10-20 12:14:37.983   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86beb00)
+10-20 12:14:37.983   165   375 E Gralloc4: unlock(0xe86beb00) failed with 2
+10-20 12:14:37.987 15010 15010 I iyu.octoberrai: Unquickening 12 vdex files!
+10-20 12:14:37.990 15010 15010 W iyu.octoberrai: Using default instruction set features for ARM CPU variant (cortex-a9) using conservative defaults
+10-20 12:14:37.997   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86beb00)
+10-20 12:14:37.997   165   372 E Gralloc4: unlock(0xe86beb00) failed with 2
+10-20 12:14:37.999   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86beb00)
+10-20 12:14:37.999   165   374 E Gralloc4: unlock(0xe86beb00) failed with 2
+10-20 12:14:38.000   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:38.001   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:38.001   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337131, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:38.001   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:38.001   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:38.001 13030 13036 I adbd    : jdwp connection from 15010
+10-20 12:14:38.045   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:38.045   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337132, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:38.046   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:38.046   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:38.056   165   437 E BufferQueueProducer: [com.inkread.weekread/com.inkread.weekread.shell.MainActivity#0](id:a5000018b9,api:0,p:-1,c:165) disconnect: not connected (req=1)
+10-20 12:14:38.057 14567 14591 W libEGL  : EGLNativeWindowType 0xf1d89408 disconnect failed
+10-20 12:14:38.131   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be800)
+10-20 12:14:38.131   165   375 E Gralloc4: unlock(0xe69be800) failed with 2
+10-20 12:14:38.136   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be800)
+10-20 12:14:38.137   165   373 E Gralloc4: unlock(0xe69be800) failed with 2
+10-20 12:14:38.137   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be800)
+10-20 12:14:38.137   165   372 E Gralloc4: unlock(0xe69be800) failed with 2
+10-20 12:14:38.138   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:38.139   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:38.139   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337133, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:38.139   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:38.139   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:38.255   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:38.255   165   372 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:38.267   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:38.267   165   375 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:38.271   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:38.271   165   374 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:38.719 15010 15010 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+10-20 12:14:38.721 15010 15010 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+10-20 12:14:39.700 15010 15010 D 启动  : 服务就绪，屏幕 480x800
+10-20 12:14:40.079 15010 15010 D OctoberRain: page=桌面 create=83ms stack=0
+10-20 12:14:40.133   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:40.134   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.134   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337134, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.134   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.134   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.137 15010 15010 I Choreographer: Skipped 102 frames!  The application may be doing too much work on its main thread.
+10-20 12:14:40.168 15010 15038 E BitmapFactory: Unable to decode stream: java.io.FileNotFoundException: /data/user/0/com.shuiyu.octoberrain/files/wallpaper/wallpaper_1792433694169.png: open failed: ENOENT (No such file or directory)
+10-20 12:14:40.193 15010 15038 E BitmapFactory: Unable to decode stream: java.io.FileNotFoundException: /data/user/0/com.shuiyu.octoberrain/files/wallpaper/lock_1792433973679.png: open failed: ENOENT (No such file or directory)
+10-20 12:14:40.225 15010 15010 W RenderThread: type=1400 audit(0.0:52041): avc: denied { write } for name="property_service" dev="tmpfs" ino=1313 scontext=u:r:untrusted_app:s0:c125,c256,c512,c768 tcontext=u:object_r:property_socket:s0 tclass=sock_file permissive=0 app=com.shuiyu.octoberrain
+10-20 12:14:40.227 15010 15034 I mali_so : [File] : hardware/rockchip/mali_so/driver/product/base/src/mali_base_kbase.c; [Line] : 1311; [Func] : base_context_deal_with_version_affairs_rk_ext;
+10-20 12:14:40.227 15010 15034 I mali_so : arm_release_ver of this mali_so is 'g2p0-01eac0', rk_so_ver is '5@0 '.
+10-20 12:14:40.227 15010 15034 I mali_so : [File] : hardware/rockchip/mali_so/driver/product/base/src/mali_base_kbase.c; [Line] : 1327; [Func] : base_context_deal_with_version_affairs_rk_ext;
+10-20 12:14:40.227 15010 15034 I mali_so : arm_release_vers are match. to set the full mali_ver 'g2p0-01eac0-x-5@0' as value of 'sys.gmali.version'.
+10-20 12:14:40.227 15010 15034 W libc    : Unable to set property "sys.gmali.version" to "g2p0-01eac0-x-5@0": connection failed; errno=13 (Permission denied)
+10-20 12:14:40.233   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.233   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'Splash Screen com.shuiyu.octoberrain#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x933, consumer_usage : 0x933, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337135, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.233   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.233   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.287   145   145 I hwservicemanager: getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device manifest.
+10-20 12:14:40.303   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:40.303   165   373 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:40.305   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:40.305   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:40.319   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:40.319   165   372 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:40.320   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:40.321   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.321   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337136, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.321   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.321   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.353   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.353   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337137, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.353   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.353   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.355   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.355   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337138, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.355   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.355   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.356   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.356   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337139, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.356   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.356   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.357   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.357   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337140, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.357   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.357   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.494   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86beb00)
+10-20 12:14:40.494   165   374 E Gralloc4: unlock(0xe86beb00) failed with 2
+10-20 12:14:40.508   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86beb00)
+10-20 12:14:40.508   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86beb00)
+10-20 12:14:40.508   165   375 E Gralloc4: unlock(0xe86beb00) failed with 2
+10-20 12:14:40.508   165   373 E Gralloc4: unlock(0xe86beb00) failed with 2
+10-20 12:14:40.718 15010 15034 I OpenGLRenderer: Davey! duration=1892ms; Flags=1, IntendedVsync=253555976805317, Vsync=253557284497541, OldestInputEvent=9223372036854775807, NewestInputEvent=0, HandleInputStart=253557290442866, AnimationStart=253557290470283, PerformTraversalsStart=253557291067616, DrawStart=253557505517013, SyncQueued=253557547846308, SyncStart=253557548515975, IssueDrawCommandsStart=253557548695642, SwapBuffers=253557836302629, FrameCompleted=253557870271299, DequeueBufferDuration=464625, QueueBufferDuration=1169001, GpuCompleted=0, 
+10-20 12:14:40.733 15010 15010 I Choreographer: Skipped 44 frames!  The application may be doing too much work on its main thread.
+10-20 12:14:40.734   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:40.735   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.735   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337141, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.735   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.735   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.737 12530 12553 I ActivityTaskManager: Displayed com.shuiyu.octoberrain/.MainActivity: +2s896ms
+10-20 12:14:40.862   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be900)
+10-20 12:14:40.863   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be900)
+10-20 12:14:40.863   165   374 E Gralloc4: unlock(0xe69be900) failed with 2
+10-20 12:14:40.865   165   375 E Gralloc4: unlock(0xe69be900) failed with 2
+10-20 12:14:40.870   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be900)
+10-20 12:14:40.870   165   372 E Gralloc4: unlock(0xe69be900) failed with 2
+10-20 12:14:40.871   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:40.872   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:40.872   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337142, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:40.872   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:40.872   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:40.895 15010 15034 I OpenGLRenderer: Davey! duration=728ms; Flags=0, IntendedVsync=253557318319682, Vsync=253557882422210, OldestInputEvent=9223372036854775807, NewestInputEvent=0, HandleInputStart=253557885885967, AnimationStart=253557885904926, PerformTraversalsStart=253557886025676, DrawStart=253557886988468, SyncQueued=253557994160812, SyncStart=253557994692228, IssueDrawCommandsStart=253557994833103, SwapBuffers=253558043941900, FrameCompleted=253558047450067, DequeueBufferDuration=385583, QueueBufferDuration=1657250, GpuCompleted=0, 
+10-20 12:14:40.917   165   814 E BufferQueueProducer: [com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0](id:a5000018bb,api:0,p:-1,c:165) disconnect: not connected (req=1)
+10-20 12:14:40.917 15010 15034 W libEGL  : EGLNativeWindowType 0xf1d87808 disconnect failed
+10-20 12:14:40.924 12530 13049 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+10-20 12:14:40.929 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:41.016   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:41.019   165   372 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:41.020   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:41.020   165   373 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:41.036   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:41.036   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:41.037   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:41.038   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:41.038   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337143, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:41.038   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:41.038   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:41.047   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:41.047   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337144, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:41.047   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:41.047   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:41.110   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:41.110   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337145, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:41.110   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:41.110   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:41.131   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:41.131   165   373 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:41.137 12530 12850 V WindowManager: getPackagePerformanceMode -- ComponentInfo{com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity} -- com.shuiyu.octoberrain -- mode=0
+10-20 12:14:41.168   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:41.168   165   374 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:41.181   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:41.182   165   372 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:41.663   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:41.665   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:41.665   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337146, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:41.665   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:41.665   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:41.748   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:41.748   165   373 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:41.764   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:41.764   165   374 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:41.769   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:41.770   165   375 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:43.898   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:43.901   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:43.901   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337147, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:43.901   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:43.901   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:43.942 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:43.980   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:43.981   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:44.000   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:44.000   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:44.000   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:44.000   165   372 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:45.441   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:45.441   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337148, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:45.441   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:45.441   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:45.526 15065 15065 W ion     : ION_IOC_FREE failed with code -1: Inappropriate ioctl for device; might be caused by that current kernel is NEW.
+10-20 12:14:46.117 15010 15069 D ProfileInstaller: Installing profile for com.shuiyu.octoberrain
+10-20 12:14:46.258 15067 15067 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 12:14:46.265 15067 15067 W app_process: type=1400 audit(0.0:52042): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:46.265 15067 15067 W app_process: type=1400 audit(0.0:52043): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:46.265 15067 15067 I chatty  : uid=2000(shell) app_process identical 1 line
+10-20 12:14:46.265 15067 15067 W app_process: type=1400 audit(0.0:52045): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:46.267 15067 15067 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.profilebootclasspath"
+10-20 12:14:46.267 15067 15067 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_apex_image"
+10-20 12:14:46.268 15067 15067 I AndroidRuntime: Using default boot image
+10-20 12:14:46.268 15067 15067 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.disable_lock_profiling"
+10-20 12:14:46.268 15067 15067 I AndroidRuntime: Leaving lock profiling enabled
+10-20 12:14:46.268 15067 15067 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_generational_cc"
+10-20 12:14:46.593 15067 15067 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-20 12:14:46.594 15067 15067 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt66l.dat
+10-20 12:14:46.618 15067 15067 W app_process: Using default instruction set features for ARM CPU variant (cortex-a9) using conservative defaults
+10-20 12:14:46.623 15067 15067 I app_process: The ClassLoaderContext is a special shared library.
+10-20 12:14:46.683 15067 15067 W app_process: JNI RegisterNativeMethods: attempt to register 0 native methods for android.media.AudioAttributes
+10-20 12:14:46.710 15067 15067 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+10-20 12:14:46.726 12669 12669 D EdgeBackGestureHandler: mDisplaySize.y = 800
+10-20 12:14:46.726 12669 12669 D EdgeBackGestureHandler: mDisplaySize.x = 480
+10-20 12:14:46.788   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:46.790   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:46.790   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337149, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:46.790   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:46.790   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:46.884   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bed00)
+10-20 12:14:46.885   165   374 E Gralloc4: unlock(0xe86bed00) failed with 2
+10-20 12:14:46.894   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bed00)
+10-20 12:14:46.894   165   373 E Gralloc4: unlock(0xe86bed00) failed with 2
+10-20 12:14:46.896   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bed00)
+10-20 12:14:46.896   165   372 E Gralloc4: unlock(0xe86bed00) failed with 2
+10-20 12:14:46.956 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:47.093 15010 15010 D OctoberRain: page=负一屏 create=115ms stack=1
+10-20 12:14:47.104 15067 15067 D AndroidRuntime: Shutting down VM
+10-20 12:14:47.340   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:47.341   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:47.341   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337150, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:47.341   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:47.341   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:47.397 15010 15037 E BitmapFactory: Unable to decode stream: java.io.FileNotFoundException: /storage/emulated/0/Pictures/v1-image.png: open failed: ENOENT (No such file or directory)
+10-20 12:14:47.465   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:47.465   165   374 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:47.478   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:47.478   165   373 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:47.479   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe679af00)
+10-20 12:14:47.479   165   375 E Gralloc4: unlock(0xe679af00) failed with 2
+10-20 12:14:47.529   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:47.530   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:47.530   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337151, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:47.530   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:47.530   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:47.604   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:47.604   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:47.621   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:47.621   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:47.624   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:47.624   165   373 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:48.731   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:48.733   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:48.733   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337152, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:48.733   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:48.733   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:48.749   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:48.749   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337153, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:48.749   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:48.749   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:48.919   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:48.919   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'com.shuiyu.octoberrain/com.shuiyu.octoberrain.MainActivity#0'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x40000000000b00, consumer_usage : 0x40000000000b00, internal_format : 0x0, stride : 0, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337154, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:48.919   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:48.919   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:48.952   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:48.952   165   375 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:48.953   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:48.953   165   372 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:48.958   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:48.958   165   373 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:48.959   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:48.960   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:48.960   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337155, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:48.960   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:48.960   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:49.034   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:49.034   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337156, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:49.034   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:49.034   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:49.038   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:49.038   165   374 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:49.074   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:49.074   165   375 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:49.075   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:49.075   165   372 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:49.075   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:49.077   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:49.077   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337157, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:49.077   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:49.077   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:49.121 15089 15089 W ion     : ION_IOC_FREE failed with code -1: Inappropriate ioctl for device; might be caused by that current kernel is NEW.
+10-20 12:14:49.150   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be700)
+10-20 12:14:49.150   165   373 E Gralloc4: unlock(0xe69be700) failed with 2
+10-20 12:14:49.167   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be700)
+10-20 12:14:49.167   165   372 E Gralloc4: unlock(0xe69be700) failed with 2
+10-20 12:14:49.172   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe69be700)
+10-20 12:14:49.172   165   374 E Gralloc4: unlock(0xe69be700) failed with 2
+10-20 12:14:49.822 15091 15091 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 12:14:49.828 15091 15091 W app_process: type=1400 audit(0.0:52046): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:49.828 15091 15091 I chatty  : uid=2000(shell) app_process identical 2 lines
+10-20 12:14:49.831 15091 15091 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.profilebootclasspath"
+10-20 12:14:49.831 15091 15091 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_apex_image"
+10-20 12:14:49.832 15091 15091 W app_process: type=1400 audit(0.0:52049): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:49.832 15091 15091 I AndroidRuntime: Using default boot image
+10-20 12:14:49.832 15091 15091 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.disable_lock_profiling"
+10-20 12:14:49.832 15091 15091 I AndroidRuntime: Leaving lock profiling enabled
+10-20 12:14:49.832 15091 15091 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_generational_cc"
+10-20 12:14:49.966 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:50.158 15091 15091 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-20 12:14:50.158 15091 15091 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt66l.dat
+10-20 12:14:50.182 15091 15091 W app_process: Using default instruction set features for ARM CPU variant (cortex-a9) using conservative defaults
+10-20 12:14:50.188 15091 15091 I app_process: The ClassLoaderContext is a special shared library.
+10-20 12:14:50.249 15091 15091 W app_process: JNI RegisterNativeMethods: attempt to register 0 native methods for android.media.AudioAttributes
+10-20 12:14:50.275 15091 15091 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+10-20 12:14:50.291 12669 12669 D EdgeBackGestureHandler: mDisplaySize.y = 800
+10-20 12:14:50.291 12669 12669 D EdgeBackGestureHandler: mDisplaySize.x = 480
+10-20 12:14:50.301 15091 15091 D AndroidRuntime: Shutting down VM
+10-20 12:14:50.771 15010 15010 D OctoberRain: page=负一屏设置 create=439ms stack=2
+10-20 12:14:51.182   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:51.183   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:51.183   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337158, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:51.183   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:51.183   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:51.249   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:51.249   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:51.280   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:51.280   165   373 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:51.285   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:51.285   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:52.078   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:52.078   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337159, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:52.078   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:52.078   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:52.162 15108 15108 W ion     : ION_IOC_FREE failed with code -1: Inappropriate ioctl for device; might be caused by that current kernel is NEW.
+10-20 12:14:52.423   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:52.424   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:52.424   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337160, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:52.424   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:52.424   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:52.520   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:52.520   165   374 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:52.577   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:52.577   165   373 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:52.578   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:52.578   165   375 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:52.580   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:52.581   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:52.581   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337161, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:52.581   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:52.581   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:52.731   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:52.731   165   375 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:52.735   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:52.735   165   372 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:52.740   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:52.740   165   373 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:52.978 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:52.992 15110 15110 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 12:14:52.998 15110 15110 W app_process: type=1400 audit(0.0:52050): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:52.998 15110 15110 I chatty  : uid=2000(shell) app_process identical 2 lines
+10-20 12:14:52.998 15110 15110 W app_process: type=1400 audit(0.0:52053): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:53.001 15110 15110 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.profilebootclasspath"
+10-20 12:14:53.001 15110 15110 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_apex_image"
+10-20 12:14:53.001 15110 15110 I AndroidRuntime: Using default boot image
+10-20 12:14:53.001 15110 15110 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.disable_lock_profiling"
+10-20 12:14:53.001 15110 15110 I AndroidRuntime: Leaving lock profiling enabled
+10-20 12:14:53.002 15110 15110 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_generational_cc"
+10-20 12:14:53.226   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:53.227   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:53.227   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337162, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:53.227   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:53.227   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:53.308   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:53.308   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:53.321   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:53.322   165   372 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:53.325   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:53.325   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:53.336 15110 15110 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-20 12:14:53.337 15110 15110 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt66l.dat
+10-20 12:14:53.361 15110 15110 W app_process: Using default instruction set features for ARM CPU variant (cortex-a9) using conservative defaults
+10-20 12:14:53.366 15110 15110 I app_process: The ClassLoaderContext is a special shared library.
+10-20 12:14:53.425 15110 15110 W app_process: JNI RegisterNativeMethods: attempt to register 0 native methods for android.media.AudioAttributes
+10-20 12:14:53.450 15110 15110 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+10-20 12:14:53.463 12530 12608 D WindowManager: lockStr = 
+10-20 12:14:53.463 12530 12608 D WindowManager: codeStr = keycode_4;
+10-20 12:14:53.463 12530 12608 D WindowManager: keycode is't in lock, dispatching
+10-20 12:14:53.530 12530 12608 D WindowManager: lockStr = 
+10-20 12:14:53.530 12530 12608 D WindowManager: codeStr = keycode_4;
+10-20 12:14:53.530 12530 12608 D WindowManager: keycode is't in lock, dispatching
+10-20 12:14:53.572 15110 15110 D AndroidRuntime: Shutting down VM
+10-20 12:14:53.667 15010 15058 E BitmapFactory: Unable to decode stream: java.io.FileNotFoundException: /storage/emulated/0/Pictures/v1-image.png: open failed: ENOENT (No such file or directory)
+10-20 12:14:53.829   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:53.830   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:53.830   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337163, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:53.830   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:53.830   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:53.909   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:53.909   165   372 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:53.923   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:53.923   165   373 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:53.926   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:53.926   165   375 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:55.428 15125 15125 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 12:14:55.435 15125 15125 W app_process: type=1400 audit(0.0:52054): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:55.435 15125 15125 W app_process: type=1400 audit(0.0:52055): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:55.435 15125 15125 W app_process: type=1400 audit(0.0:52056): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:55.435 15125 15125 W app_process: type=1400 audit(0.0:52057): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:55.437 15125 15125 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.profilebootclasspath"
+10-20 12:14:55.437 15125 15125 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_apex_image"
+10-20 12:14:55.437 15125 15125 I AndroidRuntime: Using default boot image
+10-20 12:14:55.437 15125 15125 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.disable_lock_profiling"
+10-20 12:14:55.437 15125 15125 I AndroidRuntime: Leaving lock profiling enabled
+10-20 12:14:55.438 15125 15125 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_generational_cc"
+10-20 12:14:55.618 12530 11039 D WifiNl80211Manager: Scan result ready event
+10-20 12:14:55.618 12530 11039 D WifiNative: Scan result ready event
+10-20 12:14:55.632 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:55.770 15125 15125 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-20 12:14:55.770 15125 15125 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt66l.dat
+10-20 12:14:55.795 15125 15125 W app_process: Using default instruction set features for ARM CPU variant (cortex-a9) using conservative defaults
+10-20 12:14:55.800 15125 15125 I app_process: The ClassLoaderContext is a special shared library.
+10-20 12:14:55.860 15125 15125 W app_process: JNI RegisterNativeMethods: attempt to register 0 native methods for android.media.AudioAttributes
+10-20 12:14:55.886 15125 15125 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+10-20 12:14:55.902 12669 12669 D EdgeBackGestureHandler: mDisplaySize.y = 800
+10-20 12:14:55.902 12669 12669 D EdgeBackGestureHandler: mDisplaySize.x = 480
+10-20 12:14:55.989 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:56.158 15125 15125 D AndroidRuntime: Shutting down VM
+10-20 12:14:56.229   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:56.230   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:56.230   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337164, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:56.230   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:56.230   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:56.314   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:56.314   165   372 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:56.345   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:56.345   165   374 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:56.350   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:56.350   165   373 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:56.351   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:56.352   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:56.352   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337165, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:56.352   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:56.352   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:56.426   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:56.426   165   372 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:56.444   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:56.444   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:56.447   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:56.447   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:58.025 15141 15141 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 12:14:58.032 15141 15141 W app_process: type=1400 audit(0.0:52058): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:58.032 15141 15141 I chatty  : uid=2000(shell) app_process identical 2 lines
+10-20 12:14:58.032 15141 15141 W app_process: type=1400 audit(0.0:52061): avc: denied { read } for name="u:object_r:device_config_runtime_native_boot_prop:s0" dev="tmpfs" ino=1181 scontext=u:r:shell:s0 tcontext=u:object_r:device_config_runtime_native_boot_prop:s0 tclass=file permissive=0
+10-20 12:14:58.033 15141 15141 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.profilebootclasspath"
+10-20 12:14:58.034 15141 15141 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_apex_image"
+10-20 12:14:58.034 15141 15141 I AndroidRuntime: Using default boot image
+10-20 12:14:58.034 15141 15141 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.disable_lock_profiling"
+10-20 12:14:58.034 15141 15141 I AndroidRuntime: Leaving lock profiling enabled
+10-20 12:14:58.035 15141 15141 E libc    : Access denied finding property "persist.device_config.runtime_native_boot.enable_generational_cc"
+10-20 12:14:58.364 15141 15141 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+10-20 12:14:58.365 15141 15141 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt66l.dat
+10-20 12:14:58.389 15141 15141 W app_process: Using default instruction set features for ARM CPU variant (cortex-a9) using conservative defaults
+10-20 12:14:58.394 15141 15141 I app_process: The ClassLoaderContext is a special shared library.
+10-20 12:14:58.454 15141 15141 W app_process: JNI RegisterNativeMethods: attempt to register 0 native methods for android.media.AudioAttributes
+10-20 12:14:58.480 15141 15141 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+10-20 12:14:58.496 12669 12669 D EdgeBackGestureHandler: mDisplaySize.y = 800
+10-20 12:14:58.497 12669 12669 D EdgeBackGestureHandler: mDisplaySize.x = 480
+10-20 12:14:58.955   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:58.956   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:58.956   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337166, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:58.956   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:58.956   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:59.003 12530 12622 E WifiVendorHal: getWifiLinkLayerStats_1_3_Internal(l.973) failed {.code = ERROR_UNKNOWN, .description = unknown error}
+10-20 12:14:59.034   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:59.034   165   373 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:59.069   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:59.069   165   372 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:59.074   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:14:59.074   165   374 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:14:59.076   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:59.077   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:59.077   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337167, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:59.077   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:59.077   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:59.094 15141 15141 D AndroidRuntime: Shutting down VM
+10-20 12:14:59.153 12530 12530 D WifiSleepController: onReceive, action=android.intent.action.BATTERY_CHANGED
+10-20 12:14:59.153 12530 12530 D WifiSleepController: updateChargingState, mCharging: true
+10-20 12:14:59.165   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:59.165   165   372 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:59.205   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:59.205   165   373 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:59.208   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:14:59.208   165   375 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:14:59.209   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:14:59.210   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:14:59.210   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337168, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:14:59.211   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:14:59.211   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:14:59.282   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:59.283   165   375 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:59.299   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:59.299   165   374 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:14:59.302   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe74f8c00)
+10-20 12:14:59.302   165   373 E Gralloc4: unlock(0xe74f8c00) failed with 2
+10-20 12:15:00.006 12669 12669 D WetaoDateView: text=2026-10-20 星期二
+10-20 12:15:00.007 12669 12669 D WetaoDateView: text=2026-10-20 星期二
+10-20 12:15:00.048   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:15:00.049   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:15:00.049   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337169, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:15:00.049   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:15:00.049   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:15:00.124   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:15:00.124   165   372 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:15:00.141   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:15:00.141   165   373 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:15:00.143   165   374 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bee00)
+10-20 12:15:00.143   165   374 E Gralloc4: unlock(0xe86bee00) failed with 2
+10-20 12:15:00.144   165   370 I SurfaceFlinger: Flash test :+++++ screenShot() curFb->rotation = 0
+10-20 12:15:00.145   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:15:00.145   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337170, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:15:00.145   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:15:00.145   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:15:00.215   165   375 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:15:00.216   165   375 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:15:00.232   165   372 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:15:00.232   165   372 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:15:00.238   165   373 E gralloc4: Attempt to call unlock*() on an unlocked buffer (0xe86bec00)
+10-20 12:15:00.238   165   373 E Gralloc4: unlock(0xe86bec00) failed with 2
+10-20 12:15:00.908   206   206 D gralloc4: [File] : hardware/rockchip/libgralloc/bifrost/src/hidl_common/Allocator.cpp; [Line] : 149; [Func] : allocate;
+10-20 12:15:00.908   206   206 D gralloc4: got new private_handle_t instance @0xeaec0800 for buffer 'screenshot'. share_fd : 7, share_attr_fd : 8, flags : 0x4, width : 480, height : 800, req_format : 0x1, producer_usage : 0x333, consumer_usage : 0x333, internal_format : 0x0, stride : 480, byte_stride : 0, internalWidth : 0, internalHeight : 0, alloc_format : 0x1, size : 1536000, layer_count : 1, backing_store_size : 1536000, backing_store_id : 884763337171, allocating_pid : 206, ref_count : 1, yuv_info : 0
+10-20 12:15:00.908   206   206 D gralloc4: plane_info[0]: offset : 0, byte_stride : 1920, alloc_width : 480, alloc_height : 800
+10-20 12:15:00.908   206   206 D gralloc4: plane_info[1]: offset : 0, byte_stride : 0, alloc_width : 0, alloc_height : 0
+10-20 12:15:00.996 15159 15159 W ion     : ION_IOC_FREE failed with code -1: Inappropriate ioctl for device; might be caused by that current kernel is NEW.
+10-20 12:15:01.619 15010 15028 I iyu.octoberrai: Explicit concurrent copying GC freed 21620(928KB) AllocSpace objects, 15(348KB) LOS objects, 49% free, 3166KB/6332KB, paused 164us total 61.968ms

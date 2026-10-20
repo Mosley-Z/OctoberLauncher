@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>NestedBlockDepth:Ditherer.kt$Ditherer$fun dither(source: Bitmap): Bitmap</ID>
+    <ID>ReturnCount:BitmapPipe.kt$BitmapPipe$fun decodeFile( file: File, reqWidth: Int, reqHeight: Int, ): Bitmap?</ID>
+  </CurrentIssues>
+</SmellBaseline>

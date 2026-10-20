@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.7.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.7.3)" variant="all" version="8.7.3">
+
+    <issue
+        id="DrawAllocation"
+        message="Avoid object allocations during draw/layout operations (preallocate and reuse instead)"
+        errorLine1="            val preview = RectF(0f, rowTop, previewSize.toFloat(), rowBottom)"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/widgets/ClockStyleScreen.kt"
+            line="162"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="DrawAllocation"
+        message="Avoid object allocations during draw/layout operations (preallocate and reuse instead)"
+        errorLine1="            val dial = RectF(preview).apply { inset(innerInset, innerInset) }"
+        errorLine2="                       ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/widgets/ClockStyleScreen.kt"
+            line="165"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="ViewConstructor"
+        message="Custom view `ClockStylePreviewList` is missing constructor used by tools: `(Context)` or `(Context,AttributeSet)` or `(Context,AttributeSet,int)`"
+        errorLine1="internal class ClockStylePreviewList("
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/shuiyu/octoberrain/feature/widgets/ClockStyleScreen.kt"
+            line="111"
+            column="16"/>
+    </issue>
+
+</issues>

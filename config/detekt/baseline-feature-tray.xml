@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>LargeClass:TrayPanelView.kt$TrayPanelView : FrameLayout</ID>
+    <ID>LongMethod:NotificationPrefsScreen.kt$NotificationPrefsScreen$private fun build()</ID>
+    <ID>LongMethod:TrayPanelView.kt$TrayPanelView$private fun addNotificationCard(config: LauncherConfig)</ID>
+    <ID>LongMethod:TrayPanelView.kt$TrayPanelView$private fun noticeRow( item: NotificationItem, config: LauncherConfig, ): LinearLayout</ID>
+    <ID>LongMethod:TrayPrefsScreen.kt$TrayPrefsScreen$private fun build()</ID>
+    <ID>ReturnCount:TrayPanelView.kt$TrayPanelView$private fun addBluetoothCard(config: LauncherConfig)</ID>
+    <ID>TooManyFunctions:TrayControllerImpl.kt$TrayControllerImpl : TrayController</ID>
+    <ID>TooManyFunctions:TrayPanelView.kt$TrayPanelView : FrameLayout</ID>
+  </CurrentIssues>
+</SmellBaseline>

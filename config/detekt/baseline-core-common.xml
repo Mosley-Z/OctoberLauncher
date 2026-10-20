@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:Contracts.kt$AppServices$fun isReady(): Boolean</ID>
+    <ID>TooManyFunctions:Contracts.kt$SystemControls</ID>
+  </CurrentIssues>
+</SmellBaseline>

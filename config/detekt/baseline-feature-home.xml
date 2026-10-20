@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ComplexCondition:HomeView.kt$HomeView$currentPage == 0 &amp;&amp; dx &gt; 0 &amp;&amp; horizontal &amp;&amp; negativePageEnabled()</ID>
+    <ID>CyclomaticComplexMethod:DesktopMetrics.kt$DesktopMetrics.Companion$fun compute( width: Int, height: Int, config: LauncherConfig, ): DesktopMetrics</ID>
+    <ID>CyclomaticComplexMethod:HomeView.kt$HomeView$private fun handleMove( event: MotionEvent, m: DesktopMetrics, )</ID>
+    <ID>CyclomaticComplexMethod:HomeView.kt$HomeView$private fun handleUp( event: MotionEvent, m: DesktopMetrics, cancelled: Boolean, )</ID>
+    <ID>LargeClass:HomeView.kt$HomeView : ViewWidgetHost</ID>
+    <ID>LongMethod:DesktopMetrics.kt$DesktopMetrics.Companion$fun compute( width: Int, height: Int, config: LauncherConfig, ): DesktopMetrics</ID>
+    <ID>LongMethod:HomeView.kt$HomeView$private fun handleUp( event: MotionEvent, m: DesktopMetrics, cancelled: Boolean, )</ID>
+    <ID>NestedBlockDepth:HomeView.kt$HomeView$private fun handleMove( event: MotionEvent, m: DesktopMetrics, )</ID>
+    <ID>ReturnCount:AppInfoScreen.kt$AppInfoScreen$private fun installTimeText(info: ApplicationInfo?): String</ID>
+    <ID>ReturnCount:AppInfoScreen.kt$AppInfoScreen$private fun sizeText(info: ApplicationInfo?): String</ID>
+    <ID>ReturnCount:DesktopMetrics.kt$DesktopMetrics$fun pageCount(entryCount: Int): Int</ID>
+    <ID>ReturnCount:DesktopMetrics.kt$DesktopMetrics$fun slotAt( page: Int, x: Float, y: Float, ): Int</ID>
+    <ID>ReturnCount:DesktopMetrics.kt$DesktopMetrics.Companion$private fun fitRows( bottom: Int, areaTop: Int, rows: Int, rowSize: Int, baseGap: Int, maxExtra: Int, ): RowFit</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$fun turnPageByVolume(up: Boolean): Boolean</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$override fun onTouchEvent(event: MotionEvent): Boolean</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$private fun badgeFor(entry: LauncherEntry): String?</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$private fun ellipsize( text: CharSequence, paint: Paint, maxWidth: Float, ): String</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$private fun handleDown( event: MotionEvent, m: DesktopMetrics, ): Boolean</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$private fun handleMove( event: MotionEvent, m: DesktopMetrics, )</ID>
+    <ID>ReturnCount:HomeView.kt$HomeView$private fun handleUp( event: MotionEvent, m: DesktopMetrics, cancelled: Boolean, )</ID>
+    <ID>ReturnCount:IconStore.kt$IconStore$fun request( entry: LauncherEntry, sizePx: Int, onLoaded: () -&gt; Unit, )</ID>
+    <ID>TooManyFunctions:DesktopMetrics.kt$DesktopMetrics</ID>
+    <ID>TooManyFunctions:HomeView.kt$HomeView : ViewWidgetHost</ID>
+    <ID>UnusedParameter:AppInfoScreen.kt$AppInfoScreen$info: ApplicationInfo?</ID>
+    <ID>UnusedParameter:HomeView.kt$HomeView$m: DesktopMetrics</ID>
+  </CurrentIssues>
+</SmellBaseline>

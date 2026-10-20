@@ -1,0 +1,390 @@
+> Task :core:design:loadKtlintReporters UP-TO-DATE
+> Task :feature:content:loadKtlintReporters UP-TO-DATE
+> Task :core:render:loadKtlintReporters UP-TO-DATE
+> Task :core:device:loadKtlintReporters UP-TO-DATE
+> Task :feature:settings:loadKtlintReporters UP-TO-DATE
+> Task :feature:home:loadKtlintReporters UP-TO-DATE
+> Task :app:loadKtlintReporters UP-TO-DATE
+> Task :service:loadKtlintReporters UP-TO-DATE
+> Task :core:common:loadKtlintReporters UP-TO-DATE
+> Task :core:widget-api:loadKtlintReporters UP-TO-DATE
+> Task :core:data:loadKtlintReporters UP-TO-DATE
+> Task :feature:tray:loadKtlintReporters UP-TO-DATE
+> Task :feature:widgets:loadKtlintReporters UP-TO-DATE
+> Task :core:common:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:content:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:settings:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:widget-api:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:device:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:widgets:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:design:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:home:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :app:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :feature:tray:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :feature:settings:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :app:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :core:render:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :core:widget-api:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:design:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :feature:tray:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :feature:content:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :service:ktlintAndroidTestDebugSourceSetCheck SKIPPED
+> Task :app:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:data:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:settings:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:render:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:tray:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :core:device:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:common:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :app:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :app:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :feature:home:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :core:common:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverAndroidTestReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :feature:widgets:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :service:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:render:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :feature:tray:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:device:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:widget-api:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :core:device:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:tray:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:tray:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintAndroidTestReleaseSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:settings:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :service:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:content:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :core:common:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :service:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :core:common:ktlintDebugSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :service:ktlintDebugSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :app:ktlintDebugSourceSetCheck SKIPPED
+> Task :feature:home:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :core:data:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :feature:widgets:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :core:render:runKtlintCheckOverAndroidTestSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :core:device:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :feature:tray:ktlintDebugSourceSetCheck SKIPPED
+> Task :feature:settings:ktlintDebugSourceSetCheck SKIPPED
+> Task :feature:content:ktlintDebugSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:design:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintDebugSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintDebugSourceSetCheck SKIPPED
+> Task :core:render:ktlintAndroidTestSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:render:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:device:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:data:ktlintDebugSourceSetCheck SKIPPED
+> Task :core:device:ktlintDebugSourceSetCheck SKIPPED
+> Task :core:render:ktlintDebugSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintDebugSourceSetCheck SKIPPED
+> Task :feature:widgets:ktlintDebugSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverKotlinScripts
+> Task :app:runKtlintCheckOverMainSourceSet
+> Task :app:ktlintMainSourceSetCheck
+> Task :app:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :app:ktlintReleaseSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :app:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :app:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :app:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :app:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :app:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverTestSourceSet NO-SOURCE
+> Task :app:ktlintTestSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverKotlinScripts
+> Task :service:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :service:ktlintReleaseSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :service:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :service:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :service:ktlintKotlinScriptCheck
+> Task :service:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :service:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintReleaseSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:common:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :service:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :service:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :service:runKtlintCheckOverTestSourceSet NO-SOURCE
+> Task :service:ktlintTestSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :core:common:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :core:common:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverKotlinScripts
+> Task :core:data:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintReleaseSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :core:data:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:data:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :core:data:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :core:data:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :core:data:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:common:runKtlintCheckOverKotlinScripts
+> Task :feature:home:runKtlintCheckOverKotlinScripts
+> Task :core:common:ktlintKotlinScriptCheck
+> Task :feature:tray:runKtlintCheckOverKotlinScripts
+> Task :core:design:ktlintKotlinScriptCheck
+> Task :core:design:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintReleaseSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:design:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :core:design:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :core:design:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :core:design:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverKotlinScripts
+> Task :core:device:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintReleaseSourceSetCheck SKIPPED
+> Task :core:device:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :core:device:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :core:device:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:device:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :core:device:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :core:device:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :core:device:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :core:device:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :core:device:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :app:runKtlintCheckOverKotlinScripts
+> Task :core:device:runKtlintCheckOverTestSourceSet
+> Task :app:ktlintKotlinScriptCheck
+> Task :app:ktlintCheck
+> Task :core:data:runKtlintCheckOverKotlinScripts
+> Task :core:widget-api:runKtlintCheckOverKotlinScripts
+> Task :core:render:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintReleaseSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :core:render:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:render:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :core:render:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :core:render:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:render:runKtlintCheckOverTestSourceSet NO-SOURCE
+> Task :core:render:ktlintTestSourceSetCheck SKIPPED
+> Task :core:data:ktlintKotlinScriptCheck
+> Task :core:device:ktlintTestSourceSetCheck
+> Task :core:widget-api:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintReleaseSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :core:widget-api:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:widget-api:runKtlintCheckOverTestSourceSet UP-TO-DATE
+> Task :core:widget-api:ktlintTestSourceSetCheck UP-TO-DATE
+> Task :feature:content:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintReleaseSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :feature:content:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:content:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:widget-api:ktlintKotlinScriptCheck
+> Task :feature:home:ktlintKotlinScriptCheck
+> Task :core:common:runKtlintCheckOverTestSourceSet
+> Task :core:design:runKtlintCheckOverTestSourceSet
+> Task :core:common:ktlintTestSourceSetCheck
+> Task :feature:home:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintReleaseSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :feature:home:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:home:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :core:design:ktlintTestSourceSetCheck
+> Task :core:widget-api:runKtlintCheckOverMainSourceSet
+> Task :feature:content:runKtlintCheckOverTestSourceSet
+> Task :feature:settings:ktlintKotlinScriptCheck
+> Task :feature:home:runKtlintCheckOverTestSourceSet
+> Task :core:widget-api:ktlintMainSourceSetCheck
+> Task :core:widget-api:ktlintCheck
+> Task :feature:settings:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintReleaseSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :feature:settings:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:settings:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :feature:home:ktlintTestSourceSetCheck
+> Task :feature:content:ktlintTestSourceSetCheck
+> Task :feature:widgets:ktlintKotlinScriptCheck
+> Task :core:device:runKtlintCheckOverMainSourceSet
+> Task :feature:tray:ktlintKotlinScriptCheck
+> Task :feature:tray:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :feature:tray:ktlintReleaseSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :feature:tray:runKtlintCheckOverTestSourceSet NO-SOURCE
+> Task :feature:tray:ktlintTestSourceSetCheck SKIPPED
+> Task :core:device:ktlintMainSourceSetCheck
+> Task :feature:widgets:runKtlintCheckOverReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintReleaseSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverTestDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestDebugSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverTestFixturesDebugSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestFixturesDebugSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverTestFixturesReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestFixturesReleaseSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverTestFixturesSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestFixturesSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverTestReleaseSourceSet NO-SOURCE
+> Task :feature:widgets:ktlintTestReleaseSourceSetCheck SKIPPED
+> Task :feature:widgets:runKtlintCheckOverTestSourceSet UP-TO-DATE
+> Task :feature:widgets:ktlintTestSourceSetCheck UP-TO-DATE
+> Task :feature:content:runKtlintCheckOverKotlinScripts
+> Task :feature:content:ktlintKotlinScriptCheck
+> Task :core:data:runKtlintCheckOverMainSourceSet
+> Task :core:data:ktlintMainSourceSetCheck
+> Task :core:device:runKtlintCheckOverKotlinScripts
+> Task :core:device:ktlintKotlinScriptCheck
+> Task :core:device:ktlintCheck
+> Task :core:render:runKtlintCheckOverKotlinScripts
+> Task :core:render:ktlintKotlinScriptCheck
+> Task :core:data:runKtlintCheckOverTestSourceSet
+> Task :feature:settings:runKtlintCheckOverTestSourceSet
+> Task :core:render:runKtlintCheckOverMainSourceSet
+> Task :core:data:ktlintTestSourceSetCheck
+> Task :core:data:ktlintCheck
+> Task :feature:settings:ktlintTestSourceSetCheck
+> Task :core:render:ktlintMainSourceSetCheck
+> Task :core:render:ktlintCheck
+> Task :service:runKtlintCheckOverMainSourceSet
+> Task :service:ktlintMainSourceSetCheck
+> Task :service:ktlintCheck
+> Task :core:design:runKtlintCheckOverMainSourceSet
+
+> Task :core:design:ktlintMainSourceSetCheck
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:15:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:20:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:25:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:30:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:35:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:40:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:45:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\core\design\src\main\java\com\shuiyu\octoberrain\core\design\InkColors.kt:50:9 Property name should start with a lowercase letter and use camel case (cannot be auto-corrected)
+
+> Task :core:design:ktlintCheck
+> Task :feature:tray:runKtlintCheckOverMainSourceSet
+> Task :feature:tray:ktlintMainSourceSetCheck
+> Task :feature:tray:ktlintCheck
+> Task :core:common:runKtlintCheckOverMainSourceSet
+> Task :feature:widgets:runKtlintCheckOverMainSourceSet
+
+> Task :core:common:ktlintMainSourceSetCheck
+D:\DSHStation\OctoberLauncher\core\common\src\main\java\com\shuiyu\octoberrain\core\common\Json.kt:1:1 File 'Json.kt' contains a single top level declaration and should be named 'AppJson.kt' (cannot be auto-corrected)
+
+> Task :core:common:ktlintCheck
+> Task :feature:widgets:ktlintMainSourceSetCheck
+> Task :feature:widgets:ktlintCheck
+> Task :feature:home:runKtlintCheckOverMainSourceSet
+
+> Task :feature:home:ktlintMainSourceSetCheck
+D:\DSHStation\OctoberLauncher\feature\home\src\main\java\com\shuiyu\octoberrain\feature\home\HomeModule.kt:28:20 Class or object name should start with an uppercase letter and use camel case (cannot be auto-corrected)
+
+> Task :feature:home:ktlintCheck
+> Task :feature:content:runKtlintCheckOverMainSourceSet
+> Task :feature:content:ktlintMainSourceSetCheck
+> Task :feature:content:ktlintCheck
+> Task :feature:settings:runKtlintCheckOverMainSourceSet
+
+> Task :feature:settings:ktlintMainSourceSetCheck
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyIconPanel.kt:29:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyImagePanel.kt:28:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyPreviewPanel.kt:17:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\BeautifyThemePanel.kt:27:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+D:\DSHStation\OctoberLauncher\feature\settings\src\main\java\com\shuiyu\octoberrain\feature\settings\SettingsSpecBuilders.kt:15:1 a KDoc may not be preceded by a KDoc (cannot be auto-corrected)
+
+> Task :feature:settings:ktlintCheck
+
+BUILD SUCCESSFUL in 38s
+83 actionable tasks: 66 executed, 17 up-to-date

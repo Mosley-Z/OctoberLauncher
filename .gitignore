@@ -1,0 +1,34 @@
+# 构建产物与本地环境文件不入库
+build/
+.gradle/
+.gradle-home/
+.kotlin/
+local.properties
+*.iml
+.idea/
+_shots/
+
+# 分析产物：截图、R8 映射、反编译输出、设备 dump 与偏好快照均可重建，不入库
+_analysis/**/*.png
+_analysis/**/*.jpg
+_analysis/**/*.jpeg
+_analysis/**/*.webp
+_analysis/**/mapping.txt
+_analysis/**/anr-dump.txt
+_analysis/**/prefs-*.json
+_analysis/jadx-out/
+_analysis/**/*.apk
+_analysis/**/*.dex
+
+# 第三方工具二进制不入库，按 docs 说明重新获取
+_tools/*.jar
+_tools/**/*.jar
+_tools/node_modules/
+
+# 打包产物不入库，只保留内核 jar 与校验文件
+app/build/
+*/build/
+**/build/
+*.apk
+*.aab
+*.hprof
