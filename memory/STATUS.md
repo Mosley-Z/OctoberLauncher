@@ -1,8 +1,17 @@
 # 当前状态与接力
 
-更新时间：2026-10-22 01:56；维护者：1.0.27 发布集成者。此处只代表本轮结束时的检查范围。
+更新时间：2026-10-22 02:45；维护者：1.0.28 发布集成者。此处只代表本轮结束时的检查范围。
 
-## 1.0.27 状态（本轮发布）
+## 1.0.28 状态（本轮发布）
+
+- 本轮完成：微读墨记顶部大标签由四项收敛为三项（本周▽／设置／待办）；删除实验室容器与续航优化；锁屏密码并入设置页签成为第三个子标签并重写文案；删除微信读书「统计」页与「阅读月历」页（含卡片正文热区、书架「统计」按钮、路由、绘制与测试）；校验作废结果改为静默；移除全部 `LockTiming` 临时测速日志与计时变量。
+- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；debug 4,916,383 字节、release 1,204,137 字节。
+- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.28`（2626 文件，摘要 `f17eda14678729688749fdd4e877fca273c0f1b8e7ff332247d46d368f839965`，本次排除 `.git`、`build`、`.gradle-home`）；验收记录 `_analysis/verify/1.0.28-team-r6.md`。
+- Git：`d107016 feat: 1.0.28 微读墨记合并为三个大标签并删除统计页与阅读月历` 已推送 `origin master`（经 `http://127.0.0.1:7890` 代理）。
+- 设备：P4 写回 `_analysis/device/accept-1.0.27/p4-mig-base.xml`（`pbkdf2$20000$…`、`enabled=true`、`failedAttempts=0`、`forms.weread_board=0`、壁纸原路径）；S4 保留用户 PIN 1124（20000 轮）。
+- 遗留：锁屏页曾显示「未设置密码」，复核为设备配置本身丢失 `pinHash`（`enabled=false`、`iterations=20000`），页面读取正确，丢失的写入路径未定位，建议后续加一处「`enabled` 为真但摘要缺失」的自检日志；`scripts/snapshot.ps1` 在无 `pwsh` 环境仍不可用，本轮改为 Python 逐文件复制并生成 `MANIFEST.sha256`，另需注意脚本会产生 Windows 保留名 `nul` 文件，`git add` 前先删。
+
+## 1.0.27 状态（历史）
 
 - 本轮完成：轮播笔记限两行、封面细边框、刷新按形态映射、书架数据源惰性回退；修复校验代次作废（静默）、旧摘要迁移、壁纸解码堆预算。
 - 实测：十二万轮 `verify` 约 10.9–12.1 秒，两万轮约 1.8–1.9 秒，`commit` 与主线程回调各在 20 毫秒级；熄屏打断时 `stale mark=` 命中、覆盖层无红字。
