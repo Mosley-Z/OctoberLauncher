@@ -258,7 +258,7 @@ internal abstract class WereadPickSheet(
     ) {
         titleHeightPx = dp(titleHeightDp)
         searchHeightPx = if (hasSearch) dp(searchHeightDp) else 0f
-        sheetTop = height * sheetRatio
+        sheetTop = height * (1f - sheetRatio)
         listTop = sheetTop + titleHeightPx + searchHeightPx
         listHeight = (height - listTop).coerceAtLeast(0f)
         val padX = dp(paddingXDp)

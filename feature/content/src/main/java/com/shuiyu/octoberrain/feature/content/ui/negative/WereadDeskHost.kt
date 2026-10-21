@@ -3,6 +3,8 @@ package com.shuiyu.octoberrain.feature.content.ui.negative
 import android.content.Context
 import com.inkread.weekread.kernel.desk.DeskHost
 import com.shuiyu.octoberrain.core.common.NegativeHost
+import com.shuiyu.octoberrain.core.wereadsync.WereadDeskEditsStore
+import java.io.File
 
 /**
  * 负一屏墨台分区视图使用的内核宿主。
@@ -34,7 +36,10 @@ internal class WereadDeskHost(
 
     /** 墨单外观选项读取器，把内核键名映射到当前配置。 */
     private val menu: WereadDeskMenu =
-        WereadDeskMenu(fpBooks = { WereadFingerprintBooks.read(appContext) })
+        WereadDeskMenu(
+            fpBooks = { WereadFingerprintBooks.read(appContext) },
+            edits = WereadDeskEditsStore(File(appContext.filesDir, "weread")),
+        )
 
     /** 内核宿主接口实现，覆盖分区掩码、顺序、外观、目录、尺寸与跳转六类能力。 */
     val host: DeskHost =

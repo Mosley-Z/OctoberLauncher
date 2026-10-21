@@ -46,20 +46,24 @@ class WereadImportStore(
 ) {
     /**
      * 安装迁移包条目。
+     * onInstalled 可以来自任意配置存储，运行时异常也必须转换成迁移失败。
      *
      * @param entries 名称到明文字节的映射
      * @param timestamp 备份目录后缀，取导入时刻毫秒
+     * @param onInstalled 目录替换后提交配置；抛出异常时恢复旧目录
      * @return 成功时返回目标目录、备份目录与写入的文件名；失败时返回说明
      */
+    @Suppress("TooGenericExceptionCaught")
     fun install(
         entries: Map<String, ByteArray>,
         timestamp: Long = System.currentTimeMillis(),
+        onInstalled: (File) -> Unit = {},
     ): WereadImportInstallResult {
         val invalid = validate(entries)
         if (invalid != null) return invalid
         return try {
-            commit(entries, timestamp)
-        } catch (e: IOException) {
+            commit(entries, timestamp, onInstalled)
+        } catch (e: Exception) {
             WereadImportInstallResult.Failure("写入失败：${e.message}")
         }
     }
@@ -85,50 +89,61 @@ class WereadImportStore(
     private fun commit(
         entries: Map<String, ByteArray>,
         timestamp: Long,
+        onInstalled: (File) -> Unit,
     ): WereadImportInstallResult {
         val staging = File(root.parentFile, "${root.name}.staging")
-        val hadOldData = root.exists() && root.listFiles()?.isNotEmpty() == true
-        val backupTarget = if (hadOldData) nextBackup(timestamp) else null
-        // 旧数据先整体备份，备份目录已存在时追加序号避免覆盖
-        if (backupTarget != null) {
-            backupRoot.mkdirs()
-            root.copyRecursively(backupTarget, overwrite = true)
+        val rollback = File(root.parentFile, "${root.name}.rollback")
+        if (rollback.exists()) return WereadImportInstallResult.Failure("存在未恢复的数据目录，请先恢复备份")
+        val hadRoot = root.exists()
+        val backupTarget = if (root.listFiles()?.isNotEmpty() == true) nextBackup(timestamp) else null
+        prepareStaging(staging)
+        try {
+            for ((name, data) in entries) File(staging, name).writeBytes(data)
+            if (backupTarget != null) backupCurrent(backupTarget)
+            if (hadRoot && !root.renameTo(rollback)) throw IOException("无法保留旧数据目录")
+            replaceAndCommit(staging, rollback, hadRoot, onInstalled)
+            rollback.deleteRecursively()
+            return WereadImportInstallResult.Success(root, backupTarget, entries.keys.toList())
+        } finally {
+            staging.deleteRecursively()
         }
-        // 临时目录先接收全部条目，写完后再一次替换根目录
-        staging.deleteRecursively()
-        if (!staging.mkdirs()) {
-            return WereadImportInstallResult.Failure("无法创建临时目录")
-        }
-        return finish(entries, staging, backupTarget)
     }
 
-    /**
-     * 写入临时目录并替换根目录。
-     *
-     * @param entries 名称到明文字节的映射
-     * @param staging 临时目录
-     * @param backupTarget 备份目录，没有旧数据时为 null
-     */
-    private fun finish(
-        entries: Map<String, ByteArray>,
+    private fun prepareStaging(staging: File) {
+        if (staging.exists() && !staging.deleteRecursively()) throw IOException("无法清理临时目录")
+        if (!staging.mkdirs()) throw IOException("无法创建临时目录")
+    }
+
+    private fun backupCurrent(backupTarget: File) {
+        if (!backupRoot.isDirectory && !backupRoot.mkdirs()) throw IOException("无法创建备份目录")
+        root.copyRecursively(backupTarget, overwrite = false)
+    }
+
+    // 配置回调的运行时异常同样需要回滚，不能只处理 IOException。
+    @Suppress("TooGenericExceptionCaught")
+    private fun replaceAndCommit(
         staging: File,
-        backupTarget: File?,
-    ): WereadImportInstallResult {
-        for ((name, data) in entries) {
-            File(staging, name).writeBytes(data)
+        rollback: File,
+        hadRoot: Boolean,
+        onInstalled: (File) -> Unit,
+    ) {
+        try {
+            if (!staging.renameTo(root)) throw IOException("数据目录替换失败")
+            // 配置也属于迁移事务；确认其持久化后才释放旧目录。
+            onInstalled(root)
+        } catch (error: Exception) {
+            restorePrevious(rollback, hadRoot, error)
+            throw error
         }
-        if (root.exists()) {
-            root.deleteRecursively()
-        }
-        return if (staging.renameTo(root)) {
-            WereadImportInstallResult.Success(
-                target = root,
-                backup = backupTarget,
-                files = entries.keys.toList(),
-            )
-        } else {
-            WereadImportInstallResult.Failure("数据目录替换失败")
-        }
+    }
+
+    private fun restorePrevious(
+        rollback: File,
+        hadRoot: Boolean,
+        error: Exception,
+    ) {
+        if (root.exists() && !root.deleteRecursively()) throw IOException("迁移失败，无法清理新数据，旧数据仍在回滚目录", error)
+        if (hadRoot && !rollback.renameTo(root)) throw IOException("迁移失败，旧数据仍在回滚目录", error)
     }
 
     /**

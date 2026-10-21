@@ -13,6 +13,10 @@ import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.feature.files.data.FileItem
 import com.shuiyu.octoberrain.feature.files.data.FilePrefs
 import com.shuiyu.octoberrain.feature.files.data.StorageAccess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import java.io.File
 import java.util.Locale
 
@@ -28,6 +32,9 @@ class PickEntryActivity : Activity() {
     private lateinit var prefs: FilePrefs
     private var pane: PickPane? = null
     private val acceptedTypes: List<String> by lazy { collectMimeTypes() }
+
+    /** 选择页生命周期内的协程作用域，供缩略图预取使用。 */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * 建立选择页。
@@ -58,6 +65,7 @@ class PickEntryActivity : Activity() {
                 accepts = ::accepts,
                 onPick = ::finishWith,
                 onCancel = ::cancel,
+                scope = scope,
             )
         pane = created
         InkLog.d(TAG, "文件选择请求类型：${acceptedTypes.joinToString()}")
@@ -70,7 +78,13 @@ class PickEntryActivity : Activity() {
         )
     }
 
-    @Suppress("DEPRECATION")
+    /** 释放缩略图预取协程，避免选择页退出后继续解码。 */
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         val current = pane
         if (current == null) {

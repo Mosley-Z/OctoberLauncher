@@ -24,7 +24,7 @@ internal enum class WereadAppTab {
     /** 页面内设置页：显示、卡片、成就与联动三组表单。 */
     SETTINGS,
 
-    /** 实验室页：页签常显，实验内容在设置页连续点击版本号五次后展开。 */
+    /** 实验室页：锁屏与续航优化。 */
     LAB,
 
     /** 待办页：清单增删改查。 */
@@ -34,8 +34,8 @@ internal enum class WereadAppTab {
 /**
  * 设置内微读墨记页面。
  *
- * 页面为全屏结构，顶部四段页签（阅读、设置、实验室、待办）常显；实验室内容在设置页
- * 连续点击版本号五次后展开。页面状态由 [WereadAppView] 持有，退出时释放。
+ * 页面为全屏结构，顶部四段页签（阅读、设置、实验室、待办）常显；
+ * 实验室包括锁屏与续航优化。页面状态由 [WereadAppView] 持有，退出时释放。
  */
 class WereadAppScreen : Screen {
     /** 页面视图，未创建或已销毁时为空。 */
@@ -107,6 +107,7 @@ internal class WereadAppView(
             WereadAppTab.READING -> readingPage()?.refresh()
             WereadAppTab.SETTINGS -> settingsPage()?.refresh()
             WereadAppTab.LAB -> labPage()?.refresh()
+
             WereadAppTab.TODO -> todoPage()?.refresh()
         }
     }
@@ -202,15 +203,7 @@ internal class WereadAppView(
                         }
                 }
 
-            WereadAppTab.LAB ->
-                WereadLabPage(context).apply {
-                    listener =
-                        object : WereadLabPage.Listener {
-                            override fun onLabDisabled() {
-                                labPage()?.refresh()
-                            }
-                        }
-                }
+            WereadAppTab.LAB -> WereadLabPage(context)
 
             WereadAppTab.TODO -> WereadTodoPage(context)
         }

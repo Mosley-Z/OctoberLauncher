@@ -16,7 +16,15 @@ import javax.crypto.spec.PBEKeySpec
  */
 object PinHasher {
     /** 新摘要使用的默认轮数。 */
-    const val DEFAULT_ITERATIONS = 120_000
+    const val DEFAULT_ITERATIONS = 20_000
+
+    /**
+     * 历史版本持久化的默认轮数。
+     *
+     * 旧配置会把该值写入 `lock.iterations`，并不代表用户的选择；计算时按未配置处理，
+     * 使已升级的安装重新设置密码后改用 [DEFAULT_ITERATIONS]。
+     */
+    private const val LEGACY_DEFAULT_ITERATIONS = 120_000
 
     /** 盐的字节数，与旧格式保持一致。 */
     const val SALT_BYTES = 16
@@ -39,18 +47,20 @@ object PinHasher {
     /**
      * 计算实际参与摘要的轮数。
      *
-     * 旧配置的 `iterations` 字段为 1 或缺失，直接使用会失去加盐迭代的意义，
-     * 因此低于默认轮数时统一提升到默认值；高于默认值时保留配置值。
+     * 配置值大于零且不等于历史默认轮数时按配置值使用，便于按机型实测结果调整；
+     * 配置缺失、非正或等于历史默认轮数时使用 [DEFAULT_ITERATIONS]。
+     * 该语义使新设置的密码采用新默认轮数，同时把历史默认值视为未配置。
      *
      * @param configured 配置中的轮数
      * @return 用于计算的轮数
      */
-    fun effectiveIterations(configured: Int): Int = configured.coerceAtLeast(DEFAULT_ITERATIONS)
+    fun effectiveIterations(configured: Int): Int =
+        configured.takeIf { it > 0 && it != LEGACY_DEFAULT_ITERATIONS } ?: DEFAULT_ITERATIONS
 
     /**
      * 计算 PBKDF2 摘要。
      *
-     * 轮数按传入值计算，低于 1 时取 1；调用方应先用 [effectiveIterations] 把配置轮数提升到安全下限。
+     * 轮数按传入值计算，低于 1 时取 1；调用方应先用 [effectiveIterations] 把配置轮数换算为实际轮数。
      *
      * @param pin 四位数字 PIN
      * @param saltHex 十六进制盐串
@@ -114,6 +124,9 @@ object PinHasher {
 
     /**
      * 判断摘要是否需要按目标轮数重算。
+     *
+     * 旧格式摘要与登记轮数低于目标值的摘要需要重算；登记轮数不低于目标值时保持原摘要，
+     * 避免把历史高轮数摘要重算为更高轮数而增加校验耗时。
      *
      * @param stored 已保存的摘要串
      * @param targetIterations 目标轮数

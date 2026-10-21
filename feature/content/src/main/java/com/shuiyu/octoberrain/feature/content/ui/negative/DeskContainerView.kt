@@ -9,7 +9,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.DEFAULT_NEGATIVE_MODULES
+import com.shuiyu.octoberrain.core.common.DeskModulePolicy
 import com.shuiyu.octoberrain.core.common.NegativeHost
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -56,6 +56,10 @@ internal class DeskContainerView(
     private val overlay: DeskOverlayView
 
     private val sections = ArrayList<DeskSectionHolder>()
+
+    private var builtConfig: DeskContainerConfig? = null
+
+    private var sectionsResumed = false
 
     private var settingsActive = false
 
@@ -107,7 +111,13 @@ internal class DeskContainerView(
         addView(overlay, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         // 分区构造会读取原盘数据并绑定内核页面，放在首帧之后执行，
         // 避免首帧测量与数据读取叠加造成输入事件超时。
-        post { rebuildSections() }
+        post {
+            if (builtConfig == null) {
+                rebuildSections()
+            } else if (!sectionsResumed && isAttachedToWindow) {
+                onResumeSections()
+            }
+        }
     }
 
     /**
@@ -238,7 +248,8 @@ internal class DeskContainerView(
         releaseSections()
         sectionColumn.removeAllViews()
         val config = AppServices.config.state.value
-        val order = effectiveOrder(config.desktop.negativePage.modules)
+        builtConfig = DeskContainerConfig.from(config)
+        val order = DeskModulePolicy.visibleOrder(config)
         order.forEachIndexed { index, id ->
             if (index > 0) sectionColumn.addView(DeskSectionStyle.buildDivider(context))
             val holder = buildSection(id) ?: return@forEachIndexed
@@ -253,6 +264,7 @@ internal class DeskContainerView(
         // 让书架与最近图片分区立即读取数据而不是停留在空抬头。
         if (isAttachedToWindow) {
             sections.forEach { it.onResume() }
+            sectionsResumed = true
         }
     }
 
@@ -268,11 +280,7 @@ internal class DeskContainerView(
             MODULE_RANK,
             MODULE_FP,
             ->
-                kernelSection(moduleId).also {
-                    if (moduleId == MODULE_FP) {
-                        fpSection = it
-                    }
-                }
+                kernelSection(moduleId)
             MODULE_BOOKSHELF -> {
                 val shelf =
                     ShelfDeskSection(context) { item ->
@@ -296,12 +304,14 @@ internal class DeskContainerView(
      * @return 分区持有对象。
      */
     private fun kernelSection(moduleId: String): DeskSectionHolder {
-        val section =
+        lateinit var section: DeskKernelSection
+        section =
             DeskKernelSection(
                 context = context,
                 screenHost = host,
                 moduleId = moduleId,
                 onSettings = { openSettings() },
+                onDataEdited = { sections.filter { it.view !== section }.forEach { it.onResume() } },
             )
         return DeskSectionHolder(section, section::onResume, section::onPause, section::release)
     }
@@ -348,11 +358,20 @@ internal class DeskContainerView(
         sections.forEach { it.onPause() }
         rebuildSections()
         sections.forEach { it.onResume() }
+        sectionsResumed = true
     }
 
     /** 打开阅读指纹选书对话框。 */
     private fun pickFingerprint() {
-        (fpSection?.view as? DeskKernelSection)?.openFingerprintPicker()
+        Thread({
+            val candidates = WereadFingerprintBooks.candidates(context)
+            post {
+                FingerprintBookDialog.show(context, candidates, WereadFingerprintBooks.ids(context)) { ids ->
+                    WereadFingerprintBooks.save(ids)
+                    refreshAfterSettings()
+                }
+            }
+        }, "weread-fingerprint-picker").apply { isDaemon = true }.start()
     }
 
     /** 刷新顶栏的更新时间文案。 */
@@ -369,20 +388,13 @@ internal class DeskContainerView(
      */
     private fun updateLabel(): String = UPDATE_PREFIX + updateTime.format(Date())
 
-    /**
-     * 计算实际展示的模块顺序。
-     *
-     * @param configured 配置中的模块顺序。
-     * @return 过滤未知标识后的顺序，配置为空时取默认顺序。
-     */
-    private fun effectiveOrder(configured: List<String>): List<String> {
-        val known = DEFAULT_MODULES.filter { configured.contains(it) }
-        val extra = configured.filter { it in DEFAULT_MODULES && !known.contains(it) }
-        return (known + extra).ifEmpty { DEFAULT_MODULES }
-    }
-
     /** 页面回到前台时转发给各分区。 */
     fun onResumeSections() {
+        val current = DeskContainerConfig.from(AppServices.config.state.value)
+        if (builtConfig != current) {
+            rebuildSections()
+            return
+        }
         refreshUpdateLabel()
         sections.forEach { it.onResume() }
     }
@@ -390,13 +402,15 @@ internal class DeskContainerView(
     /** 页面离开前台时转发给各分区。 */
     fun onPauseSections() {
         sections.forEach { it.onPause() }
+        sectionsResumed = false
     }
 
     /** 释放各分区与内核资源。 */
     fun releaseSections() {
+        builtConfig = null
+        sectionsResumed = false
         sections.forEach { it.release() }
         sections.clear()
-        fpSection = null
     }
 
     /**
@@ -468,8 +482,6 @@ internal class DeskContainerView(
         return max(SWIPE_MIN_PX, widthPx * SWIPE_WIDTH_RATIO)
     }
 
-    private var fpSection: DeskSectionHolder? = null
-
     /**
      * 分区持有对象，统一页面生命周期转发。
      *
@@ -530,8 +542,5 @@ internal class DeskContainerView(
 
         /** 模块标识：最近图片。 */
         const val MODULE_RECENT = "negative_files"
-
-        /** 默认模块顺序；阅读指纹由内核按原版提供，运行时排在自建分区之后。 */
-        val DEFAULT_MODULES: List<String> = DEFAULT_NEGATIVE_MODULES + MODULE_FP
     }
 }

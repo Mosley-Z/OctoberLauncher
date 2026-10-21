@@ -36,3 +36,8 @@ app/build/
 *.apk
 *.aab
 *.hprof
+
+# 设备验收备份：含锁屏摘要与盐等本机凭据，不入库
+_analysis/device/
+# 反编译探针产物
+_analysis/*.jar

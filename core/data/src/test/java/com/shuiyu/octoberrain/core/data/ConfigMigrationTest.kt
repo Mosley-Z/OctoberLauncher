@@ -129,6 +129,13 @@ class ConfigMigrationTest {
         assertEquals(500, migrated.desktop.editHoldMs)
     }
 
+    /** 旧版本配置缺少应急清除开关时，迁移后按默认值保持开启。 */
+    @Test
+    fun `迁移后应急清除开关保持开启`() {
+        val migrated = ConfigMigration.migrate(legacy(version = 1, longPressEditMs = 2000))
+        assertTrue(migrated.lock.emergencyResetEnabled)
+    }
+
     /** 构造指定版本与微信读书配置的配置。 */
     private fun weread(
         version: Int,

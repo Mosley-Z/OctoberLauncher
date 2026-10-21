@@ -19,38 +19,24 @@ import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkWidgets
 
-/** 实验室三段页签的文案，顺序与微读墨记一致。 */
-private val LAB_TAB_LABELS: List<CharSequence> = listOf("翻页", "锁屏密码", "续航优化")
+/** 实验室已提供功能的页签文案。 */
+private val LAB_TAB_LABELS: List<CharSequence> = listOf("锁屏密码", "续航优化")
 
 /**
  * 实验室页。
  *
- * 顶部固定展示「翻页 / 锁屏密码 / 续航优化」三段页签，下方按选中分段切换整页内容；
- * 每段内容均纵向滚动。实验内容开关仍由设置页连续点击版本号五次控制，展开后
- * 在翻页段末尾展示数据目录、文件状态与偏好快照。
+ * 顶部展示锁屏密码与续航优化，内容均可纵向滚动。
  *
  * @param context 创建视图的上下文
  */
 internal class WereadLabPage(
     context: Context,
 ) : LinearLayout(context) {
-    /** 实验室页对外回调。 */
-    internal interface Listener {
-        /** 实验内容收起后通知外层重新渲染当前分段。 */
-        fun onLabDisabled()
-    }
-
-    /** 外部回调。 */
-    var listener: Listener? = null
-
     /** 分段内容容器。 */
     private val pageHost = FrameLayout(context)
 
     /** 分段页签栏。 */
     private val segmentBar = SegmentBar(context) { index -> showPage(index) }
-
-    /** 翻页段。 */
-    private val flipPage = WereadLabFlipPage(context) { onLabCollapsed() }
 
     /** 锁屏密码段。 */
     private val lockPage = WereadLabLockPage(context)
@@ -58,8 +44,8 @@ internal class WereadLabPage(
     /** 续航优化段。 */
     private val powerPage = WereadLabPowerPage(context)
 
-    /** 三段页面，下标与页签顺序一致。 */
-    private val pages: List<LabPageView> = listOf(flipPage, lockPage, powerPage)
+    /** 两段页面，下标与页签顺序一致。 */
+    private val pages: List<LabPageView> = listOf(lockPage, powerPage)
 
     /** 当前选中分段。 */
     private var selected = 0
@@ -75,7 +61,7 @@ internal class WereadLabPage(
         showPage(0)
     }
 
-    /** 重新渲染全部三段并保持当前选中项。 */
+    /** 重新渲染并保持当前选中项。 */
     fun refresh() {
         pages.forEach { it.refresh() }
         showPage(selected)
@@ -97,13 +83,6 @@ internal class WereadLabPage(
         pageHost.removeAllViews()
         pages[selected].refresh()
         pageHost.addView(pages[selected])
-    }
-
-    /** 实验内容收起后的回调：通知外层并刷新本页。 */
-    private fun onLabCollapsed() {
-        listener?.onLabDisabled()
-        pages.forEach { it.refresh() }
-        showPage(selected)
     }
 }
 

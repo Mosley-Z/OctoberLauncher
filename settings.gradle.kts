@@ -16,7 +16,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "OctoberRain"
 
-// 模块划分见 docs/03-target-architecture.md 与 docs/10-engineering-contract.md
+// 模块划分见 docs/design/03-target-architecture.md 与 docs/design/35-development-workflow.md
 include(":app")
 include(":core:common")
 include(":core:design")

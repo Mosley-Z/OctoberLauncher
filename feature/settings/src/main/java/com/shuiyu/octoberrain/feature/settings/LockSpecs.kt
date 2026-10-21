@@ -79,6 +79,19 @@ internal object LockSpecs {
                 effect = SettingEffect.NONE,
             ),
             SettingSpec(
+                id = "lock.emergencyReset",
+                group = GROUP_LOCK_SECURITY,
+                title = "长按删除键应急清除",
+                hint = "锁屏界面长按删除键十秒后弹出确认，确认后清除 PIN 并关闭锁屏",
+                control =
+                    SettingControl.Toggle(
+                        read = { it.lock.emergencyResetEnabled },
+                        write = { config, value ->
+                            config.copy(lock = config.lock.copy(emergencyResetEnabled = value))
+                        },
+                    ),
+            ),
+            SettingSpec(
                 id = "lock.autoLock",
                 group = GROUP_LOCK_BEHAVIOR,
                 title = "熄屏自动锁定",

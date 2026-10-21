@@ -1,10 +1,14 @@
 package com.shuiyu.octoberrain.feature.content.ui.negative
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.inkread.weekread.kernel.desk.DeskHost
 import com.inkread.weekread.kernel.desk.DeskPrefs
 import com.inkread.weekread.kernel.desk.DeskStyle
+import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.NegativeHost
+import com.shuiyu.octoberrain.core.common.WereadDeskConfig
 import com.shuiyu.octoberrain.core.design.InkColors
 import java.io.File
 import kotlin.math.max
@@ -31,6 +35,8 @@ internal class WereadDeskHostImpl(
     private val onFingerprint: () -> Unit,
     private val onSettings: () -> Unit,
 ) : DeskHost {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     /**
      * 返回当前模块在页面中的显示位。
      *
@@ -39,7 +45,7 @@ internal class WereadDeskHostImpl(
      *
      * @return 当前模块的显示位，未知标识返回零
      */
-    override fun deskModuleMask(): Int = DeskPrefs.bitOf(moduleId)
+    override fun deskModuleMask(): Int = if (deskConfig().isVisible(moduleId)) DeskPrefs.bitOf(moduleId) else 0
 
     /**
      * 返回分区绘制顺序。
@@ -69,8 +75,12 @@ internal class WereadDeskHostImpl(
         default: Int,
     ): Int = menu.int(key, default)
 
-    /** 返回阅读指纹分区正文的字号，负一屏卡片宽度有限，沿用固定字号。 */
-    override fun fpFontPx(): Int = FP_FONT_PX
+    /** 读取墨台设置中的真实字号，内核按 16–19 档排版。 */
+    override fun fpFontPx(): Int = deskConfig().effectiveFpFontPx
+
+    private fun deskConfig(): WereadDeskConfig =
+        runCatching { AppServices.config.state.value.integrations.wereadDesk }
+            .getOrDefault(WereadDeskConfig())
 
     /** 把内核颜色令牌映射为当前主题的墨水色。 */
     override fun styleColor(
@@ -104,16 +114,18 @@ internal class WereadDeskHostImpl(
 
     /** 请求负一屏重绘，用于分区内容变化后刷新显示。 */
     override fun requestRedraw() {
-        screenHost.requestRedraw()
+        mainHandler.post { screenHost.requestRedraw() }
     }
 
     /** 处理分区内的动作：设置态、壁纸预览与指纹选书在页内完成，其余目标仅请求重绘。 */
     override fun openPage(tab: String) {
-        when (tab) {
-            TAB_SETTINGS -> onSettings()
-            TAB_WALLPAPER -> onWallpaper()
-            TAB_FINGERPRINT -> onFingerprint()
-            else -> screenHost.requestRedraw()
+        mainHandler.post {
+            when (tab) {
+                TAB_SETTINGS -> onSettings()
+                TAB_WALLPAPER -> onWallpaper()
+                TAB_FINGERPRINT -> onFingerprint()
+                else -> screenHost.requestRedraw()
+            }
         }
     }
 
@@ -123,9 +135,6 @@ internal class WereadDeskHostImpl(
 
         /** 排版尺寸单位换算比例，与微读 InkTheme.UNIT_RATIO 一致。 */
         const val UNIT_RATIO: Float = 0.0015f
-
-        /** 阅读指纹正文字号。 */
-        const val FP_FONT_PX: Int = 48
 
         /** 账单分区目标标识。 */
         const val TAB_BILL: String = "bill"

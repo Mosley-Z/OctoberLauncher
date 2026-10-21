@@ -22,9 +22,10 @@ internal class DeskKernelSection(
     screenHost: NegativeHost,
     moduleId: String,
     onSettings: () -> Unit = {},
+    onDataEdited: () -> Unit = {},
 ) : LinearLayout(context) {
     private val sectionView: WereadDeskSectionView =
-        WereadDeskSectionView(context, screenHost, moduleId, onSettings)
+        WereadDeskSectionView(context, screenHost, moduleId, onSettings, onDataEdited)
 
     init {
         orientation = VERTICAL

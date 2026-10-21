@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 自适应图标背景：与墨水屏纸面一致 -->
-    <color name="ic_launcher_background">#FFFFFFFF</color>
+    <!-- 自适应图标背景：取自剪纸素材纸底中位色，与前景纸面无缝衔接 -->
+    <color name="ic_launcher_background">#F8F8F9</color>
 </resources>

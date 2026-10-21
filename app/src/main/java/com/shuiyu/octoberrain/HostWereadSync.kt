@@ -1,12 +1,20 @@
 package com.shuiyu.octoberrain
 
+import android.os.Handler
+import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
 import com.shuiyu.octoberrain.core.common.WereadSyncHost
+import com.shuiyu.octoberrain.core.wereadsync.WereadCardRefreshService
 import com.shuiyu.octoberrain.core.wereadsync.WereadGateway
+import com.shuiyu.octoberrain.core.wereadsync.WereadGatewayResult
+import com.shuiyu.octoberrain.core.wereadsync.WereadGatewaySyncProvider
+import com.shuiyu.octoberrain.core.wereadsync.WereadRequest
 import com.shuiyu.octoberrain.core.wereadsync.WereadStore
 import com.shuiyu.octoberrain.core.wereadsync.WereadSyncReport
 import com.shuiyu.octoberrain.core.wereadsync.WereadSyncService
 import com.shuiyu.octoberrain.core.wereadsync.parseSyncState
+import com.shuiyu.octoberrain.feature.content.ContentSourceImpl
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -23,7 +31,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 网关拉取与本地写入都在后台线程执行，结果写回同步状态；界面只读状态文案与触发同步。
  * 数据目录固定为 `filesDir/weread`，与迁移导入共用同一份原盘结构，内核与内容层
  * 因此不需要区分数据来源。
+ * 同一宿主集中管理同步生命周期、状态读取和完成后的消费者通知。
  */
+@Suppress("TooManyFunctions")
 object HostWereadSync : WereadSyncHost {
     /** 数据目录名，与内核读取位置保持一致。 */
     private const val DIRECTORY = "weread"
@@ -40,6 +50,16 @@ object HostWereadSync : WereadSyncHost {
     /** 最近一次同步报告，用于状态文案。 */
     @Volatile
     private var lastReport: WereadSyncReport? = null
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** 仅失效消费者缓存，不触发另一轮联网同步。 */
+    internal fun notifyDataChanged() {
+        mainHandler.post {
+            (AppServices.content as? ContentSourceImpl)?.invalidate()
+            AppServices.refresh.requestPartial()
+        }
+    }
 
     /**
      * 装配数据目录。
@@ -84,22 +104,56 @@ object HostWereadSync : WereadSyncHost {
         }
     }
 
+    override fun refresh(
+        request: WereadRefreshRequest,
+        onFinished: (Boolean, String) -> Unit,
+    ): Boolean {
+        if (request.mode == "todo") {
+            notifyDataChanged()
+            onFinished(true, "待办已重新读取")
+            return true
+        }
+        val dir = root
+        val key = apiKey()
+        return when {
+            dir == null || key.isEmpty() -> false
+            !running.compareAndSet(false, true) -> false
+            else -> {
+                startWorker(dir, key, onFinished, request)
+                true
+            }
+        }
+    }
+
     /** 启动后台同步线程。 */
     private fun startWorker(
         dir: File,
         key: String,
         onFinished: (Boolean, String) -> Unit,
+        request: WereadRefreshRequest? = null,
     ) {
         val thread =
             Thread({
                 val report =
                     runCatching {
-                        runBlocking { service(dir, key).sync() }
+                        runBlocking {
+                            if (request == null) {
+                                service(dir, key).sync()
+                            } else {
+                                val gateway = WereadGateway({ key })
+                                val transport =
+                                    WereadRequest { api, body ->
+                                        (gateway.request(api, body) as? WereadGatewayResult.Success)?.payload
+                                    }
+                                WereadCardRefreshService(transport, dir).refresh(request)
+                            }
+                        }
                     }.getOrElse { error ->
                         WereadSyncReport(false, "同步失败：${error.message ?: "未知错误"}")
                     }
                 lastReport = report
                 running.set(false)
+                notifyDataChanged()
                 onFinished(report.success, report.message)
             }, "weread-sync")
         thread.isDaemon = true
@@ -110,7 +164,7 @@ object HostWereadSync : WereadSyncHost {
     private fun service(
         dir: File,
         key: String,
-    ): WereadSyncService = WereadSyncService(WereadStore(dir), WereadGatewayProvider(WereadGateway({ key })))
+    ): WereadSyncService = WereadSyncService(WereadStore(dir), WereadGatewaySyncProvider(WereadGateway({ key }), dir))
 
     /** 读取当前密钥。 */
     private fun apiKey(): String =

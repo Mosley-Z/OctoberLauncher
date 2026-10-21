@@ -81,12 +81,6 @@ internal object WereadAppPrefs {
     /** 榜单是否只取书架书目，键名与微读墨记偏好一致。 */
     const val KEY_RANK_SHELF_ONLY: String = "rank_shelf_only"
 
-    /** 卡片总开关，键名与微读墨记偏好一致。 */
-    const val KEY_CARD_ENABLED: String = "card_enabled"
-
-    /** 五种形态的启用池掩码，低五位依次对应本周、本月、本书、本记、待办。 */
-    const val KEY_CARD_POOL_MASK: String = "card_pool_mask"
-
     /** 月历是否使用热力图样式，false 为打卡标记。 */
     const val KEY_MONTH_STYLE: String = "month_style"
 
@@ -104,9 +98,6 @@ internal object WereadAppPrefs {
 
     /** 安装角色，0 阅读器、1 手机。 */
     const val KEY_INSTALL_ROLE: String = "install_role"
-
-    /** 五种形态启用池的完整掩码。 */
-    const val POOL_MASK_ALL: Int = 0x1F
 
     /** 全屏档本记正文字号三档，按档位索引取值。 */
     private val NOTE_FULL_SIZES: IntArray = intArrayOf(15, 17, 19)
@@ -192,9 +183,9 @@ internal object WereadAppPrefs {
             installRole = store.getInt(KEY_INSTALL_ROLE, INSTALL_ROLE_DEFAULT),
             singlePage = store.getBool(KEY_SINGLE_PAGE_MODE, false),
             deskEnabled = store.getBool(KEY_DESK_ENABLED, true),
-            bindWeek = store.getBool(KEY_BIND_WEEK, true),
-            bindMonth = store.getBool(KEY_BIND_MONTH, false),
-            bindBook = store.getBool(KEY_BIND_BOOK, true),
+            bindWeek = store.getBool(KEY_BIND_WEEK, store.getInt("bind_targets", 5) and 1 != 0),
+            bindMonth = store.getBool(KEY_BIND_MONTH, store.getInt("bind_targets", 5) and 2 != 0),
+            bindBook = store.getBool(KEY_BIND_BOOK, store.getInt("bind_targets", 5) and 4 != 0),
             achievementEnabled = store.getBool(KEY_ACHV, false),
             weekKind = store.getInt(KEY_ACHV_WEEK_KIND, 0).coerceIn(0, 3),
             weekCustom = store.getString(KEY_ACHV_WEEK_CUSTOM, ""),
@@ -205,8 +196,6 @@ internal object WereadAppPrefs {
             noteSign = store.getBool(KEY_SHOW_SIGNATURE, true),
             noteDate = store.getBool(KEY_SHOW_DATE, true),
             rankShelfOnly = store.getBool(KEY_RANK_SHELF_ONLY, false),
-            cardEnabled = store.getBool(KEY_CARD_ENABLED, true),
-            poolMask = store.getInt(KEY_CARD_POOL_MASK, POOL_MASK_ALL),
             monthHeatmap = store.getInt(KEY_MONTH_STYLE, 0) == 1,
             noteCardSize = store.getInt(KEY_NOTE_CARD_SIZE, NOTE_CARD_SIZE_DEFAULT),
             switchMode = store.getInt(KEY_SWITCH_MODE, 0).coerceIn(0, 1),
@@ -232,6 +221,10 @@ internal object WereadAppPrefs {
         store.putBool(KEY_BIND_WEEK, next.bindWeek)
         store.putBool(KEY_BIND_MONTH, next.bindMonth)
         store.putBool(KEY_BIND_BOOK, next.bindBook)
+        store.putInt(
+            "bind_targets",
+            (if (next.bindWeek) 1 else 0) or (if (next.bindMonth) 2 else 0) or (if (next.bindBook) 4 else 0),
+        )
         store.putBool(KEY_ACHV, next.achievementEnabled)
         store.putInt(KEY_ACHV_WEEK_KIND, next.weekKind)
         store.putString(KEY_ACHV_WEEK_CUSTOM, next.weekCustom)
@@ -243,8 +236,6 @@ internal object WereadAppPrefs {
         store.putBool(KEY_SHOW_SIGNATURE, next.noteSign)
         store.putBool(KEY_SHOW_DATE, next.noteDate)
         store.putBool(KEY_RANK_SHELF_ONLY, next.rankShelfOnly)
-        store.putBool(KEY_CARD_ENABLED, next.cardEnabled)
-        store.putInt(KEY_CARD_POOL_MASK, next.poolMask)
         store.putInt(KEY_MONTH_STYLE, if (next.monthHeatmap) 1 else 0)
         store.putInt(KEY_NOTE_CARD_SIZE, next.noteCardSize)
         store.putInt(KEY_SWITCH_MODE, next.switchMode)
@@ -304,10 +295,6 @@ internal data class WereadAppSettings(
     val noteDate: Boolean = true,
     /** 榜单是否只统计书架上的书。 */
     val rankShelfOnly: Boolean = false,
-    /** 卡片总开关。 */
-    val cardEnabled: Boolean = true,
-    /** 五种形态启用池掩码。 */
-    val poolMask: Int = WereadAppPrefs.POOL_MASK_ALL,
     /** 月历是否使用热力图。 */
     val monthHeatmap: Boolean = false,
     /** 卡片档本记正文字号。 */

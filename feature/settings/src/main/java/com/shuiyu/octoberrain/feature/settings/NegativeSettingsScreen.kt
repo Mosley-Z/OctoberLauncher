@@ -1,8 +1,6 @@
 package com.shuiyu.octoberrain.feature.settings
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -31,12 +29,6 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
  */
 @Suppress("TooManyFunctions")
 class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
-    /** 配置回写定时器，连续修改时只保留最后一次待发任务。 */
-    private val prefsHandler = Handler(Looper.getMainLooper())
-
-    /** 延迟到连续修改停止后再推送的待发任务。 */
-    private val prefsPushRunnable = Runnable { pushWereadPrefs() }
-
     /**
      * 构建页面内容。
      *
@@ -179,7 +171,6 @@ class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
     private fun toggleModule(moduleId: String) {
         SettingsUi.edit { config -> NegativeSettingsLogic.toggle(config, moduleId) }
         RefreshSchedulerBridge.notifyContentChanged()
-        scheduleWereadPrefsPush()
         rebuildLater()
     }
 
@@ -192,44 +183,7 @@ class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
             NegativeSettingsLogic.move(config, moduleId, delta, NegativeModuleRegistry.all())
         }
         RefreshSchedulerBridge.notifyContentChanged()
-        scheduleWereadPrefsPush()
         rebuildLater()
-    }
-
-    /**
-     * 安排一次延迟的微读墨记配置回写。
-     *
-     * 开关与步进控件每次操作都会写盘，连续操作时只保留最后一次回写，
-     * 避免频繁拉起微读墨记的导出组件。定时器随页面销毁取消。
-     */
-    private fun scheduleWereadPrefsPush() {
-        prefsHandler.removeCallbacks(prefsPushRunnable)
-        prefsHandler.postDelayed(prefsPushRunnable, PREFS_PUSH_DELAY_MS)
-    }
-
-    /**
-     * 把当前配置推送给微读墨记。
-     *
-     * 未装配回写入口（未安装微读墨记）时静默返回；请求发起失败时同样不提示，
-     * 发起成功时由回调给出同步结果并提示。
-     */
-    private fun pushWereadPrefs() {
-        val writer = AppServices.wereadPrefs
-        val hostContext = contextOrNull()
-        if (writer != null && hostContext != null) {
-            val callbackContext = hostContext.applicationContext ?: hostContext
-            // 未安装微读墨记或导出组件缺失时回调不会触发，此处不改界面；
-            // 请求成功发起时由回调给出同步结果并提示。
-            writer.push { message ->
-                SettingsUi.toast(callbackContext, message)
-            }
-        }
-    }
-
-    /** 页面销毁时移除待发的回写任务，避免回调落在已释放的页面上。 */
-    override fun onDestroy() {
-        prefsHandler.removeCallbacks(prefsPushRunnable)
-        super.onDestroy()
     }
 
     /**
@@ -409,13 +363,9 @@ class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
             )
         }
         AppServices.refresh.requestPartial()
-        scheduleWereadPrefsPush()
     }
 
     private companion object {
-        /** 配置回写的防抖间隔，单位毫秒。 */
-        private const val PREFS_PUSH_DELAY_MS = 1_200L
-
         /** 时长单位的显示文本，顺序与 [WereadMenuConfig.UNIT_OPTIONS] 一致。 */
         private val UNIT_LABELS = listOf<CharSequence>("小时", "分钟")
 

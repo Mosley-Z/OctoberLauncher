@@ -2,9 +2,11 @@ package com.shuiyu.octoberrain.feature.settings
 
 import android.content.Context
 import android.view.View
+import com.shuiyu.octoberrain.core.common.DeskModulePolicy
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.NegativeHost
 import com.shuiyu.octoberrain.core.common.NegativeModule
+import com.shuiyu.octoberrain.core.common.WereadDeskConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -76,7 +78,7 @@ class NegativeSpecsTest {
             )
         val order = NegativeSettingsLogic.moduleOrder(custom, emptyList())
         assertEquals(
-            listOf("bill", "bookshelf", "negative_files", "rank"),
+            listOf("bill", "bookshelf", "negative_files", "rank", "fp"),
             order,
         )
     }
@@ -93,20 +95,65 @@ class NegativeSpecsTest {
         assertFalse(NegativeSettingsLogic.enabled(config, "fp"))
     }
 
-    /** 切换启用状态：关闭从列表移除，开启追加到末尾。 */
+    /** 注册的整屏墨台容器不是可开关的卡片，仍只展示五个真实分区。 */
     @Test
-    fun `切换开关写入模块列表`() {
-        val disabled = NegativeSettingsLogic.toggle(LauncherConfig(), "bill")
-        assertFalse(
-            disabled.desktop.negativePage.modules
-                .contains("bill"),
-        )
+    fun `设置不展示墨台容器伪卡片`() {
+        val order = NegativeSettingsLogic.moduleOrder(LauncherConfig(), listOf(FakeModule("desk", "墨台")))
+        assertEquals(listOf("bookshelf", "negative_files", "bill", "rank", "fp"), order)
+    }
+
+    /** 外部设置关闭墨台模块时同步掩码，重新开启后保持原始位置。 */
+    @Test
+    fun `切换墨台开关同时写入掩码`() {
+        val original = LauncherConfig()
+        val disabled = NegativeSettingsLogic.toggle(original, "bill")
+        assertFalse(NegativeSettingsLogic.enabled(disabled, "bill"))
+        assertFalse(disabled.integrations.wereadDesk.isVisible("bill"))
         val enabled = NegativeSettingsLogic.toggle(disabled, "bill")
+        assertTrue(NegativeSpecs.moduleEnabled(enabled, "bill"))
+        assertTrue(DeskModulePolicy.isEnabled(enabled, "bill"))
+        assertEquals(original.desktop.negativePage.modules, enabled.desktop.negativePage.modules)
+    }
+
+    /** 指纹原本没有显示位，外部开启后共享消费者立即可见；墨台关闭后外部状态同步。 */
+    @Test
+    fun `两个入口共用指纹显示状态`() {
+        val enabled = NegativeSettingsLogic.toggle(LauncherConfig(), "fp")
+        assertTrue(enabled.integrations.wereadDesk.onMask and WereadDeskConfig.BIT_FP != 0)
+        assertTrue(DeskModulePolicy.visibleOrder(enabled).contains("fp"))
+        val disabled = DeskModulePolicy.toggle(enabled, "fp")
+        assertFalse(NegativeSettingsLogic.enabled(disabled, "fp"))
+        assertFalse(NegativeSpecs.moduleEnabled(disabled, "fp"))
+        val reenabled = NegativeSettingsLogic.toggle(disabled, "fp")
+        assertTrue(DeskModulePolicy.isEnabled(reenabled, "fp"))
+    }
+
+    /** 调整内置模块时保留未知扩展，不复活被关闭的内置项。 */
+    @Test
+    fun `内置排序开关保留扩展与关闭状态`() {
+        val original = LauncherConfig()
+        val withExtras =
+            original.copy(
+                desktop =
+                    original.desktop.copy(
+                        negativePage =
+                            original.desktop.negativePage.copy(
+                                modules = listOf("custom_a", "bookshelf", "bill", "custom_b", "rank"),
+                            ),
+                    ),
+            )
+        val disabled = NegativeSettingsLogic.toggle(withExtras, "bill")
+        val moved = NegativeSettingsLogic.move(disabled, "rank", -1, emptyList())
         assertEquals(
-            "bill",
-            enabled.desktop.negativePage.modules
-                .last(),
+            listOf("custom_a", "custom_b"),
+            moved.desktop.negativePage.modules
+                .filter { it.startsWith("custom_") },
         )
+        assertFalse(DeskModulePolicy.isEnabled(moved, "bill"))
+        assertTrue(moved.desktop.negativePage.cardOrderInitialized)
+        val extensionOff = NegativeSettingsLogic.toggle(moved, "custom_a")
+        assertFalse(NegativeSettingsLogic.enabled(extensionOff, "custom_a"))
+        assertTrue(NegativeSettingsLogic.enabled(extensionOff, "custom_b"))
     }
 
     /** 上移一格：与前一模块交换位置，并把顺序标记为已初始化。 */

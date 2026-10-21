@@ -41,5 +41,5 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:weread-sync"))
     // 微读墨记内核，提供整体卡片的布局与绘制能力，随候选包一同发布
-    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6.jar"))
+    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6-host1.jar"))
 }

@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.feature.content.ui.negative
 import com.inkread.weekread.kernel.desk.DeskPrefs
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.WereadMenuConfig
+import com.shuiyu.octoberrain.core.wereadsync.WereadDeskEditsStore
 
 /**
  * 墨台分区读写的偏好封装。
@@ -15,6 +16,7 @@ import com.shuiyu.octoberrain.core.common.WereadMenuConfig
  */
 internal class WereadDeskMenu(
     private val fpBooks: () -> String = { "" },
+    private val edits: WereadDeskEditsStore? = null,
 ) {
     /**
      * 读取字符串类选项。
@@ -28,8 +30,18 @@ internal class WereadDeskMenu(
         group: String,
         key: String,
         default: String,
+    ): String =
+        when (group) {
+            "menu_prices" -> edits?.priceFen(key)?.takeIf { it >= 0 }?.toString() ?: default
+            "menu_hidden" -> if (key == "ids") hiddenIdsText() else default
+            DeskPrefs.FILE_CFG -> cfgPrefs(key, default)
+            else -> default
+        }
+
+    private fun cfgPrefs(
+        key: String,
+        default: String,
     ): String {
-        if (group != DeskPrefs.FILE_CFG) return default
         val menu = config()
         return when (key) {
             DeskPrefs.K_TITLE -> menu.effectiveTitle
@@ -37,9 +49,8 @@ internal class WereadDeskMenu(
             DeskPrefs.K_NOTE_SRC -> menu.effectiveNoteSource
             DeskPrefs.K_EXCERPT -> menu.effectiveExcerptMode
             DeskPrefs.K_FOOTER -> menu.effectiveFooter
-            // 指纹选书不在墨单外观配置里，由已同步的笔记索引给出默认值，
-            // 用户仍可在「选择指纹书目」对话框里改选。
-            K_FP_BOOKS -> fpBooks().ifBlank { default }
+            // 空集合是用户清空后的有效状态。
+            K_FP_BOOKS -> fpBooks()
             // 已移出书目以逗号拼接的书目标识保存在负一屏墨台配置中。
             K_HIDDEN_IDS -> hiddenIdsText().ifBlank { default }
             else -> default
@@ -99,7 +110,7 @@ internal class WereadDeskMenu(
      * @return 逗号分隔的书目标识
      */
     private fun hiddenIdsText(): String {
-        val hidden = deskConfig().hiddenIds
+        val hidden = edits?.hiddenIds(deskConfig().hiddenIds) ?: deskConfig().hiddenIds
         return if (hidden.isEmpty()) "" else hidden.joinToString(",")
     }
 

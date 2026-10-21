@@ -1,0 +1,3 @@
+WARN historical source removed: docs/acceptance/202610210141来自CODEX的CODE REVIEW.md -> app/src/main/java/com/shuiyu/octoberrain/WereadGatewayProvider.kt
+WARN historical source removed: docs/acceptance/202610210141来自CODEX的CODE REVIEW.md -> feature/settings/src/main/java/com/shuiyu/octoberrain/feature/settings/qr/KeyEntryServer.kt
+documents=77 migrations=40 tasks=21 warnings=2 errors=0

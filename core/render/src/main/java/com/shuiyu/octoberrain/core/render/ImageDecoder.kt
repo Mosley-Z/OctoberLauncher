@@ -38,6 +38,20 @@ object ImageDecoder {
     }
 
     /**
+     * 只读边界探测，不施加像素总量上限。
+     *
+     * 参数 path 为文件绝对路径；返回长度 2 的数组，元素依次为宽与高。
+     * 文件不存在、不是图片或尺寸非正时返回 null。用于保存壁纸等只需判断文件能否识别为图片的场景，
+     * 超大图的解码压力由调用方的采样与堆预算判断承担，本方法只读文件头，不分配像素缓冲区。
+     */
+    fun sizeIgnoringLimit(path: String): IntArray? {
+        if (path.isEmpty()) return null
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching { BitmapFactory.decodeFile(path, options) }
+        return boundsOf(options, enforceLimit = false)
+    }
+
+    /**
      * 两遍采样解码本地文件。
      *
      * 第一遍只读边界，第二遍按 2 的幂采样解码，使结果长边不超过目标的两倍；
@@ -130,28 +144,34 @@ object ImageDecoder {
         src: Bitmap,
         orientation: Int,
     ): Bitmap {
-        val matrix = orientationMatrix(orientation) ?: return src
+        val transform = ORIENTATIONS[orientation] ?: return src
         return runCatching {
+            val matrix =
+                Matrix().apply {
+                    setRotate(transform.degrees)
+                    if (transform.flipHorizontal) postScale(-1f, 1f)
+                    if (transform.flipVertical) postScale(1f, -1f)
+                }
             val output = Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, false)
             if (output !== src) src.recycle()
             output
         }.getOrDefault(src)
     }
 
-    /** 按方向常量构造变换矩阵，无需变换时返回 null。 */
-    private fun orientationMatrix(orientation: Int): Matrix? {
-        val transform = ORIENTATIONS[orientation] ?: return null
-        return Matrix().apply {
-            setRotate(transform.degrees)
-            if (transform.flipHorizontal) postScale(-1f, 1f)
-            if (transform.flipVertical) postScale(1f, -1f)
-        }
-    }
-
-    /** 从边界选项取宽高数组，尺寸无效或超出像素上限时返回 null。 */
-    private fun boundsOf(options: BitmapFactory.Options): IntArray? {
+    /**
+     * 从边界选项取宽高数组，尺寸非正时返回 null。
+     *
+     * 参数 enforceLimit 为 true 时同时判断像素总量上限，供常规解码入口使用；
+     * 为 false 时只要求宽高为正，供保存壁纸等只需判断文件能否识别为图片的调用点使用。
+     */
+    private fun boundsOf(
+        options: BitmapFactory.Options,
+        enforceLimit: Boolean = true,
+    ): IntArray? {
         val width = options.outWidth
         val height = options.outHeight
+        if (!ImageSizing.hasPositiveSize(width, height)) return null
+        if (!enforceLimit) return intArrayOf(width, height)
         return if (ImageSizing.withinLimit(width, height)) intArrayOf(width, height) else null
     }
 

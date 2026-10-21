@@ -7,6 +7,8 @@ import com.shuiyu.octoberrain.core.common.WereadBillSnapshot
 import com.shuiyu.octoberrain.core.common.WereadFingerprintSnapshot
 import com.shuiyu.octoberrain.core.common.WereadRankEntry
 import com.shuiyu.octoberrain.core.common.WereadShelfItem
+import com.shuiyu.octoberrain.core.common.parseRecentReadTimes
+import com.shuiyu.octoberrain.core.common.sortByRecentRead
 import java.io.File
 
 /**
@@ -19,15 +21,26 @@ import java.io.File
  * @param root 微读数据根目录，通常为 filesDir/weread
  */
 class KernelWereadReader(
-    root: File,
+    private val root: File,
 ) {
     private val loader = KernelDataLoader(root)
 
     /**
+     * 最近阅读时间缓存。
+     *
+     * 资产文件未变化时直接复用上次解析结果，避免每次读取书架都解析整份资产文本。
+     */
+    @Volatile
+    private var readTimesCache: ReadTimesCache? = null
+
+    /**
      * 读取书架。
      *
+     * 顺序按资产文件记录的最近阅读时间降序，时间缺失的书目保持原相对顺序排在末尾，
+     * 与桌面阅读组件看到的顺序一致。
+     *
      * @param limit 条目上限，非正数表示不限制
-     * @return 书架条目，按微读原盘顺序
+     * @return 书架条目，按最近阅读时间排序
      */
     fun shelf(limit: Int): List<WereadShelfItem> {
         val books = runCatching { loader.shelf()?.books }.getOrNull().orEmpty()
@@ -42,7 +55,29 @@ class KernelWereadReader(
                     deepLink = null,
                 )
             }
-        return if (limit <= 0 || limit >= items.size) items else items.take(limit)
+        val ordered = orderByRecentRead(items, readTimes())
+        return if (limit <= 0 || limit >= ordered.size) ordered else ordered.take(limit)
+    }
+
+    /**
+     * 读取书目最近阅读时间。
+     *
+     * 资产文件缺失或解析失败时返回空映射，此时书架保持内核给出的顺序。
+     *
+     * @return 书目编号到 Unix 秒时间的映射
+     */
+    private fun readTimes(): Map<String, Long> {
+        val file = File(root, ASSETS_FILE).takeIf { it.isFile } ?: return emptyMap()
+        val modified = file.lastModified()
+        val size = file.length()
+        val cached = readTimesCache
+        return if (cached != null && cached.modified == modified && cached.size == size) {
+            cached.times
+        } else {
+            val times = runCatching { parseRecentReadTimes(file.readText()) }.getOrDefault(emptyMap())
+            readTimesCache = ReadTimesCache(modified, size, times)
+            times
+        }
     }
 
     /**
@@ -137,14 +172,44 @@ class KernelWereadReader(
         return if (ratio <= 0.0) 0 else (minutes / ratio).toInt()
     }
 
-    private companion object {
-        /** 每分钟秒数。 */
+    internal companion object {
+        /** 每秒分钟数。 */
         private const val SECONDS_PER_MINUTE = 60
+
+        /** 微读资产文件名，与阅读组件读取的是同一份。 */
+        private const val ASSETS_FILE = "assets.json"
 
         /** 月度周期标识，与内核 PeriodCalendar.MONTHLY 一致。 */
         private const val MODE_MONTH = "monthly"
 
         /** 总览周期标识，与内核 PeriodCalendar.OVERALL 一致。 */
         private const val MODE_OVERALL = "overall"
+
+        /**
+         * 按最近阅读时间重排书架条目。
+         *
+         * 抽取为独立入口供单元测试直接覆盖排序语义，避免依赖内核文件的解析结果。
+         *
+         * @param items 内核顺序的书架条目
+         * @param times 书目编号到 Unix 秒时间的映射
+         * @return 时间新的在前，缺失时间的条目保持原相对顺序排在末尾
+         */
+        internal fun orderByRecentRead(
+            items: List<WereadShelfItem>,
+            times: Map<String, Long>,
+        ): List<WereadShelfItem> = sortByRecentRead(items, { it.bookId }, times)
     }
 }
+
+/**
+ * 最近阅读时间缓存条目。
+ *
+ * @param modified 资产文件最后修改时间，单位毫秒
+ * @param size 资产文件字节数
+ * @param times 书目编号到 Unix 秒时间的映射
+ */
+private data class ReadTimesCache(
+    val modified: Long,
+    val size: Long,
+    val times: Map<String, Long>,
+)

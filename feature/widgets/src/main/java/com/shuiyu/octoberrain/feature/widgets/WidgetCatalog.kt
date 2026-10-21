@@ -116,7 +116,7 @@ object WidgetCatalog {
             refreshPolicy = WidgetRefreshPolicy.MANUAL,
         ) { PlaceholderWidget(it) }
 
-    /** 微信读书整体卡片组件，单张卡片承载五种形态。 */
+    /** 微信读书整体卡片组件，一张卡片承载五种形态。 */
     private val wereadBoard =
         Entry(
             id = WEREAD_BOARD_WIDGET_ID,

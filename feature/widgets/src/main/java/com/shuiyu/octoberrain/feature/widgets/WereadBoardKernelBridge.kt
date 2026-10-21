@@ -58,6 +58,27 @@ data class WereadBookOption(
 )
 
 /**
+ * 轮播书目：桌面卡片叠放封面所需的单本书信息。
+ *
+ * 顺序沿用车架快照的原始顺序，选定书目不前置，保证滑动选书后整条列表位置稳定。
+ *
+ * @param bookId 书目编号
+ * @param title 书名
+ * @param author 作者
+ * @param coverPath 封面来源，可为远程地址或本地文件路径，为空时绘制占位
+ * @param progressPercent 阅读进度百分数，取值 0 到 100
+ * @param readingSeconds 累计阅读秒数，零表示未知
+ */
+data class WereadBookCard(
+    val bookId: String,
+    val title: String,
+    val author: String,
+    val coverPath: String?,
+    val progressPercent: Int,
+    val readingSeconds: Int,
+)
+
+/**
  * 整体卡片内核接缝：由应用层实现并注入。
  *
  * 组件把画布、尺寸与形态交给内核，绘制、命中判定与页面跳转全部由内核完成；
@@ -166,6 +187,26 @@ interface WereadBoardKernel {
      * @return 书架书目，最多取数据源提供的数量
      */
     fun bookOptions(): List<WereadBookOption>
+
+    /**
+     * 轮播书目列表，按书架快照的原始顺序返回。
+     *
+     * 与 [bookOptions] 的区别在于不对选定书目做前置重排，桌面叠放封面需要稳定顺序，
+     * 否则每次换书都会使整条列表位移，滑动过程中的位置与选中项无法对应。
+     *
+     * @return 轮播书目，无数据时为空
+     */
+    fun bookCards(): List<WereadBookCard>
+
+    /**
+     * 读取指定书目的最近一条有效划线。
+     *
+     * 用于卡片右上角的划线笔记；该书目没有划线或读取失败时返回空串。
+     *
+     * @param bookId 书目编号
+     * @return 划线正文，可为空串
+     */
+    fun latestMark(bookId: String): String?
 
     /**
      * 当前选中的书目编号。

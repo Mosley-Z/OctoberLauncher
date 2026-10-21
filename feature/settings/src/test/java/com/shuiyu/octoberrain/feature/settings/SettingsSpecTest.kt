@@ -82,6 +82,19 @@ class SettingsSpecTest {
     }
 
     @Test
+    fun `锁屏应急清除开关默认开启并可写入配置`() {
+        val spec = SettingsCatalog.specOf("lock.emergencyReset")
+        assertNotNull(spec)
+        assertEquals(SettingsCatalog.GROUP_LOCK_SECURITY, spec?.group)
+        val toggle = spec?.control as SettingControl.Toggle
+        val base = LauncherConfig()
+        assertTrue(toggle.read(base))
+        val off = toggle.write(base, false)
+        assertEquals(false, off.lock.emergencyResetEnabled)
+        assertEquals(false, toggle.read(off))
+    }
+
+    @Test
     fun `图标形状与二值化档位写入外观配置`() {
         val shape = choiceOf("appearance.iconShape")
         val contrast = choiceOf("appearance.iconContrast")

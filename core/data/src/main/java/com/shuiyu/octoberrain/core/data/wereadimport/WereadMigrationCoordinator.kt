@@ -12,6 +12,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.io.File
+import java.io.IOException
 
 /** 迁移结果。 */
 sealed interface WereadMigrationOutcome {
@@ -91,13 +92,16 @@ class WereadMigrationCoordinator(
                 WereadMigrationOutcome.Failure(parsed.error, parsed.message)
 
             is WereadImportResult.Success -> {
-                when (val installed = store.install(parsed.entries, nowMillis)) {
+                val installed =
+                    store.install(parsed.entries, nowMillis) { root ->
+                        normalizeAssetBooks(root)
+                        applyConfig(parsed, manifestDigest, nowMillis)
+                    }
+                when (installed) {
                     is WereadImportInstallResult.Failure ->
-                        WereadMigrationOutcome.Failure(WereadImportError.INVALID_PARAM, installed.message)
+                        WereadMigrationOutcome.Failure(WereadImportError.WRITE_FAILED, installed.message)
 
                     is WereadImportInstallResult.Success -> {
-                        normalizeAssetBooks(installed.target)
-                        applyConfig(parsed, manifestDigest, nowMillis)
                         WereadMigrationOutcome.Success(
                             counts = parsed.manifest.counts,
                             backup = installed.backup?.absolutePath,
@@ -127,7 +131,7 @@ class WereadMigrationCoordinator(
             val wrapped = JsonPrimitive("""{"books":$books}""")
             val updatedStrings = JsonObject(source + (ASSET_BOOKS_KEY to wrapped))
             val updatedRoot = JsonObject(readPrefsRoot(file) + ("string" to updatedStrings))
-            runCatching { file.writeText(updatedRoot.toString()) }
+            file.writeText(updatedRoot.toString())
         }
     }
 
@@ -177,6 +181,13 @@ class WereadMigrationCoordinator(
                 .orEmpty()
         val achievement = parsed.entries["achievement.json"]?.toString(Charsets.UTF_8).orEmpty()
 
+        val migration =
+            WereadMigrationState(
+                sourceVersionCode = parsed.manifest.sourceVersionCode,
+                importedAtMillis = nowMillis,
+                manifestDigest = manifestDigest,
+                complete = true,
+            )
         config.edit { config ->
             val desk = parsed.entries["desk_prefs.json"]?.let(::parseDeskPrefs)
             val currentDesk = config.integrations.wereadDesk
@@ -196,7 +207,7 @@ class WereadMigrationCoordinator(
                 } else {
                     config.integrations
                 }
-            val integrations = base.copy(wereadDesk = deskConfig)
+            val integrations = base.copy(wereadDesk = fingerprintConfig(deskConfig, prefs), wereadSource = "imported")
             val achievementConfig =
                 if (achievement.isNotEmpty()) {
                     config.wereadAchievement.copy(rawJson = achievement, updatedAtMillis = nowMillis)
@@ -206,15 +217,45 @@ class WereadMigrationCoordinator(
             config.copy(
                 integrations = integrations,
                 wereadAchievement = achievementConfig,
-                wereadMigration =
-                    WereadMigrationState(
-                        sourceVersionCode = parsed.manifest.sourceVersionCode,
-                        importedAtMillis = nowMillis,
-                        manifestDigest = manifestDigest,
-                        complete = true,
-                    ),
+                wereadMigration = migration,
             )
         }
+        val saved = config.state.value
+        if (saved.wereadMigration != migration ||
+            saved.integrations.wereadSource != "imported"
+        ) {
+            throw IOException("迁移配置保存失败，已恢复原数据")
+        }
+    }
+
+    /** 原盘 PagePrefs 把 fp_books 存在 string、fp_font_px 存在 int 分组。 */
+    private fun fingerprintConfig(
+        current: WereadDeskConfig,
+        prefs: Map<String, JsonObject>?,
+    ): WereadDeskConfig {
+        val books =
+            prefs
+                ?.get("string")
+                ?.get("fp_books")
+                ?.jsonPrimitive
+                ?.contentOrNull
+        val font =
+            prefs
+                ?.get("int")
+                ?.get("fp_font_px")
+                ?.jsonPrimitive
+                ?.intOrNull
+        val selection =
+            if (books != null && !current.fpBooksConfigured) {
+                WereadDeskConfig(fpBookIds = books.split(',')).effectiveFpBookIds
+            } else {
+                current.fpBookIds
+            }
+        return current.copy(
+            fpBookIds = selection,
+            fpBooksConfigured = current.fpBooksConfigured || books != null,
+            fpFontPx = font?.takeIf { it in WereadDeskConfig.FP_FONT_OPTIONS } ?: current.fpFontPx,
+        )
     }
 
     /**

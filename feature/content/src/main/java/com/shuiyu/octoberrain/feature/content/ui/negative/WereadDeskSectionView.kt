@@ -20,24 +20,15 @@ import com.inkread.weekread.kernel.desk.DeskRenderer
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.NegativeHost
 import com.shuiyu.octoberrain.core.design.InkWidgets
+import com.shuiyu.octoberrain.core.wereadsync.WereadDeskEditsStore
+import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.math.ceil
 
 /**
- * 墨台单个分区的负一屏视图。
- *
- * 视图持有一份只包含当前分区的墨台页面，按负一屏宽度完成排版并把分区正文
- * 绘制到卡片内。绘制时跳过墨台顶栏，只呈现分区标题与正文，使负一屏卡片
- * 不出现重复的页面框架；分区内的点击、长按、内滚与价格键盘交由内核处理，
- * 页面跳转与重绘请求经 [WereadDeskHost] 转给负一屏宿主。
- *
- * 微读原盘数据尚未导入时，分区没有可绘制的条目，此时隐藏绘制区域并显示
- * 「导入微读墨记数据」引导按钮，供用户发起一次迁移；导入结束后重新排版，
- * 由内核按新的数据绘制分区。
- *
- * @param context 视图上下文
- * @param screenHost 负一屏宿主，用于请求重绘与页面跳转
- * @param moduleId 当前分区标识，取值为 bill、rank、fp
- * @param onSettings 内核请求打开墨台设置态的回调
+ * 墨台分区视图。每个分区用一个串行工作队列拥有内核页面，UI 只展示已完成的位图与状态快照。
+ * 构造、命中、编辑、排版与绘制不接触主线程；重载和销毁以代次隔离旧任务结果。
  */
 @Suppress("TooManyFunctions")
 internal class WereadDeskSectionView(
@@ -45,125 +36,113 @@ internal class WereadDeskSectionView(
     screenHost: NegativeHost,
     moduleId: String,
     onSettings: () -> Unit = {},
+    private val onDataEdited: () -> Unit = {},
 ) : LinearLayout(context),
     DeskTouchDispatcher.Host {
-    private val deskHost: WereadDeskHost =
+    private val deskHost =
         WereadDeskHost(
-            context = context,
-            screenHost = screenHost,
-            moduleId = moduleId,
+            context,
+            screenHost,
+            moduleId,
             onWallpaper = { generateWallpaper() },
             onFingerprint = { openFingerprintPicker() },
             onSettings = onSettings,
         )
+    private val moduleId = moduleId
+    private val renderer = DeskRenderer(deskHost.host)
+    private val editBridge = WereadDeskEditBridge(WereadDeskEditsStore(File(context.filesDir, "weread")))
+    private val mainHandler = Handler(Looper.getMainLooper())
 
-    private val moduleId: String = moduleId
+    @Volatile private var generation = 0
 
-    private val renderer: DeskRenderer = DeskRenderer(deskHost.host)
+    @Volatile private var released = false
+    private var worker = WorkerState()
 
-    private var page: DeskPage? = null
-
-    private var headerHeight: Float = 0f
-
-    private var sectionHeight: Float = 0f
-
-    private var measuredWidth: Int = 0
-
-    private var empty: Boolean = false
-
-    /** 本次导入请求是否已由通道回调过结果，用于避免重复提示。 */
-    private var importCallbackFired: Boolean = false
-
-    /** 是否已有后台加载在途，避免重复排队。 */
-    private var loading: Boolean = false
-
-    /** 后台加载失败标记，用于显示引导区域而不是无限占位。 */
-    private var loadFailed: Boolean = false
-
-    /** 已核算排版结果对应的卡片宽度，为零表示需要重新核算。 */
-    private var measuredSectionWidth: Int = 0
-
-    /** 是否已有后台排版计算在途，避免测量阶段重复排队。 */
-    private var measuring: Boolean = false
-
-    /** 是否强制重新核算排版，键盘开合与长按移除书目后置位。 */
-    private var forceMeasure: Boolean = false
-
-    /** 长按提示文案，为空时不绘制提示条。 */
+    @Volatile private var requestedWidth = 0
+    private var measuredWidth = 0
+    private var sectionHeight = MIN_SECTION_HEIGHT_DP * deskHost.host.scale()
+    private var frame: SectionFrame? = null
     private var tipText: String? = null
-
-    private val tipHandler = Handler(Looper.getMainLooper())
-
     private val tipPaint = TextPaint(TextPaint.ANTI_ALIAS_FLAG)
-
+    private val canvasView = SectionCanvas(context)
+    private val dispatcher = DeskTouchDispatcher(context, canvasView, this)
+    private val guideRow = LinearLayout(context)
+    private val emptyButton: TextView
+    private val emptyMessage: TextView
     private val tipClearRunnable =
         Runnable {
             tipText = null
             canvasView.invalidate()
         }
 
-    /** 分区绘制区域，宽度跟随卡片，高度由内核排版结果决定。 */
-    private val canvasView: SectionCanvas = SectionCanvas(context)
-
-    /** 触摸分派器，负责点按、长按、内滚与键盘按键。 */
-    private val dispatcher: DeskTouchDispatcher = DeskTouchDispatcher(context, canvasView, this)
-
-    /** 数据为空时显示的引导区域，含导入按钮与结果文案。 */
-    private val guideRow: LinearLayout = LinearLayout(context)
-
-    private val importButton: TextView
-
-    private val importMessage: TextView
-
     init {
         orientation = VERTICAL
-        importButton = InkWidgets.button(context, IMPORT_LABEL, filled = false) { requestImport() }
-        importMessage = InkWidgets.caption(context, "")
-        importMessage.visibility = GONE
+        emptyButton =
+            InkWidgets.button(context, if (moduleId == MODULE_FP) "选择指纹书目" else "同步微信读书", filled = false) {
+                refreshEmptySection()
+            }
+        emptyMessage = InkWidgets.caption(context, "暂无可展示数据，请先完成微信读书同步")
         guideRow.orientation = VERTICAL
         guideRow.visibility = GONE
-        // 内容为空时显示的导入按钮随分区宽度留白，与抬头行保持同一内边距。
-        val guideInset = DeskSectionStyle.paddingXPx(context.resources.displayMetrics.widthPixels)
-        guideRow.setPadding(guideInset, 0, guideInset, 0)
-        guideRow.addView(importButton)
-        guideRow.addView(importMessage)
+        val inset = DeskSectionStyle.paddingXPx(context.resources.displayMetrics.widthPixels)
+        guideRow.setPadding(inset, 0, inset, 0)
+        guideRow.addView(emptyButton)
+        guideRow.addView(emptyMessage)
         addView(canvasView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(guideRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
-    /**
-     * 丢弃当前页面并重新排版。
-     *
-     * 墨单外观配置变化或数据导入完成后调用，使内核按新的选项与数据重新构造分区；
-     * 下次测量会重建页面并重新读取配置。
-     */
-    fun reload() {
-        page?.release()
-        page = null
-        measuredWidth = 0
-        measuredSectionWidth = 0
-        loadFailed = false
-        forceMeasure = true
-        requestLayout()
-        invalidate()
-    }
-
-    /**
-     * 释放内核页面持有的资源。
-     *
-     * 模块销毁时调用，避免内核页面的数据缓存与图像资源长期驻留。
-     */
-    fun release() {
-        dispatcher.cancel()
-        page?.release()
-        page = null
-        canvasView.releaseCache()
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (released) {
+            released = false
+            worker = WorkerState()
+            requestedWidth = 0
+            requestLayout()
+        }
     }
 
     override fun onDetachedFromWindow() {
-        dispatcher.cancel()
-        tipHandler.removeCallbacks(tipClearRunnable)
+        release()
         super.onDetachedFromWindow()
+    }
+
+    /** 旧任务允许结束但不再发布；页面释放与新页面构造仍在同一个队列内顺序执行。 */
+    fun reload() {
+        if (released) return
+        generation++
+        dispatcher.cancel()
+        frame = null
+        val state = worker
+        val token = generation
+        synchronized(state) {
+            state.scrollDelta = 0f
+            state.scrollQueued = false
+        }
+        state.executor.execute {
+            state.page?.release()
+            state.page = null
+            state.frameQueued = false
+            if (valid(state, token)) requestFrame(state, token)
+        }
+        canvasView.invalidate()
+        requestLayout()
+    }
+
+    /** 不在 UI 等待内核；清理排在旧工作后，线程随后退出。 */
+    fun release() {
+        if (released) return
+        released = true
+        generation++
+        dispatcher.cancel()
+        mainHandler.removeCallbacks(tipClearRunnable)
+        frame = null
+        val state = worker
+        state.executor.execute {
+            state.page?.release()
+            state.page = null
+        }
+        state.executor.shutdown()
     }
 
     override fun onMeasure(
@@ -171,109 +150,116 @@ internal class WereadDeskSectionView(
         heightMeasureSpec: Int,
     ) {
         val width =
-            MeasureSpec
-                .getSize(widthMeasureSpec)
-                .takeIf { it > 0 }
+            MeasureSpec.getSize(widthMeasureSpec).takeIf { it > 0 }
                 ?: (FALLBACK_WIDTH_DP * resources.displayMetrics.density).toInt()
-        val current = page
-        if ((width != measuredSectionWidth || forceMeasure) && !measuring) {
-            measuredWidth = width
-            forceMeasure = false
-            if (current != null) {
-                // 内核排版要遍历分区数据，放到后台线程计算，先以占位高度完成本次测量
-                startMeasure(current, width)
-            } else {
-                // 首次绑定需要读取原盘数据，放到后台线程，先以占位高度完成测量
-                ensurePage()
-                sectionHeight = MIN_SECTION_HEIGHT_DP * deskHost.host.scale()
-                canvasView.visibility = GONE
-                guideRow.visibility = if (loadFailed) VISIBLE else GONE
-            }
+        measuredWidth = width
+        if (width != requestedWidth && !released) {
+            requestedWidth = width
+            submit { _, state, token -> requestFrame(state, token) }
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
-    /**
-     * 在后台线程核算分区排版。
-     *
-     * 内核的 height 与数据判空会遍历账单、资产与书目集合，数据量随书库规模增长，
-     * 直接在主线程执行会造成输入事件超时；计算完成后回到主线程写入尺寸并请求重排。
-     *
-     * @param current 已绑定的墨台页面
-     * @param width 卡片可用宽度
-     */
-    private fun startMeasure(
-        current: DeskPage,
-        width: Int,
+    private fun valid(
+        state: WorkerState,
+        token: Int,
+    ): Boolean = !released && state === worker && token == generation
+
+    /** 所有 DeskPage 访问只允许通过此队列，提交时不读任何内核字段。 */
+    private fun submit(action: (DeskPage, WorkerState, Int) -> Unit) {
+        if (released) return
+        val state = worker
+        val token = generation
+        state.executor.execute {
+            if (!valid(state, token)) return@execute
+            runCatching {
+                val page =
+                    state.page ?: DeskPage(deskHost.host).also { created ->
+                        created.bind()
+                        state.page = created
+                    }
+                if (valid(state, token)) action(page, state, token)
+            }.onFailure {
+                mainHandler.post {
+                    if (valid(state, token)) {
+                        emptyMessage.text = "墨台加载失败，请重试同步"
+                        guideRow.visibility = VISIBLE
+                    }
+                }
+            }
+        }
+    }
+
+    /** 多个输入共享一次待渲染任务；内核页面只在所属队列内读写。 */
+    private fun requestFrame(
+        state: WorkerState,
+        token: Int,
     ) {
-        measuring = true
+        if (state.frameQueued || !valid(state, token)) return
+        state.frameQueued = true
+        runCatching {
+            state.executor.execute {
+                state.frameQueued = false
+                if (!valid(state, token)) return@execute
+                val page =
+                    state.page
+                        ?: runCatching { DeskPage(deskHost.host).also { it.bind() } }.getOrNull()?.also {
+                            state.page =
+                                it
+                        }
+                if (page == null) return@execute
+                val rendered = runCatching { renderFrame(page, requestedWidth) }.getOrNull()
+                mainHandler.post {
+                    if (!valid(state, token) || rendered?.width != requestedWidth) {
+                        rendered?.bitmap?.recycle()
+                    } else if (rendered != null) {
+                        applyFrame(rendered)
+                    }
+                }
+            }
+        }.onFailure { state.frameQueued = false }
+    }
+
+    /** 核算尺寸、命中几何与位图都在同一个工作任务中完成。 */
+    private fun renderFrame(
+        page: DeskPage,
+        width: Int,
+    ): SectionFrame? {
+        if (width <= 0) return null
         val unit = deskHost.host.scale()
         val header = renderer.headerHeight(unit)
-        Thread(
-            {
-                val result =
-                    runCatching {
-                        val total = current.height(width).toFloat()
-                        val blank = isEmptyData(current.data()) || total <= header
-                        SectionMetrics(header, total, blank)
-                    }.getOrNull()
-                post {
-                    measuring = false
-                    // 无论核算成功与否都记录本次宽度：失败时保留占位高度并不再重试，
-                    // 否则每帧测量都会重新起线程，消息队列被占满导致输入事件超时。
-                    measuredSectionWidth = width
-                    if (result != null) {
-                        applyMetrics(result, unit)
-                    } else {
-                        loadFailed = true
-                    }
-                    requestLayout()
-                    invalidate()
-                }
-            },
-            LOAD_THREAD_NAME,
-        ).apply { isDaemon = true }.start()
+        val total = page.height(width).toFloat()
+        val blank = isEmptyData(page.data()) || total <= header
+        // 指纹没有内滚动；保留整张内容高度，交给墨台外层滚动，不能按资产窗口裁切。
+        val cap =
+            if (moduleId == MODULE_FP) {
+                MAX_CACHE_HEIGHT_PX.toFloat()
+            } else {
+                MAX_SECTION_HEIGHT_DP * resources.displayMetrics.density
+            }
+        val height = if (blank) MIN_SECTION_HEIGHT_DP * unit else (total - header).coerceIn(1f, cap)
+        val pixels = ceil(height).toInt().coerceIn(1, MAX_CACHE_HEIGHT_PX)
+        val bitmap = if (blank) null else Bitmap.createBitmap(width, pixels, Bitmap.Config.ARGB_8888)
+        return runCatching {
+            if (bitmap != null) {
+                val canvas = Canvas(bitmap)
+                canvas.translate(0f, -header)
+                page.render(canvas, width, ceil(height + header).toInt().coerceAtLeast(1), 0)
+            }
+            SectionFrame(bitmap, width, height, header, blank, page.padOpen(), page.canScroll())
+        }.onFailure { bitmap?.recycle() }.getOrThrow()
     }
 
-    /**
-     * 把后台核算结果写入视图状态。
-     *
-     * @param metrics 后台线程得到的排版结果
-     * @param unit 当前排版单位，用于空态最小高度
-     */
-    private fun applyMetrics(
-        metrics: SectionMetrics,
-        unit: Float,
-    ) {
-        headerHeight = metrics.header
-        empty = metrics.empty
-        val content = (metrics.total - metrics.header).coerceAtLeast(0f)
-        val cap = MAX_SECTION_HEIGHT_DP * resources.displayMetrics.density
-        sectionHeight = content.coerceAtMost(cap)
-        if (!empty) {
-            sectionHeight = sectionHeight.coerceAtLeast(MIN_SECTION_HEIGHT_DP * unit)
-        }
-        canvasView.visibility = if (empty) GONE else VISIBLE
-        guideRow.visibility = if (empty) VISIBLE else GONE
-        canvasView.invalidateCache()
+    private fun applyFrame(next: SectionFrame) {
+        frame = next
+        sectionHeight = next.height
+        canvasView.visibility = if (next.empty) GONE else VISIBLE
+        guideRow.visibility = if (next.empty) VISIBLE else GONE
+        canvasView.requestLayout()
+        requestLayout()
+        canvasView.invalidate()
     }
 
-    /** 后台排版核算结果，字段含义与 [applyMetrics] 的参数一致。 */
-    private data class SectionMetrics(
-        val header: Float,
-        val total: Float,
-        val empty: Boolean,
-    )
-
-    /**
-     * 判断当前分区的数据是否为空。
-     *
-     * 墨单按账单条目判断，阅读资产按资产条目判断，阅读指纹按可绘制的书目判断；
-     * 其他标识按非空处理，由内核自行呈现。
-     *
-     * @param data 已绑定页面对应的墨台数据
-     * @return 数据为空时返回 true
-     */
     private fun isEmptyData(data: DeskData): Boolean =
         when (moduleId) {
             MODULE_BILL -> data.bill()?.items?.isEmpty() != false
@@ -282,356 +268,223 @@ internal class WereadDeskSectionView(
             else -> false
         }
 
-    /**
-     * 发起一次微读墨记数据导入。
-     *
-     * 导入通道缺失时直接显示说明文案；发起请求后由通道回调展示结果，
-     * 回调结束重新排版并请求重绘，使分区在数据就绪后立即绘制。
-     * 通道返回未发起且未回调时，按已存在迁移数据处理并给出说明。
-     */
-    private fun requestImport() {
-        val importer = AppServices.wereadImport
-        if (importer == null) {
-            showImportMessage(IMPORT_UNAVAILABLE)
-            return
-        }
-        importCallbackFired = false
-        val started =
-            importer.requestImport { message ->
-                importCallbackFired = true
-                post {
-                    showImportMessage(message)
-                    reload()
-                    deskHost.host.requestRedraw()
-                    invalidate()
-                }
-            }
-        if (!started && !importCallbackFired) {
-            showImportMessage(IMPORT_ALREADY_PRESENT)
-        }
-    }
+    override fun padIsOpen(): Boolean = frame?.padOpen == true
 
-    /**
-     * 在引导区域显示导入结果文案。
-     *
-     * @param message 需要展示的说明文字
-     */
-    private fun showImportMessage(message: String) {
-        importMessage.text = message
-        importMessage.visibility = VISIBLE
-        requestLayout()
-    }
+    override fun sectionCanScroll(): Boolean = frame?.canScroll == true
 
-    /**
-     * 返回已绑定的墨台页面，缺失时发起后台加载。
-     *
-     * 绑定过程读取原盘文件，数据量可达数百千字节，直接在主线程执行会造成输入超时，
-     * 因此在独立线程完成构造与绑定，再回到主线程触发重新测量。
-     *
-     * @return 已绑定的墨台页面，尚在加载时返回 null
-     */
-    private fun ensurePage(): DeskPage? {
-        val existing = page
-        if (existing == null && !loading) {
-            loading = true
-            loadFailed = false
-            Thread({ loadPage() }, LOAD_THREAD_NAME).apply { isDaemon = true }.start()
-        }
-        return existing
-    }
-
-    /** 后台线程内构造并绑定墨台页面，完成后回到主线程刷新布局。 */
-    private fun loadPage() {
-        val created =
-            runCatching {
-                DeskPage(deskHost.host).also { it.bind() }
-            }.getOrNull()
-        post {
-            loading = false
-            if (created == null) {
-                loadFailed = true
+    override fun tapAt(
+        x: Float,
+        y: Float,
+        keypad: Boolean,
+    ) {
+        submit { page, state, token ->
+            val offset = renderer.headerHeight(deskHost.host.scale())
+            if (keypad || page.padOpen()) {
+                val key = page.hitPad(x, y + offset)
+                if (key >= 0) handlePricePress(page, key, state, token)
             } else {
-                page = created
-                measuredSectionWidth = 0
-                forceMeasure = true
+                val action = page.hitTest(x, y + offset)
+                if (action != DeskPage.ACTION_NONE) page.onAction(action)
             }
-            requestLayout()
-            invalidate()
+            requestFrame(state, token)
         }
     }
 
-    override fun kernelPage(): DeskPage? = page
-
-    override fun headerOffset(): Float = headerHeight
-
-    override fun onTapAction(action: Int) {
-        val current = page ?: return
-        current.onAction(action)
-        if (current.padOpen()) forceMeasure = true
-        deskHost.host.requestRedraw()
-        canvasView.invalidateCache()
-        invalidate()
-    }
-
-    override fun onLongPressAction(action: Int) {
-        val current = page ?: return
-        current.data().invalidateAll()
-        forceMeasure = true
-        when (action) {
-            DeskActions.LONG_ASSET_TITLE -> {
-                val title = current.pendingTitle()
-                showTip(
-                    if (title.isNullOrBlank()) {
-                        TIP_TITLE_REMOVED
-                    } else {
-                        TIP_TITLE_REMOVED_PREFIX + title + TIP_TITLE_REMOVED_SUFFIX
-                    },
-                )
-            }
-            else -> Unit
-        }
-        requestLayout()
-        canvasView.invalidateCache()
-        invalidate()
-    }
-
-    override fun onPadChanged() {
-        page?.data()?.invalidateAll()
-        forceMeasure = true
-        requestLayout()
-        canvasView.invalidateCache()
-        invalidate()
-    }
-
-    override fun invalidateSection() {
-        canvasView.invalidate()
-    }
-
-    override fun onScrollFinished() {
-        canvasView.invalidateCache()
-        invalidate()
-    }
-
-    /**
-     * 生成当前分区的竖版壁纸并打开预览对话框。
-     *
-     * 内核渲染壁纸需要遍历分区数据与位图资源，放在后台线程执行；渲染完成后
-     * 回到主线程打开预览，失败时以提示说明。
-     */
-    fun generateWallpaper() {
-        val current = page ?: return
-        val section = wallpaperSection()
-        Thread(
-            {
-                val bitmap =
-                    runCatching {
-                        current.renderWallpaper(section, WALLPAPER_WIDTH_PX, WALLPAPER_HEIGHT_PX)
-                    }.getOrNull()
-                post {
-                    if (bitmap == null) {
-                        runCatching { AppServices.router.toast(WALLPAPER_FAILED) }
-                    } else {
-                        WereadWallpaperDialog.show(context, bitmap)
+    private fun handlePricePress(
+        page: DeskPage,
+        key: Int,
+        state: WorkerState,
+        token: Int,
+    ) {
+        when (editBridge.press(page, key)) {
+            WereadDeskEditBridge.Result.FAILED ->
+                mainHandler.post {
+                    if (valid(state, token)) {
+                        AppServices.router.toast("价格保存失败，请重试")
+                        reload()
                     }
                 }
-            },
-            LOAD_THREAD_NAME,
-        ).apply { isDaemon = true }.start()
-    }
-
-    /**
-     * 打开阅读指纹的书目选择对话框。
-     *
-     * 候选书目来源于内核汇总的笔记书目；选定后写入内核配置并重新排版，
-     * 使分区按新的书目重新绘制指纹图。
-     */
-    fun openFingerprintPicker() {
-        val current = page ?: return
-        val candidates = runCatching { current.fingerprintCandidates() }.getOrNull().orEmpty()
-        FingerprintBookDialog.show(context, candidates) { bookId ->
-            current.setFingerprintBook(bookId)
-            current.data().invalidateAll()
-            reload()
-            deskHost.host.requestRedraw()
+            WereadDeskEditBridge.Result.SAVED -> mainHandler.post { if (valid(state, token)) onDataEdited() }
+            WereadDeskEditBridge.Result.APPLIED -> Unit
         }
     }
 
-    /**
-     * 返回当前模块对应的内核分区序号。
-     *
-     * @return 账单为 0、阅读资产为 1、阅读指纹为 2
-     */
+    override fun longPressAt(
+        x: Float,
+        y: Float,
+    ) {
+        submit { page, state, token ->
+            val action = page.longActionAt(x, y + renderer.headerHeight(deskHost.host.scale()))
+            if (action == DeskActions.LONG_ASSET_TITLE) {
+                val saved = editBridge.saveHidden(page)
+                val title = page.pendingTitle()
+                mainHandler.post {
+                    if (valid(state, token)) {
+                        if (saved) {
+                            showTip(
+                                if (title.isNullOrBlank()) {
+                                    TIP_TITLE_REMOVED
+                                } else {
+                                    TIP_TITLE_REMOVED_PREFIX + title +
+                                        TIP_TITLE_REMOVED_SUFFIX
+                                },
+                            )
+                            onDataEdited()
+                        } else {
+                            AppServices.router.toast("移出书目保存失败，请重试")
+                            reload()
+                        }
+                    }
+                }
+            }
+            requestFrame(state, token)
+        }
+    }
+
+    /** 合并拖动位移，避免快速滑动把工作队列塞满。 */
+    override fun scrollBy(delta: Float) {
+        if (released) return
+        val state = worker
+        synchronized(state) {
+            state.scrollDelta += delta
+            if (state.scrollQueued) return
+            state.scrollQueued = true
+        }
+        submit { page, queuedState, token ->
+            val amount =
+                synchronized(queuedState) {
+                    queuedState.scrollDelta.also {
+                        queuedState.scrollDelta = 0f
+                        queuedState.scrollQueued = false
+                    }
+                }
+            page.scrollBy(amount)
+            requestFrame(queuedState, token)
+        }
+    }
+
+    private fun refreshEmptySection() {
+        if (moduleId == MODULE_FP) {
+            openFingerprintPicker()
+            return
+        }
+        val sync = AppServices.wereadSync
+        if (sync == null) {
+            AppServices.router.toast("请先在设置中配置微信读书")
+            return
+        }
+        sync.syncNow { _, message ->
+            mainHandler.post {
+                if (!released) {
+                    emptyMessage.text = message
+                    reload()
+                }
+            }
+        }
+    }
+
+    /** 壁纸同样使用页面所属队列，避免与帧渲染、释放并发。 */
+    fun generateWallpaper() {
+        submit { page, state, token ->
+            val section = wallpaperSection()
+            val width = if (section == DeskPage.SEC_FP) FINGERPRINT_WIDTH_PX else WALLPAPER_WIDTH_PX
+            val height = if (section == DeskPage.SEC_FP) FINGERPRINT_HEIGHT_PX else WALLPAPER_HEIGHT_PX
+            val bitmap = runCatching { page.renderWallpaper(section, width, height) }.getOrNull()
+            mainHandler.post {
+                if (!valid(state, token)) {
+                    bitmap?.recycle()
+                } else if (bitmap == null) {
+                    AppServices.router.toast(WALLPAPER_FAILED)
+                } else {
+                    WereadWallpaperDialog.show(context, bitmap)
+                }
+            }
+        }
+    }
+
+    fun openFingerprintPicker() {
+        if (released) return
+        val state = worker
+        val token = generation
+        state.executor.execute {
+            val candidates = WereadFingerprintBooks.candidates(context)
+            val selected = WereadFingerprintBooks.ids(context)
+            mainHandler.post {
+                if (valid(state, token)) {
+                    FingerprintBookDialog.show(context, candidates, selected) { ids ->
+                        WereadFingerprintBooks.save(ids)
+                        reload()
+                        deskHost.host.requestRedraw()
+                    }
+                }
+            }
+        }
+    }
+
     private fun wallpaperSection(): Int =
         when (moduleId) {
-            MODULE_BILL -> SECTION_BILL
-            MODULE_RANK -> SECTION_ASSET
-            MODULE_FP -> SECTION_FP
-            else -> SECTION_BILL
+            MODULE_BILL -> DeskPage.SEC_BILL
+            MODULE_RANK -> DeskPage.SEC_ASSET
+            MODULE_FP -> DeskPage.SEC_FP
+            else -> DeskPage.SEC_BILL
         }
 
-    /**
-     * 显示长按提示条文案，四秒后自动消失。
-     *
-     * @param message 需要展示的文案
-     */
     private fun showTip(message: String) {
         tipText = message
-        tipHandler.removeCallbacks(tipClearRunnable)
-        tipHandler.postDelayed(tipClearRunnable, TIP_DURATION_MS)
+        mainHandler.removeCallbacks(tipClearRunnable)
+        mainHandler.postDelayed(tipClearRunnable, TIP_DURATION_MS)
         canvasView.invalidate()
     }
 
-    /** 分区绘制区域，把视图尺寸与触摸坐标换算到墨台页面坐标系。 */
+    /** UI 帧只画已完成位图，键盘和拖动时也不调用内核。 */
     private inner class SectionCanvas(
         context: Context,
     ) : View(context) {
-        /** 已渲染的分区位图，避免每次重绘都遍历内核分区数据。 */
-        private var cache: Bitmap? = null
-
-        /** 缓存位图对应的宽度，尺寸变化时重建。 */
-        private var cacheWidth: Int = 0
-
-        /** 是否有后台渲染在途，避免重绘阶段重复排队。 */
-        private var rendering: Boolean = false
-
         init {
             isClickable = true
             isFocusable = true
-        }
-
-        /**
-         * 丢弃已渲染位图并请求一次后台渲染。
-         *
-         * 分区尺寸、数据或内核状态变化后调用，下一次绘制使用新的位图。
-         */
-        fun invalidateCache() {
-            cache = null
-            rendering = false
-            requestRender()
-        }
-
-        /** 回收已渲染位图，页面释放时调用。 */
-        fun releaseCache() {
-            cache?.recycle()
-            cache = null
-            rendering = false
-        }
-
-        /**
-         * 判断尺寸与数据是否具备渲染条件。
-         *
-         * 宽度、高度缺失、数据为空或高度超出缓存上限时都不渲染。
-         *
-         * @param width 视图宽度
-         * @param height 分区高度
-         * @return 可以渲染时返回 true
-         */
-        private fun canRender(
-            width: Int,
-            height: Int,
-        ): Boolean = width > 0 && height in 1..MAX_CACHE_HEIGHT_PX && !empty
-
-        /**
-         * 判断当前是否应当发起一次后台渲染。
-         *
-         * 已有渲染在途或缓存有效时不再重复渲染。
-         *
-         * @param width 视图宽度
-         * @param height 分区高度
-         * @return 需要发起渲染时返回 true
-         */
-        private fun canStartRender(
-            width: Int,
-            height: Int,
-        ): Boolean = !rendering && cache == null && canRender(width, height)
-
-        /**
-         * 在后台线程渲染分区位图。
-         *
-         * 内核渲染会遍历账单、资产与书目集合，在主线程执行会造成输入事件超时；
-         * 渲染完成后回到主线程替换缓存并重绘。
-         */
-        private fun requestRender() {
-            val width = measuredWidth
-            val height = ceil(sectionHeight).toInt()
-            val current = page ?: return
-            if (!canStartRender(width, height)) return
-            rendering = true
-            cacheWidth = width
-            Thread(
-                {
-                    val rendered =
-                        runCatching {
-                            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                            val bitmapCanvas = Canvas(bitmap)
-                            // 上移一个顶栏高度，使分区正文落在卡片可见区域内
-                            bitmapCanvas.translate(0f, -headerHeight)
-                            current.render(bitmapCanvas, width, renderHeightPx(), 0)
-                            bitmap
-                        }.getOrNull()
-                    post {
-                        rendering = false
-                        if (rendered != null && !empty && width == measuredWidth) {
-                            cache = rendered
-                        } else {
-                            rendered?.recycle()
-                        }
-                        invalidate()
-                    }
-                },
-                LOAD_THREAD_NAME,
-            ).apply { isDaemon = true }.start()
         }
 
         override fun onMeasure(
             widthMeasureSpec: Int,
             heightMeasureSpec: Int,
         ) {
-            val width = MeasureSpec.getSize(widthMeasureSpec).coerceAtLeast(1)
-            setMeasuredDimension(width, ceil(sectionHeight).toInt().coerceAtLeast(1))
+            setMeasuredDimension(
+                MeasureSpec.getSize(widthMeasureSpec).coerceAtLeast(1),
+                ceil(sectionHeight).toInt().coerceAtLeast(1),
+            )
         }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            if (empty || sectionHeight <= 0f) return
-            if (dispatcher.isScrolling() || page?.padOpen() == true) {
-                // 拖动与键盘输入期间直接渲染，避免位图缓存的异步刷新造成画面滞后
-                drawDirect(canvas)
-            } else {
-                val cached = cache
-                if (cached != null && !cached.isRecycled && cacheWidth == measuredWidth) {
-                    canvas.drawBitmap(cached, 0f, 0f, null)
-                } else {
-                    requestRender()
-                }
-            }
+            frame?.bitmap?.takeUnless { it.isRecycled }?.let { canvas.drawBitmap(it, 0f, 0f, null) }
             drawTip(canvas)
         }
 
-        override fun onTouchEvent(event: MotionEvent): Boolean {
-            val handled = dispatcher.onTouchEvent(event)
-            return handled || super.onTouchEvent(event)
-        }
+        override fun onTouchEvent(event: MotionEvent): Boolean =
+            dispatcher.onTouchEvent(event) || super.onTouchEvent(event)
     }
 
-    /**
-     * 直接把分区正文绘制到视图画布。
-     *
-     * 绘制前上移一个顶栏高度，使分区正文落在可视区域内；渲染高度按分区高度
-     * 与顶栏高度之和计算，保证内核按完整页面完成排版。
-     *
-     * @param canvas 视图画布
-     */
-    private fun drawDirect(canvas: Canvas) {
-        val current = page ?: return
-        canvas.save()
-        canvas.translate(0f, -headerHeight)
-        current.render(canvas, measuredWidth, renderHeightPx(), 0)
-        canvas.restore()
+    private class WorkerState {
+        val executor: ExecutorService =
+            Executors.newSingleThreadExecutor { runnable ->
+                Thread(runnable, LOAD_THREAD_NAME).apply { isDaemon = true }
+            }
+        var page: DeskPage? = null
+        var frameQueued = false
+        var scrollQueued = false
+        var scrollDelta = 0f
     }
 
-    /** 返回内核渲染使用的页面高度，取分区高度加顶栏高度。 */
-    private fun renderHeightPx(): Int = ceil(sectionHeight + headerHeight).toInt().coerceAtLeast(1)
+    private data class SectionFrame(
+        val bitmap: Bitmap?,
+        val width: Int,
+        val height: Float,
+        val header: Float,
+        val empty: Boolean,
+        val padOpen: Boolean,
+        val canScroll: Boolean,
+    )
 
     /**
      * 在分区底部绘制长按提示条。
@@ -707,14 +560,11 @@ internal class WereadDeskSectionView(
         /** 分区最大可视高度，超出部分在分区内滚动，单位为 dp。 */
         const val MAX_SECTION_HEIGHT_DP: Float = 320f
 
-        /** 账单分区序号，与内核分区常量一致。 */
-        const val SECTION_BILL: Int = 0
+        /** 原版指纹纸张尺寸，避免非等比拉伸指纹字形。 */
+        const val FINGERPRINT_WIDTH_PX: Int = 480
 
-        /** 阅读资产分区序号，与内核分区常量一致。 */
-        const val SECTION_ASSET: Int = 1
-
-        /** 阅读指纹分区序号，与内核分区常量一致。 */
-        const val SECTION_FP: Int = 2
+        /** 原版指纹纸张高度。 */
+        const val FINGERPRINT_HEIGHT_PX: Int = 800
 
         /** 壁纸位图宽度，单位为像素。 */
         const val WALLPAPER_WIDTH_PX: Int = 1080
@@ -736,15 +586,6 @@ internal class WereadDeskSectionView(
 
         /** 阅读指纹分区标识。 */
         const val MODULE_FP: String = "fp"
-
-        /** 数据为空时的导入引导按钮文案。 */
-        const val IMPORT_LABEL: String = "导入微读墨记数据"
-
-        /** 导入通道尚未装配时的说明文案。 */
-        const val IMPORT_UNAVAILABLE: String = "当前无法发起导入"
-
-        /** 迁移数据已存在时的说明文案。 */
-        const val IMPORT_ALREADY_PRESENT: String = "已存在迁移数据，无需重复导入"
 
         /** 后台加载墨台页面使用的线程名。 */
         const val LOAD_THREAD_NAME: String = "weread-desk-section"

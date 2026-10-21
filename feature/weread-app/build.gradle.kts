@@ -35,10 +35,11 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:data"))
     implementation(project(":core:design"))
     implementation(project(":core:render"))
     // 微读墨记内核，提供卡片绘制、周期计算、洞察页与数据装载能力
-    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6.jar"))
+    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6-host1.jar"))
 }
 
 // 复制的微读墨记 Java 控件（com/inkread/weekread/**）是外部复用基线，

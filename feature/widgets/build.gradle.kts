@@ -35,5 +35,5 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:widget-api"))
     // 微读墨记内核，整体卡片按内核布局绘制，未接入时回落到内置绘制
-    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6.jar"))
+    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6-host1.jar"))
 }

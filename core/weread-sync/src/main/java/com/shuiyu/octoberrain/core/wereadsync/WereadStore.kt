@@ -29,6 +29,8 @@ data class WereadShelfBook(
     val progress: Int,
     val finished: Boolean,
     val finishTimeMillis: Long,
+    val readUpdateTime: Long = 0L,
+    val deepLink: String = "",
 )
 
 /**
@@ -46,6 +48,8 @@ data class WereadAssetBook(
     val progress: Int,
     val finished: Boolean,
     val finishTimeMillis: Long = 0L,
+    val fetchedAtMillis: Long = 0L,
+    val readUpdateTime: Long = 0L,
 )
 
 /**
@@ -97,6 +101,8 @@ class WereadStore(
                             put("progress", JsonPrimitive(book.progress))
                             put("finished", JsonPrimitive(book.finished))
                             put("finishTime", JsonPrimitive(book.finishTimeMillis))
+                            put("readUpdateTime", JsonPrimitive(book.readUpdateTime))
+                            put("deepLink", JsonPrimitive(book.deepLink))
                         },
                     )
                 }
@@ -134,6 +140,8 @@ class WereadStore(
                 put("progress", JsonPrimitive(book.progress))
                 put("finished", JsonPrimitive(book.finished))
                 put("finishTime", JsonPrimitive(book.finishTimeMillis))
+                put("readUpdateTime", JsonPrimitive(book.readUpdateTime))
+                put("deepLink", JsonPrimitive(book.deepLink))
             }
         return writeText(FILE_BOOK, document.toString())
     }
@@ -219,6 +227,8 @@ class WereadStore(
                             put("author", JsonPrimitive(book.author))
                             put("sec", JsonPrimitive(book.readingSeconds))
                             put("pct", JsonPrimitive(book.progress))
+                            put("at", JsonPrimitive(book.fetchedAtMillis))
+                            put("readUpdateTime", JsonPrimitive(book.readUpdateTime))
                             // 读完标记优先于完成时刻：网关常把 finishTime 置零，
                             // 内核只认 fin 是否大于零，故读完时至少写 1。
                             put("fin", JsonPrimitive(if (book.finished) maxOf(book.finishTimeMillis, 1L) else 0L))
@@ -226,7 +236,15 @@ class WereadStore(
                     )
                 }
             }
-        return writeText(FILE_ASSETS, buildJsonObject { put("books", array) }.toString())
+        // 增量补查不能删除未请求到的历史资产，也不能覆盖录价等额外字段。
+        val existing = (readJsonObject(fileOf(FILE_ASSETS))?.get("books") as? JsonArray).orEmpty()
+        val merged = LinkedHashMap<String, JsonObject>()
+        (existing + array).forEach { element ->
+            val item = element as? JsonObject ?: return@forEach
+            val id = item["id"]?.jsonPrimitive?.contentOrNull ?: return@forEach
+            merged[id] = JsonObject(merged[id].orEmpty() + item)
+        }
+        return writeText(FILE_ASSETS, buildJsonObject { put("books", JsonArray(merged.values.toList())) }.toString())
     }
 
     /**
@@ -240,7 +258,13 @@ class WereadStore(
         indexJson: String,
         notes: List<WereadNoteFile>,
     ): Boolean {
-        var allSaved = writeText(FILE_NOTE_INDEX, indexJson)
+        val indexSaved = writeText(FILE_NOTE_INDEX, indexJson)
+        return writeNoteFiles(notes) && indexSaved
+    }
+
+    /** 只写成功取回的笔记正文，不提前覆盖完整索引。 */
+    fun writeNoteFiles(notes: List<WereadNoteFile>): Boolean {
+        var allSaved = true
         notes.forEach { note ->
             if (!writeText(note.name, note.rawJson)) allSaved = false
         }

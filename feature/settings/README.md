@@ -12,7 +12,7 @@
 
 美化模式：`BeautifyScreen.kt` 与四个面板 `BeautifyThemePanel.kt`、`BeautifyImagePanel.kt`、`BeautifyIconPanel.kt`、`BeautifyPreviewPanel.kt`，分页状态在 `BeautifyPreviewState.kt`，分页换算在 `DesktopPagination.kt`。
 
-`ImageDirectoryStore.kt` 保存图片目录选择，`WereadKeyValidator.kt` 校验微信读书密钥，`ThirdPartyLicenses.kt` 汇总许可文本，`SettingsModule.kt` 注册全部页面。
+`ImageDirectoryStore.kt` 保存图片目录选择，`ThirdPartyLicenses.kt` 汇总许可文本，`SettingsModule.kt` 注册全部页面。微信读书密钥的校验与二维码录入位于 `feature:weread-app` 的 `ui/qr` 包，本模块保留书架数据相关的设置项。
 
 ## 依赖
 
@@ -20,7 +20,7 @@
 
 ## 测试
 
-`src/test` 四个文件、39 例：声明表完整性与分组、分页换算、美化预览状态、控件取值。
+`src/test` 五个文件、60 例：声明表完整性与分组、分页换算、美化预览状态、控件取值、负一屏顺序与开关。
 
 ## 已知限制
 

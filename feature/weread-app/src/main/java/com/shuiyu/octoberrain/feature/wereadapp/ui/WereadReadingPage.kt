@@ -24,6 +24,9 @@ import com.inkread.weekread.kernel.ShelfBook
 import com.inkread.weekread.ui.NavDropView
 import com.inkread.weekread.ui.PeriodPickerView
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.WereadAchievement
+import com.shuiyu.octoberrain.core.common.WereadAppearance
+import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.feature.wereadapp.WereadAppData
@@ -31,7 +34,6 @@ import com.shuiyu.octoberrain.feature.wereadapp.WereadAppPrefs
 import com.shuiyu.octoberrain.feature.wereadapp.WereadCardForm
 import com.shuiyu.octoberrain.feature.wereadapp.WereadMicroBridge
 import org.json.JSONObject
-import java.io.File
 import kotlin.math.roundToInt
 
 /**
@@ -90,7 +92,7 @@ internal class WereadReadingPage(
     /** 底部整宽刷新按钮。 */
     private val refreshButton =
         InkWidgets.button(context, "刷新", filled = false) {
-            refresh()
+            refreshRemote()
         }
 
     /** 形态下拉浮层，扳机行由主导航首项承担。 */
@@ -114,14 +116,11 @@ internal class WereadReadingPage(
     /** 本记池。 */
     private var notePool: List<NoteItem> = emptyList()
 
-    /** 本记池当前下标。 */
-    private var noteIndex: Int = 0
-
     /** 是否只看想法。 */
-    private var ideasOnly: Boolean = false
+    private var ideasOnly: Boolean = data.noteSelection.ideasOnly()
 
     /** 选中的书目编号，空串表示全部书。 */
-    private var bookFilter: String = ""
+    private var bookFilter: String = data.noteSelection.pickedBook()
 
     /** 等待同步的周期类型。 */
     private var pendingMode: String = ""
@@ -156,7 +155,7 @@ internal class WereadReadingPage(
         card.setFullscreen(true)
         card.setPadXRatio(PAD_X_RATIO)
         insight.visibility = View.GONE
-        refreshButton.setOnClickListener { refresh() }
+        refreshButton.setOnClickListener { refreshRemote() }
         applyForm(WereadCardForm.WEEKLY)
     }
 
@@ -202,6 +201,29 @@ internal class WereadReadingPage(
         when (stage) {
             Stage.INSIGHT -> bindInsight()
             Stage.CARD -> bindCard()
+        }
+    }
+
+    /** 手动按钮强制联网；返回页面时的 refresh 仍仅重载本地。 */
+    private fun refreshRemote() {
+        val host = AppServices.wereadSync
+        val mode = if (stage == Stage.INSIGHT) "overall" else form.mode
+        val base = if (mode == "weekly" || mode == "monthly") currentBase() else 0L
+        refreshButton.isEnabled = false
+        refreshButton.text = "同步中…"
+        val accepted =
+            host?.refresh(WereadRefreshRequest(mode, base)) { _, message ->
+                post {
+                    refreshButton.isEnabled = true
+                    refreshButton.text = "刷新"
+                    refresh()
+                    listener?.onToast(message)
+                }
+            } == true
+        if (!accepted) {
+            refreshButton.isEnabled = true
+            refreshButton.text = "刷新"
+            listener?.onToast(if (host?.isRunning() == true) "同步正在进行" else "请先配置微信读书接口密钥")
         }
     }
 
@@ -267,11 +289,9 @@ internal class WereadReadingPage(
         listener?.onFormChanged(label)
     }
 
-    /** 按形态池重建下拉项目；至少保留一张卡片，末项「足迹」不参与过滤。 */
+    /** App 导航始终保留所有阅读形态与足迹，桌面形态池仅约束桌面。 */
     private fun refreshNavItems() {
-        val mask = WereadAppPrefs.settings(context).poolMask
-        val enabled = FORMS.filterIndexed { index, _ -> mask and POOL_BITS[index] != 0 }
-        navForms = enabled.ifEmpty { FORMS }
+        navForms = FORMS
         val labels = navForms.map { it.label } + NAV_INSIGHT
         navDrop.setLabels(labels.toTypedArray())
     }
@@ -367,8 +387,10 @@ internal class WereadReadingPage(
         val started =
             data.requestPeriod(mode, base) {
                 post {
-                    data.reload()
-                    finishPending()
+                    if (pendingMode == mode && pendingBase == base) {
+                        data.reload()
+                        finishPending()
+                    }
                 }
             }
         if (!started) return
@@ -424,7 +446,7 @@ internal class WereadReadingPage(
         card.setNoteFullSize(noteFullSize(prefs.exportSize))
         card.setNoteCardSize(prefs.noteCardSize.toFloat())
         card.setAchievementText(null)
-        card.setNoteSlot(if (ideasOnly) 1 else 0)
+        card.setNoteSlot(data.noteSelection.slot())
         when (form) {
             WereadCardForm.WEEKLY, WereadCardForm.MONTHLY -> bindPeriodCard()
             WereadCardForm.BOOK -> bindBookCard()
@@ -454,6 +476,14 @@ internal class WereadReadingPage(
             card.setPlaceholder("暂无记录", "这个周期还没有阅读数据")
         } else {
             card.setStats(stats)
+            card.setAchievementText(
+                WereadAchievement.text(
+                    WereadAppearance.read(data.root),
+                    week = form == WereadCardForm.WEEKLY,
+                    currentPeriod = stats.isCurrentPeriod(),
+                    totalSeconds = stats.totalSec.toLong(),
+                ),
+            )
         }
     }
 
@@ -471,28 +501,19 @@ internal class WereadReadingPage(
 
     /** 绑定本记条目。 */
     private fun bindNoteCard() {
-        val all = runCatching { data.notes(0) }.getOrDefault(emptyList())
-        notePool =
-            all.filter { note ->
-                val matchBook = bookFilter.isEmpty() || note.bookId == bookFilter
-                val matchIdea = !ideasOnly || note.ideaText.isNotEmpty()
-                matchBook && matchIdea
-            }
-        if (noteIndex >= notePool.size) noteIndex = 0
-        val slot = if (ideasOnly) 1 else 0
-        val item = notePool.getOrNull(noteIndex)
+        ideasOnly = data.noteSelection.ideasOnly()
+        bookFilter = data.noteSelection.pickedBook()
+        val slot = data.noteSelection.slot()
+        card.setNoteSlot(slot)
+        val item = runCatching { data.noteSelection.current() }.getOrNull()
+        notePool = listOfNotNull(item)
+        val progress = data.noteSelection.progress()
+        WereadMicroBridge.recordNoteProgress(context, slot, progress[0], progress[1])
         if (item == null) {
-            // 池为空也写入 0/0，避免卡片继续显示上一次的「第 X / 共 N 条」。
-            WereadMicroBridge.recordNoteProgress(context, slot, 0, 0)
             card.setNote(null)
-            card.setPlaceholder(
-                "暂无划线",
-                if (ideasOnly) "这本书还没有想法" else "这本书还没有划线",
-            )
+            card.setPlaceholder("暂无划线", if (ideasOnly) "还没有想法" else "这本书还没有划线")
             return
         }
-        // 复制进来的内核绘制在「本记」页读取该进度，池由本页按筛选条件维护，需同步落盘。
-        WereadMicroBridge.recordNoteProgress(context, slot, noteIndex + 1, notePool.size)
         val stats = NoteStats()
         copyNote(item, stats)
         card.setNote(stats)
@@ -640,9 +661,9 @@ internal class WereadReadingPage(
             }
 
             override fun onToggleIdeas() {
-                ideasOnly = !ideasOnly
-                noteIndex = 0
+                data.noteSelection.setIdeasOnly(!data.noteSelection.ideasOnly())
                 bindNoteCard()
+                AppServices.refresh.requestPartial()
             }
 
             override fun onPickNote() {
@@ -652,9 +673,9 @@ internal class WereadReadingPage(
 
     /** 本记池前后翻页。 */
     private fun moveNote(delta: Int) {
-        if (notePool.isEmpty()) return
-        noteIndex = (noteIndex + delta).mod(notePool.size)
+        if (delta < 0) data.noteSelection.previous() else data.noteSelection.current(advance = true)
         bindNoteCard()
+        AppServices.refresh.requestPartial()
     }
 
     /**
@@ -665,7 +686,7 @@ internal class WereadReadingPage(
      * 外部目录。位图分配与 PNG 压缩在后台线程执行，完成后回到主线程提示并呼起分享。
      */
     private fun exportNote() {
-        val item = notePool.getOrNull(noteIndex) ?: return
+        val item = notePool.firstOrNull() ?: return
         val stats = noteStatsOf(item)
         listener?.onToast("正在导出…")
         Thread {
@@ -707,18 +728,28 @@ internal class WereadReadingPage(
 
     /** 选记半屏：按书目筛选本记池。 */
     private fun showNotePickSheet() {
-        val books = shelfBooks()
-        WereadNotePickSheet.show(context, books, bookFilter) { bookId ->
-            bookFilter = bookId
-            noteIndex = 0
+        val books =
+            data.noteSelection.books().map { entry ->
+                val raw = JSONObject(entry.toString())
+                val metadata = raw.optJSONObject("book") ?: raw
+                ShelfBook().apply {
+                    bookId = raw.optString("bookId")
+                    title = metadata.optString("title")
+                    author = metadata.optString("author")
+                    coverUrl = metadata.optString("cover")
+                }
+            }
+        WereadNotePickSheet.show(context, books, data.noteSelection.pickedBook()) { bookId ->
+            data.noteSelection.selectBook(bookId)
             bindNoteCard()
+            AppServices.refresh.requestPartial()
         }
     }
 
     /** 选书半屏：切换「本书」页展示的书目。 */
     private fun showBookPickSheet() {
         val books = shelfBooks()
-        val selected = data.currentBook()?.bookId.orEmpty()
+        val selected = data.selectedBookId()
         WereadBookPickSheet.show(context, books, selected) { bookId ->
             applyBookSelection(books, bookId)
         }
@@ -737,39 +768,19 @@ internal class WereadReadingPage(
         books: List<ShelfBook>,
         bookId: String,
     ) {
-        val target = if (bookId.isEmpty()) books.firstOrNull() else books.firstOrNull { it.bookId == bookId }
-        if (target == null) {
+        if (bookId.isNotEmpty() && books.none { it.bookId == bookId }) {
             listener?.onToast("书架暂无书目")
             return
         }
-        writeCurrentBook(target)
-        data.reload()
+        data.selectBook(bookId)
         bindCard()
-    }
-
-    /**
-     * 把选定书目写入 `files/weread/book.json`，键名与内核读取保持一致。
-     *
-     * @param book 选定的书架书目
-     */
-    private fun writeCurrentBook(book: ShelfBook) {
-        val payload =
-            JSONObject().apply {
-                put("bookId", book.bookId)
-                put("title", book.title)
-                put("author", book.author)
-                put("coverUrl", book.coverUrl)
-                put("readingSec", book.readingSec)
-                put("progress", book.progress)
-                put("finished", book.finished)
-                put("finishTime", book.finishTime)
+        AppServices.refresh.requestPartial()
+        AppServices.wereadSync?.refresh(WereadRefreshRequest("book", bookId = bookId)) { _, message ->
+            post {
+                data.reload()
+                bindCard()
+                listener?.onToast(message)
             }
-        runCatching {
-            val directory = File(context.filesDir, WereadAppPrefs.DATA_DIRECTORY)
-            if (!directory.exists()) directory.mkdirs()
-            File(directory, BOOK_FILE_NAME).writeText(payload.toString())
-        }.onFailure {
-            listener?.onToast("书目保存失败")
         }
     }
 
@@ -810,9 +821,6 @@ internal class WereadReadingPage(
         /** 下拉末项固定文案，对应洞察页。 */
         private const val NAV_INSIGHT = "足迹"
 
-        /** 形态池位掩码，低五位依次对应本周、本月、本书、本记、待办。 */
-        private val POOL_BITS: IntArray = intArrayOf(1, 2, 4, 8, 16)
-
         /** 卡片横向内边距比例，与微读 App 内一致。 */
         private const val PAD_X_RATIO = 0.05f
 
@@ -824,9 +832,6 @@ internal class WereadReadingPage(
 
         /** 周期行高度，单位 dp，与微读 `PeriodPickerView` 挂载高度一致。 */
         private const val PICKER_HEIGHT_DP = 44f
-
-        /** 当前书目文件名。 */
-        private const val BOOK_FILE_NAME = "book.json"
 
         /** 一年毫秒数。 */
         private const val YEAR_MILLIS = 365L * 24L * 60L * 60L * 1000L

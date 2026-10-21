@@ -8,17 +8,22 @@ import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.feature.files.data.FileItem
 import com.shuiyu.octoberrain.feature.files.data.FileListing
 import com.shuiyu.octoberrain.feature.files.data.FilePrefs
+import kotlinx.coroutines.CoroutineScope
 import java.io.File
 import java.util.Locale
 
 /**
  * 选图页。
  *
- * 复用 [FilePager] 的分页、顶栏、底栏与手势，按行列出目录与符合过滤条件的图片，
- * 点击目录进入、点击图片回传。行数按内容区高度换算，单目录不超过 400 行。
+ * 复用 [FilePager] 的分页、顶栏、底栏与手势，按当前视图形态列出目录与符合过滤条件的文件：
+ * 列表模式每行左置缩略图，网格模式四列排布并绘制居中裁剪的封面；两种模式都显示目录项，
+ * 点击目录进入、点击文件回传。列表行数按内容区高度换算，网格固定四行四列，
+ * 单目录不超过 400 项。顶栏右侧动作按钮在两种视图之间切换，切换只改本次会话的显示方式，
+ * 不写回界面偏好；目录返回仍由顶栏返回按钮完成。
  *
- * 参数 context 为宿主上下文；tokens 为尺寸令牌；prefs 提供最后路径；
- * accepts 判断文件名是否可被请求方接收；onPick 回传选中文件；onCancel 处理取消。
+ * 参数 context 为宿主上下文；tokens 为尺寸令牌；prefs 提供最后路径与初始视图；
+ * accepts 判断文件名是否可被请求方接收；onPick 回传选中文件；onCancel 处理取消；
+ * scope 为缩略图预取使用的页面级协程作用域。
  */
 internal class PickPane(
     context: Context,
@@ -28,17 +33,17 @@ internal class PickPane(
     private val accepts: (String) -> Boolean,
     private val onPick: (FileItem) -> Unit,
     private val onCancel: () -> Unit,
+    scope: CoroutineScope,
 ) : FilePager(context, tokens) {
     private val bodyPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = tokens.bodyText
             color = InkColors.INK
         }
-    private val smallPaint =
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = tokens.smallText
-            color = InkColors.INK_3
-        }
+    private val gridPane = PickGridPane(tokens)
+    private val listPane = PickListPane(tokens)
+    private val thumbs = PickThumbs(context, scope) { invalidate() }
+    private var grid: Boolean = prefs.grid
     private var currentDir: File = root
     private var items: List<FileItem> = emptyList()
     private var message = ""
@@ -49,18 +54,22 @@ internal class PickPane(
     /** 顶栏副标题取当前路径。 */
     override val pageSubtitle: String get() = currentDir.absolutePath
 
-    /** 顶栏右侧动作按钮返回上级目录。 */
-    override val topActionLabel: String get() = "上级"
+    /** 顶栏右侧动作按钮在两种视图之间切换。 */
+    override val topActionLabel: String get() = if (grid) BrowseStrings.LIST else BrowseStrings.GRID
 
-    /** 每页行数按内容区高度换算。 */
-    override val pageSize: Int get() = geometry?.listRows ?: DEFAULT_ROWS
+    /** 列表按内容区高度换算行数，网格固定每页 16 项。 */
+    override val pageSize: Int
+        get() = if (grid) FileMetrics.GRID_PAGE else geometry?.listRows ?: DEFAULT_ROWS
 
     /** 底栏动作按钮用于取消选择。 */
     override fun actionLabel(): String = "取消"
 
     init {
         load(currentDir)
-        setPageListener { invalidate() }
+        setPageListener { page ->
+            thumbs.request(items, page)
+            invalidate()
+        }
     }
 
     /** 进入上级目录；已在根目录时取消选择。 */
@@ -81,12 +90,27 @@ internal class PickPane(
         goUp()
     }
 
+    /** 切换列表与网格，按新的每页条目数重排当前目录并重算缩略图目标尺寸。 */
     override fun onTopAction() {
-        goUp()
+        grid = !grid
+        val metrics = geometry
+        if (metrics != null) {
+            val edge = if (grid) minOf(metrics.cellW, metrics.gridCellDrawH) else tokens.rowThumb
+            thumbs.update(edge, pageSize)
+        }
+        pagerState.pageSize = pageSize
+        thumbs.request(items, pagerState.page)
+        invalidate()
     }
 
     override fun onAction() {
         onCancel()
+    }
+
+    override fun onGeometryChanged(rebuilt: FileMetrics) {
+        val edge = if (grid) minOf(rebuilt.cellW, rebuilt.gridCellDrawH) else tokens.rowThumb
+        thumbs.update(edge, pageSize)
+        thumbs.request(items, pagerState.page)
     }
 
     override fun onContentGesture(
@@ -94,9 +118,15 @@ internal class PickPane(
         y: Int,
         longPress: Boolean,
     ) {
-        val area = geometry
-        val row = if (area == null) -1 else (y - area.contentTop) / tokens.rowH
-        val item = if (longPress || row < 0) null else items.getOrNull(pagerState.firstIndex + row)
+        val metrics = geometry ?: return
+        if (longPress) return
+        val position =
+            if (grid) {
+                gridPane.indexAt(x, y, metrics, pagerState.firstIndex)
+            } else {
+                listPane.indexAt(x, y, metrics, pagerState.firstIndex)
+            }
+        val item = items.getOrNull(position)
         when {
             item == null -> Unit
             item.dir -> load(File(item.path))
@@ -115,21 +145,11 @@ internal class PickPane(
             canvas.drawText(text, (area.left + tokens.padH).toFloat(), area.top + tokens.rowH.toFloat(), bodyPaint)
             return
         }
-        for (index in start until end) {
-            val item = items[index]
-            val top = area.top + (index - start) * tokens.rowH
-            val baseline = top + tokens.rowH / 2f - (bodyPaint.descent() + bodyPaint.ascent()) / 2f
-            val text = if (item.dir) "${item.name}/" else item.name
-            canvas.drawText(text, (area.left + tokens.padH).toFloat(), baseline, bodyPaint)
-            if (!item.dir) {
-                val meta = formatSize(item.size)
-                val width = smallPaint.measureText(meta)
-                canvas.drawText(meta, area.right - tokens.padH - width, baseline, smallPaint)
-            }
-            val lineY = (top + tokens.rowH).toFloat()
-            if (index < items.lastIndex) {
-                canvas.drawLine(area.left.toFloat(), lineY, area.right.toFloat(), lineY, smallPaint)
-            }
+        val metrics = geometry ?: return
+        if (grid) {
+            gridPane.draw(canvas, metrics, items, start, end, thumbs::bitmapOf)
+        } else {
+            listPane.draw(canvas, area, items, start, end, thumbs::bitmapOf)
         }
     }
 
@@ -169,19 +189,6 @@ internal class PickPane(
                 FileListing.mimeOf(file.name),
             )
         }
-
-    /** 字节数转为便于阅读的大小文案。 */
-    private fun formatSize(bytes: Long): String {
-        if (bytes < 1024L) return "$bytes B"
-        val units = arrayOf("KB", "MB", "GB")
-        var value = bytes.toDouble() / 1024.0
-        var unit = 0
-        while (value >= 1024.0 && unit < units.lastIndex) {
-            value /= 1024.0
-            unit += 1
-        }
-        return String.format(Locale.US, "%.1f %s", value, units[unit])
-    }
 
     private companion object {
         private const val DEFAULT_ROWS = 8

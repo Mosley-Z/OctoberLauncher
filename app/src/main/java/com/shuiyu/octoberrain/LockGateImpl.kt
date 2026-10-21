@@ -1,15 +1,21 @@
 package com.shuiyu.octoberrain
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import com.shuiyu.octoberrain.core.common.ConfigStore
 import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.common.LockGate
 import com.shuiyu.octoberrain.core.common.PinHasher
 import com.shuiyu.octoberrain.core.common.PinLockPolicy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * 锁屏实现：PIN 摘要校验、失败退避与锁定态恢复。
@@ -34,6 +40,12 @@ class LockGateImpl(
     val state: StateFlow<Boolean> = _state.asStateFlow()
 
     private var observer: ((Boolean) -> Unit)? = null
+
+    /** PIN 校验用的后台作用域，摘要迭代在此执行，避免阻塞主线程输入派发。 */
+    private val verifyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** 主线程回调器，校验结果回到主线程更新界面。 */
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override val isLocked: Boolean
         get() = _state.value
@@ -105,12 +117,22 @@ class LockGateImpl(
         observer?.invoke(false)
     }
 
-    override fun createOverlay(context: Context): View? {
+    override fun createOverlay(
+        context: Context,
+        onEmergencyReset: () -> Unit,
+    ): View? {
         val lockConfig = config.state.value.lock
         if (!lockConfig.enabled || !hasPin()) return null
         return LockOverlayView(
             context = context,
-            verify = { pin -> unlock(pin) },
+            verify = { pin, onResult ->
+                // PBKDF2 迭代耗时在低端设备上可达数秒，必须在后台线程执行，
+                // 校验结果回到主线程再驱动界面状态。
+                verifyScope.launch {
+                    val passed = runCatching { unlock(pin) }.getOrDefault(false)
+                    mainHandler.post { onResult(passed) }
+                }
+            },
             onUnlocked = {},
             remainingAttempts = {
                 PinLockPolicy.remainingAttempts(config.state.value.lock.failedAttempts)
@@ -121,6 +143,10 @@ class LockGateImpl(
                     System.currentTimeMillis(),
                 )
             },
+            emergencyResetEnabled = {
+                config.state.value.lock.emergencyResetEnabled
+            },
+            onEmergencyReset = onEmergencyReset,
         )
     }
 

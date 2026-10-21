@@ -66,16 +66,33 @@ class AppearanceRepositoryImpl(
         return loadWallpaperFile(path, width, height, quantize)
     }
 
-    override suspend fun setLockWallpaper(uri: Uri): Boolean =
+    override suspend fun setLockWallpaper(uri: Uri): Boolean {
+        val applied = applyLockWallpaper(uri)
+        return applied == LockWallpaperResult.APPLIED
+    }
+
+    /**
+     * 保存锁屏壁纸并返回具体结果，供设置界面区分失败原因。
+     *
+     * 写入新文件、校验图片与更新配置的顺序由 [WallpaperSwap] 保证；校验回调记录图片是否可读为
+     * 正尺寸，据此区分读取失败、内容不是图片与配置写入失败。图片校验只读文件头而不解码像素，
+     * 超大图的解码压力由 [decodeWallpaper] 的采样与堆预算判断承担。
+     *
+     * 外观仓库接口只返回布尔值，需要具体失败原因的调用点可按本实现类型取用本方法。
+     */
+    suspend fun applyLockWallpaper(uri: Uri): LockWallpaperResult =
         withContext(Dispatchers.IO) {
-            runCatching {
-                val current =
-                    config.state.value.appearance
-                        .lockWallpaperPath
-                        .takeIf { path -> path.isNotBlank() }
-                val swap = lockSwap(uri)
-                swap.execute(LOCK_PREFIX, System.currentTimeMillis(), current)
-            }.onFailure { InkLog.w("外观", "设置锁屏壁纸失败", it) }.getOrDefault(false)
+            var validated: Boolean? = null
+            val current =
+                config.state.value.appearance
+                    .lockWallpaperPath
+                    .takeIf { path -> path.isNotBlank() }
+            val applied =
+                runCatching {
+                    lockSwap(uri) { valid -> validated = valid }
+                        .execute(LOCK_PREFIX, System.currentTimeMillis(), current)
+                }.onFailure { InkLog.w("外观", "设置锁屏壁纸失败", it) }.getOrNull()
+            if (applied == null) LockWallpaperResult.UNKNOWN else lockWallpaperResultOf(applied, validated)
         }
 
     override fun clearLockWallpaper() {
@@ -246,9 +263,13 @@ class AppearanceRepositoryImpl(
         return runCatching { iconPackResolver.isAvailable() }.getOrDefault(false)
     }
 
-    /** 读取图片头信息，用于校验文件是否为合法图片。 */
+    /**
+     * 读取图片头信息，用于校验文件是否为合法图片。
+     *
+     * 只要求宽高为正，不施加像素总量上限：超出上限的图片仍可保存，解码时按目标尺寸采样。
+     */
     private fun decodeBounds(path: String): Rect? {
-        val size = ImageDecoder.size(path) ?: return null
+        val size = ImageDecoder.sizeIgnoringLimit(path) ?: return null
         return Rect(0, 0, size[0], size[1])
     }
 
@@ -266,12 +287,23 @@ class AppearanceRepositoryImpl(
             },
         )
 
-    /** 构造锁屏壁纸替换事务，配置确认更新后旧锁屏文件才会被删除。 */
-    private fun lockSwap(uri: Uri): WallpaperSwap =
+    /**
+     * 构造锁屏壁纸替换事务，配置确认更新后旧锁屏文件才会被删除。
+     *
+     * 参数 onValidated 接收图片校验结果，用于在事务失败时区分失败原因。
+     */
+    private fun lockSwap(
+        uri: Uri,
+        onValidated: (Boolean) -> Unit,
+    ): WallpaperSwap =
         WallpaperSwap(
             directory = wallpaperDir,
             openSource = { context.contentResolver.openInputStream(uri) },
-            isValidImage = { file -> decodeBounds(file.absolutePath) != null },
+            isValidImage = { file ->
+                val valid = decodeBounds(file.absolutePath) != null
+                onValidated(valid)
+                valid
+            },
             updateConfig = { path ->
                 config.edit { state ->
                     state.copy(appearance = state.appearance.copy(lockWallpaperPath = path))
@@ -303,7 +335,7 @@ class AppearanceRepositoryImpl(
         height: Int,
         quantize: Int,
     ): Bitmap? {
-        val size = ImageDecoder.size(path)
+        val size = ImageDecoder.sizeIgnoringLimit(path)
         val sample = size?.let { ImageSizing.requestSample(it[0], it[1], width, height) }
         val decoded = sample?.let { ImageDecoder.decodeWithSample(path, it, keepAlpha = true) }
         return decoded?.let { renderWallpaper(it, width, height, quantize) }
@@ -366,3 +398,43 @@ class AppearanceRepositoryImpl(
             )
     }
 }
+
+/**
+ * 锁屏壁纸保存结果。
+ *
+ * 供设置界面区分失败原因：读取失败、内容不是图片与配置写入失败三类可预期的失败各自单列，
+ * 未预期的异常归入 [UNKNOWN]。
+ */
+enum class LockWallpaperResult {
+    /** 文件已复制并写入配置。 */
+    APPLIED,
+
+    /** 无法打开所选文件的输入流，或复制过程中断。 */
+    READ_FAILED,
+
+    /** 文件可复制但无法识别为图片。 */
+    NOT_IMAGE,
+
+    /** 图片有效但配置写入未确认。 */
+    CONFIG_FAILED,
+
+    /** 事务抛出未预期的异常，原因未知。 */
+    UNKNOWN,
+}
+
+/**
+ * 依据替换事务的返回值与校验回调记录推断保存结果。
+ *
+ * @param applied 事务是否确认写入配置。
+ * @param validated 校验回调的返回值，未触发校验时为 null。
+ */
+internal fun lockWallpaperResultOf(
+    applied: Boolean,
+    validated: Boolean?,
+): LockWallpaperResult =
+    when {
+        applied -> LockWallpaperResult.APPLIED
+        validated == false -> LockWallpaperResult.NOT_IMAGE
+        validated == true -> LockWallpaperResult.CONFIG_FAILED
+        else -> LockWallpaperResult.READ_FAILED
+    }

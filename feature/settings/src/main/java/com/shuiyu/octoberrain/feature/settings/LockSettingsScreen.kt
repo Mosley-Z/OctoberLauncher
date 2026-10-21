@@ -1,6 +1,8 @@
 package com.shuiyu.octoberrain.feature.settings
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LockConfig
@@ -14,6 +16,9 @@ import com.shuiyu.octoberrain.core.design.InkPage
  * 启用开关与 PIN 设置流程保留在本页，因为需要在写入前检查是否已有 PIN。
  */
 class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
+    /** 主线程消息队列，用于把后台摘要计算结果交回界面。 */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     override fun build(
         page: InkPage,
         config: LauncherConfig,
@@ -66,7 +71,28 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
                 if (first != second) {
                     SettingsUi.toast(context, "两次输入不一致，请重新设置")
                 } else {
-                    val saved = runCatching { AppServices.lock.setPin(first) }.isSuccess
+                    savePin(first, context)
+                }
+            }
+        }
+    }
+
+    /**
+     * 在后台线程计算 PIN 摘要并写入，完成后回到主线程提示并刷新页面。
+     *
+     * 摘要使用十万级迭代的 PBKDF2，放在主线程执行会阻塞输入派发并可能触发无响应。
+     *
+     * @param pin 四位数字 PIN
+     * @param context 用于提示的上下文
+     */
+    private fun savePin(
+        pin: String,
+        context: Context,
+    ) {
+        Thread(
+            {
+                val saved = runCatching { AppServices.lock.setPin(pin) }.isSuccess
+                mainHandler.post {
                     if (saved) {
                         updateLock { it.copy(enabled = true) }
                         SettingsUi.toast(context, "PIN 已设置")
@@ -75,8 +101,9 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
                         SettingsUi.toast(context, "PIN 保存失败，请重试")
                     }
                 }
-            }
-        }
+            },
+            "lock-pin-set",
+        ).start()
     }
 
     /** 确认后清除 PIN 并关闭锁屏。 */

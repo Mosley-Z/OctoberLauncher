@@ -11,14 +11,13 @@ import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.design.InkWidgets
-import com.shuiyu.octoberrain.feature.settings.qr.KeyQrPanel
 import kotlinx.coroutines.launch
 
 /**
  * 书架设置页面。
  *
  * 行控件由 [SettingsCatalog.bookshelfGroups] 的声明生成；
- * 本页提供密钥输入与清除、缓存刷新、目录名称编辑与书架跳转等动作。
+ * 本页提供缓存刷新、目录名称编辑与书架跳转等动作。
  */
 class BookshelfSettingsScreen : SettingsBaseScreen("书架设置") {
     override fun build(
@@ -38,11 +37,7 @@ class BookshelfSettingsScreen : SettingsBaseScreen("书架设置") {
     /** 书架页的动作表，键为设置项标识。 */
     private fun bookshelfActions(): Map<String, () -> Unit> =
         mapOf(
-            "bookshelf.wereadKey" to { promptSecret() },
-            "bookshelf.wereadKeyScan" to { openKeyPanel() },
-            "bookshelf.wereadKeyClear" to { clearSecret() },
             "bookshelf.wereadRefresh" to { refreshCache() },
-            "bookshelf.wereadImport" to { importWeread() },
             "bookshelf.wereadSyncNow" to { syncWeread() },
             "bookshelf.booksDir" to { promptDirectory() },
             "bookshelf.open" to { openBookshelf(contextOrNull()) },
@@ -61,7 +56,7 @@ class BookshelfSettingsScreen : SettingsBaseScreen("书架设置") {
                             addView(
                                 InkWidgets.textView(
                                     inkPage.context,
-                                    "阅读数据缓存 30 分钟，进度同步最多保留最近 200 条记录；刷新会清空旧缓存并重新拉取。",
+                                    "书架与笔记按完整索引同步；阅读进度逐本补齐，网络失败时保留已有数据，下次同步继续补充。",
                                     DesignRuntime.tokens.textCaption,
                                     InkColors.INK_2,
                                 ),
@@ -71,50 +66,6 @@ class BookshelfSettingsScreen : SettingsBaseScreen("书架设置") {
                 }
             },
         )
-
-    /** 输入并校验接口密钥，确认后写入配置。 */
-    private fun promptSecret() {
-        val context = contextOrNull() ?: return
-        val current = SettingsUi.settings().integrations.wereadApiKey
-        InkDialogs.input(
-            context,
-            "微信读书接口密钥",
-            hint = "粘贴以 wrk- 开头的密钥",
-            initial = current,
-            password = true,
-        ) { value ->
-            val key = value.trim()
-            val error = WereadKeyValidator.validateOrNull(key)
-            if (error != null) {
-                SettingsUi.toast(context, error)
-            } else {
-                updateIntegrations { it.copy(wereadApiKey = key, wereadEnabled = true) }
-                SettingsUi.toast(context, "密钥已保存")
-            }
-        }
-    }
-
-    /** 打开局域网扫码录密钥面板，由手机浏览器提交密钥。 */
-    private fun openKeyPanel() {
-        val context = contextOrNull() ?: return
-        KeyQrPanel(context).show()
-    }
-
-    /** 清除本机保存的密钥，并停止微信读书数据刷新。 */
-    private fun clearSecret() {
-        val context = contextOrNull() ?: return
-        if (SettingsUi
-                .settings()
-                .integrations.wereadApiKey
-                .isBlank()
-        ) {
-            SettingsUi.toast(context, "尚未配置密钥")
-            return
-        }
-        updateIntegrations { it.copy(wereadApiKey = "", wereadEnabled = false) }
-        SettingsUi.toast(context, "密钥已清除")
-        scope.launch { runCatching { AppServices.content.refreshAll() } }
-    }
 
     /** 编辑本地书籍目录名称。 */
     private fun promptDirectory() {
@@ -145,17 +96,6 @@ class BookshelfSettingsScreen : SettingsBaseScreen("书架设置") {
                 SettingsUi.toast(context, "缓存刷新失败，请检查网络与密钥")
             }
         }
-    }
-
-    /** 发起从微读墨记迁移数据，结果以提示形式展示。 */
-    private fun importWeread() {
-        val context = contextOrNull() ?: return
-        val importer = AppServices.wereadImport
-        if (importer == null) {
-            SettingsUi.toast(context, "当前版本不含迁移入口")
-            return
-        }
-        importer.requestImport { message -> SettingsUi.toast(context, message) }
     }
 
     /**

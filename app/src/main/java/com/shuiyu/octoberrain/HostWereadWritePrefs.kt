@@ -37,6 +37,14 @@ object HostWereadWritePrefs : WereadPrefsWriter {
     /** 一次性令牌额外字段名。 */
     private const val EXTRA_BRIDGE_TOKEN = "bridge_token"
 
+    /**
+     * 上报给微读墨记的卡片周期。
+     *
+     * 桌面卡片的版式序号自 1.0.24 起只区分轮播与单张，与统计周期无关；
+     * 继续按序号换算会让「切换」按钮把统计周期意外改成月度，因此固定使用内核默认的本周。
+     */
+    private const val CARD_PERIOD = "weekly"
+
     /** 写入条目数回传字段名。 */
     private const val EXTRA_WRITE_COUNT = "write_count"
 
@@ -128,7 +136,7 @@ object HostWereadWritePrefs : WereadPrefsWriter {
     /**
      * 组装写偏好请求体。
      *
-     * 字段名与微读墨记的偏好键一致，只包含展示配置；卡片周期由整体卡片当前形态换算。
+     * 字段名与微读墨记的偏好键一致，只包含展示配置；卡片周期固定按本周上报。
      *
      * @param config 当前配置快照
      * @return 单层 JSON 文本
@@ -136,10 +144,9 @@ object HostWereadWritePrefs : WereadPrefsWriter {
     private fun payloadOf(config: LauncherConfig): String {
         val menu = config.integrations.wereadMenu
         val desk = config.integrations.wereadDesk
-        val forms = config.desktop.negativePage.forms
         return JSONObject()
             .apply {
-                put("card_period", cardPeriodOf(forms))
+                put("card_period", CARD_PERIOD)
                 put("desk_on_mask", desk.effectiveOnMask)
                 put("desk_order", JSONArray(desk.effectiveOrder))
                 put("menu_title", menu.effectiveTitle)
@@ -157,21 +164,4 @@ object HostWereadWritePrefs : WereadPrefsWriter {
                 put("menu_view", menu.effectiveView)
             }.toString()
     }
-
-    /**
-     * 把整体卡片的当前形态换算为微读墨记的卡片周期。
-     *
-     * 形态序号与内核常量一致：0 本周、1 本月、2 本书、3 本记、4 待办。
-     * 待办形态在微读墨记中没有对应周期，按本周处理。
-     *
-     * @param forms 负一屏整体卡片的形态记录
-     * @return 卡片周期标识
-     */
-    private fun cardPeriodOf(forms: Map<String, Int>): String =
-        when (forms["weread_board"] ?: 0) {
-            1 -> "monthly"
-            2 -> "book"
-            3 -> "note"
-            else -> "weekly"
-        }
 }

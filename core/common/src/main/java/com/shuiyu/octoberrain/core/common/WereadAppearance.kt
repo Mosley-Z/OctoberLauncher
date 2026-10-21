@@ -21,9 +21,10 @@ import java.io.File
  * @property monthHeatmap 月历是否使用热力格
  * @property rankShelfOnly 阅读排行是否只取书架书目
  * @property achievementEnabled 是否显示成就
- * @property achievementWeekMin 周目标分钟数，0 表示未设
- * @property achievementMonthMin 月目标分钟数，0 表示未设
- * @property cardEnabled 卡片总开关
+ * @property achievementWeekKind 周目标档位，0 关、1 完美、2 狂暴、3 自定义
+ * @property achievementMonthKind 月目标档位
+ * @property achievementWeekMin 自定义周目标分钟数，0 表示未设
+ * @property achievementMonthMin 自定义月目标分钟数，0 表示未设
  * @property cardPoolMask 形态启用池位掩码，0 表示全开
  */
 data class WereadAppearance(
@@ -33,11 +34,13 @@ data class WereadAppearance(
     val showSignature: Boolean = true,
     val monthHeatmap: Boolean = false,
     val rankShelfOnly: Boolean = false,
-    val achievementEnabled: Boolean = true,
+    val achievementEnabled: Boolean = false,
+    val achievementWeekKind: Int = WereadAchievement.KIND_OFF,
+    val achievementMonthKind: Int = WereadAchievement.KIND_OFF,
     val achievementWeekMin: Int = 0,
     val achievementMonthMin: Int = 0,
-    val cardEnabled: Boolean = true,
     val cardPoolMask: Int = 0,
+    val switchMode: Int = 0,
 ) {
     /** 纸色对应的画布底色，未知档位回落素白。 */
     val paperArgb: Int
@@ -56,13 +59,13 @@ data class WereadAppearance(
     val effectiveBodySize: Int
         get() = bodySize.coerceIn(NOTE_SIZE_MIN, NOTE_SIZE_MAX)
 
-    /** 周目标分钟数，非正值视为未设。 */
+    /** 按周目标档位换算分钟数，自定义非正值视为未设。 */
     val effectiveWeekMin: Int
-        get() = achievementWeekMin.takeIf { it > 0 } ?: 0
+        get() = WereadAchievement.targetMinutes(true, achievementWeekKind, achievementWeekMin)
 
-    /** 月目标分钟数，非正值视为未设。 */
+    /** 按月目标档位换算分钟数，自定义非正值视为未设。 */
     val effectiveMonthMin: Int
-        get() = achievementMonthMin.takeIf { it > 0 } ?: 0
+        get() = WereadAchievement.targetMinutes(false, achievementMonthKind, achievementMonthMin)
 
     companion object {
         const val PAPER_DEFAULT: Int = 0
@@ -84,7 +87,6 @@ data class WereadAppearance(
         const val PREF_ACHIEVEMENT_ENABLED: String = "achv_enabled"
         const val PREF_ACHIEVEMENT_WEEK_MIN: String = "achv_week_min"
         const val PREF_ACHIEVEMENT_MONTH_MIN: String = "achv_month_min"
-        const val PREF_CARD_ENABLED: String = "card_enabled"
         const val PREF_CARD_POOL_MASK: String = "card_pool_mask"
         const val PREF_FILE: String = "kernel_prefs.json"
 
@@ -112,12 +114,35 @@ data class WereadAppearance(
                 showSignature = booleans.boolOf(PREF_SHOW_SIGNATURE, true),
                 monthHeatmap = ints.intOf(PREF_MONTH_STYLE, 0) == 1,
                 rankShelfOnly = booleans.boolOf(PREF_RANK_SHELF_ONLY, false),
-                achievementEnabled = booleans.boolOf(PREF_ACHIEVEMENT_ENABLED, true),
-                achievementWeekMin = ints.intOf(PREF_ACHIEVEMENT_WEEK_MIN, 0),
-                achievementMonthMin = ints.intOf(PREF_ACHIEVEMENT_MONTH_MIN, 0),
-                cardEnabled = booleans.boolOf(PREF_CARD_ENABLED, true),
+                achievementEnabled = booleans.boolOf("cb_achv", booleans.boolOf(PREF_ACHIEVEMENT_ENABLED, false)),
+                achievementWeekKind = achievementKind(ints, "achv_week_kind", PREF_ACHIEVEMENT_WEEK_MIN),
+                achievementMonthKind = achievementKind(ints, "achv_month_kind", PREF_ACHIEVEMENT_MONTH_MIN),
+                achievementWeekMin = customMinutes(document, "achv_week_custom", ints, PREF_ACHIEVEMENT_WEEK_MIN),
+                achievementMonthMin = customMinutes(document, "achv_month_custom", ints, PREF_ACHIEVEMENT_MONTH_MIN),
                 cardPoolMask = ints.intOf(PREF_CARD_POOL_MASK, 0),
+                switchMode = ints.intOf("switch_mode", 0).coerceIn(0, 1),
             )
+        }
+
+        private fun achievementKind(
+            ints: JsonObject,
+            key: String,
+            legacy: String,
+        ): Int {
+            val fallback =
+                if (ints.intOf(legacy, 0) > 0) WereadAchievement.KIND_CUSTOM else WereadAchievement.KIND_OFF
+            return ints.intOf(key, fallback)
+        }
+
+        private fun customMinutes(
+            document: JsonObject,
+            key: String,
+            ints: JsonObject,
+            legacy: String,
+        ): Int {
+            val strings = group(document, "string")
+            val value = strings[key]?.jsonPrimitive?.content
+            return if (value != null) WereadAchievement.customMinutes(value) else ints.intOf(legacy, 0)
         }
 
         private const val GROUP_INT = "int"

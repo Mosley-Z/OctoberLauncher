@@ -28,14 +28,12 @@ class PinHasherTest {
     }
 
     @Test
-    fun `轮数提升后旧 PBKDF2 摘要仍可校验`() {
+    fun `轮数低于目标的摘要仍可校验并判定需要重算`() {
         val low = PinHasher.hash("2468", salt, 1_000)
         assertEquals(1_000, PinHasher.iterationsOf(low))
         assertTrue(PinHasher.verify("2468", salt, low))
         assertTrue(PinHasher.needsUpgrade(low, PinHasher.DEFAULT_ITERATIONS))
-        val high = PinHasher.hash("2468", salt, PinHasher.effectiveIterations(1))
-        assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.iterationsOf(high))
-        assertFalse(PinHasher.needsUpgrade(high, PinHasher.DEFAULT_ITERATIONS))
+        assertFalse(PinHasher.needsUpgrade(low, 1_000))
     }
 
     @Test
@@ -49,9 +47,33 @@ class PinHasherTest {
     }
 
     @Test
-    fun `配置轮数低于默认值时提升到默认值`() {
-        assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.effectiveIterations(1))
+    fun `历史十二万轮摘要仍可校验且不触发重算`() {
+        val hash = PinHasher.hash("1124", salt, LEGACY_ROUNDS)
+        assertEquals(LEGACY_ROUNDS, PinHasher.iterationsOf(hash))
+        assertTrue(PinHasher.verify("1124", salt, hash))
+        assertFalse(PinHasher.verify("1125", salt, hash))
+        assertFalse(PinHasher.needsUpgrade(hash, PinHasher.DEFAULT_ITERATIONS))
+    }
+
+    @Test
+    fun `新默认轮数的摘要可通过校验`() {
+        val hash = PinHasher.hash("8642", salt, PinHasher.DEFAULT_ITERATIONS)
+        assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.iterationsOf(hash))
+        assertTrue(PinHasher.verify("8642", salt, hash))
+        assertFalse(PinHasher.needsUpgrade(hash, PinHasher.DEFAULT_ITERATIONS))
+    }
+
+    @Test
+    fun `配置轮数为零负数或历史默认值时回落到新默认值`() {
         assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.effectiveIterations(0))
+        assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.effectiveIterations(-7))
+        assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.effectiveIterations(LEGACY_ROUNDS))
+        assertEquals(PinHasher.DEFAULT_ITERATIONS, PinHasher.effectiveIterations(PinHasher.DEFAULT_ITERATIONS))
+    }
+
+    @Test
+    fun `显式配置的其它轮数被保留`() {
+        assertEquals(5_000, PinHasher.effectiveIterations(5_000))
         assertEquals(200_000, PinHasher.effectiveIterations(200_000))
     }
 
@@ -113,5 +135,10 @@ class PinHasherTest {
         digest.update(saltHex.toByteArray(Charsets.UTF_8))
         digest.update(pin.toByteArray(Charsets.UTF_8))
         return digest.digest().joinToString(separator = "") { byte -> "%02x".format(byte) }
+    }
+
+    private companion object {
+        /** 历史版本写入配置的默认轮数，用于构造旧摘要。 */
+        const val LEGACY_ROUNDS: Int = 120_000
     }
 }

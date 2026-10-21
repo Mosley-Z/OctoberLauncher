@@ -6,7 +6,6 @@ import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
-import com.inkread.weekread.kernel.desk.DeskPage
 import kotlin.math.abs
 
 /**
@@ -29,44 +28,24 @@ internal class DeskTouchDispatcher(
     private val view: View,
     private val host: Host,
 ) {
-    /** 分派器向宿主请求的状态与回调。 */
+    /** UI 只读取最近完成帧的轻量状态，内核命中和动作由宿主串行排队。 */
     internal interface Host {
-        /**
-         * 返回当前已绑定的墨台页面。
-         *
-         * @return 已绑定页面，尚未加载时返回 null
-         */
-        fun kernelPage(): DeskPage?
+        fun padIsOpen(): Boolean
 
-        /**
-         * 返回墨台顶栏高度。
-         *
-         * @return 顶栏高度，单位为像素
-         */
-        fun headerOffset(): Float
+        fun sectionCanScroll(): Boolean
 
-        /**
-         * 处理内核长按动作。
-         *
-         * @param action 内核返回的长按动作编码
-         */
-        fun onLongPressAction(action: Int)
+        fun tapAt(
+            x: Float,
+            y: Float,
+            keypad: Boolean,
+        )
 
-        /**
-         * 处理内核点按动作。
-         *
-         * @param action 内核返回的动作编码
-         */
-        fun onTapAction(action: Int)
+        fun longPressAt(
+            x: Float,
+            y: Float,
+        )
 
-        /** 价格键盘状态变化后刷新页面尺寸与绘制内容。 */
-        fun onPadChanged()
-
-        /** 请求宿主重绘分区。 */
-        fun invalidateSection()
-
-        /** 内滚结束后请求宿主刷新分区的绘制内容。 */
-        fun onScrollFinished()
+        fun scrollBy(delta: Float)
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -101,7 +80,7 @@ internal class DeskTouchDispatcher(
     /**
      * 判断是否处于纵向拖动状态。
      *
-     * 视图绘制在拖动期间需要直接渲染，避免位图缓存的异步刷新造成画面滞后。
+     * 滚动只提交后台队列，视图始终绘制最后完成的帧。
      *
      * @return 正在拖动时返回 true
      */
@@ -117,8 +96,7 @@ internal class DeskTouchDispatcher(
         downX = event.x
         downY = event.y
         lastY = event.y
-        val page = host.kernelPage()
-        if (page?.padOpen() == true) {
+        if (host.padIsOpen()) {
             // 键盘打开期间不启动长按计时，全部事件交给键盘处理
             state = State.KEYPAD
             disallowIntercept(true)
@@ -159,13 +137,12 @@ internal class DeskTouchDispatcher(
         var handled = true
         if (exceeded) {
             handler.removeCallbacks(longPressRunnable)
-            val page = host.kernelPage()
-            val accepted = page != null && page.canScroll() && page.scrollBy(-delta)
+            val accepted = host.sectionCanScroll()
+            if (accepted) host.scrollBy(-delta)
             handled = accepted
             if (accepted) {
                 state = State.SCROLLING
                 disallowIntercept(true)
-                host.invalidateSection()
             } else {
                 state = State.IDLE
                 disallowIntercept(false)
@@ -181,8 +158,7 @@ internal class DeskTouchDispatcher(
      * @return 事件被消费时返回 true
      */
     private fun scrollContent(delta: Float): Boolean {
-        host.kernelPage()?.scrollBy(-delta)
-        host.invalidateSection()
+        host.scrollBy(-delta)
         return true
     }
 
@@ -197,10 +173,8 @@ internal class DeskTouchDispatcher(
     }
 
     private fun finish(): Boolean {
-        val wasScrolling = state == State.SCROLLING
         state = State.IDLE
         disallowIntercept(false)
-        if (wasScrolling) host.onScrollFinished()
         return true
     }
 
@@ -211,12 +185,7 @@ internal class DeskTouchDispatcher(
      * @return 事件被消费时返回 true
      */
     private fun tap(event: MotionEvent): Boolean {
-        val page = host.kernelPage()
-        if (page != null) {
-            val action = page.hitTest(event.x, event.y + host.headerOffset())
-            if (action != DeskPage.ACTION_NONE) host.onTapAction(action)
-            if (page.padOpen()) host.onPadChanged()
-        }
+        host.tapAt(event.x, event.y, keypad = false)
         return finish()
     }
 
@@ -227,14 +196,7 @@ internal class DeskTouchDispatcher(
      * @return 事件被消费时返回 true
      */
     private fun pressPad(event: MotionEvent): Boolean {
-        val page = host.kernelPage()
-        if (page != null) {
-            val key = page.hitPad(event.x, event.y + host.headerOffset())
-            if (key >= 0) {
-                page.padPress(key)
-                host.onPadChanged()
-            }
-        }
+        host.tapAt(event.x, event.y, keypad = true)
         return finish()
     }
 
@@ -245,13 +207,10 @@ internal class DeskTouchDispatcher(
 
     /** 长按计时到期后执行内核长按动作。 */
     private fun fireLongPress() {
-        val page = host.kernelPage()
-        if (state == State.PRESSED && page != null) {
-            val action = page.longActionAt(downX, downY + host.headerOffset())
-            if (action != DeskPage.ACTION_NONE) {
-                state = State.LONG_CONSUMED
-                host.onLongPressAction(action)
-            }
+        if (state == State.PRESSED) {
+            state = State.LONG_CONSUMED
+            disallowIntercept(true)
+            host.longPressAt(downX, downY)
         }
     }
 

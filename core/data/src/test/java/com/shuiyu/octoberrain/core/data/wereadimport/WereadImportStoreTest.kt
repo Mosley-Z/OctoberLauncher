@@ -87,4 +87,30 @@ class WereadImportStoreTest {
         assertTrue(result is WereadImportInstallResult.Failure)
         assertFalse(root.exists())
     }
+
+    @Test
+    fun `配置提交失败时恢复空目录`() {
+        val root = File(folder.root, "weread").apply { mkdirs() }
+        val store = WereadImportStore(root, File(folder.root, "backups"))
+
+        val result = store.install(mapOf("new.json" to byteArrayOf(1))) { error("config failed") }
+
+        assertTrue(result is WereadImportInstallResult.Failure)
+        assertTrue(root.isDirectory)
+        assertTrue(root.listFiles()!!.isEmpty())
+    }
+
+    @Test
+    fun `备份创建失败时旧数据保持原位`() {
+        val root = File(folder.root, "weread").apply { mkdirs() }
+        File(root, "keep.json").writeText("keep")
+        val backupFile = File(folder.root, "backups").apply { writeText("not a directory") }
+        val store = WereadImportStore(root, backupFile)
+
+        val result = store.install(mapOf("new.json" to byteArrayOf(1)))
+
+        assertTrue(result is WereadImportInstallResult.Failure)
+        assertEquals("keep", File(root, "keep.json").readText())
+        assertFalse(File(root, "new.json").exists())
+    }
 }

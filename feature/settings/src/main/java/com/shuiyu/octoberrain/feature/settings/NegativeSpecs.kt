@@ -64,8 +64,5 @@ internal object NegativeSpecs {
     internal fun moduleEnabled(
         config: LauncherConfig,
         moduleId: String,
-    ): Boolean {
-        val modules = config.desktop.negativePage.modules
-        return modules.contains(moduleId)
-    }
+    ): Boolean = NegativeSettingsLogic.enabled(config, moduleId)
 }

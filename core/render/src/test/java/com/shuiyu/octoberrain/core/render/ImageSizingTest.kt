@@ -57,6 +57,19 @@ class ImageSizingTest {
     }
 
     @Test
+    fun `像素总数超过八千万时仍视为可读尺寸`() {
+        assertFalse(ImageSizing.withinLimit(12_000, 9_000))
+        assertTrue(ImageSizing.hasPositiveSize(12_000, 9_000))
+    }
+
+    @Test
+    fun `宽高为零或负数时不属于可读尺寸`() {
+        assertFalse(ImageSizing.hasPositiveSize(0, 100))
+        assertFalse(ImageSizing.hasPositiveSize(100, -1))
+        assertTrue(ImageSizing.hasPositiveSize(1, 1))
+    }
+
+    @Test
     fun `双方向目标尺寸同时满足时才继续降采样`() {
         assertEquals(4, ImageSizing.requestSample(1080, 1920, 200, 200))
         assertEquals(2, ImageSizing.requestSample(1080, 1920, 540, 960))

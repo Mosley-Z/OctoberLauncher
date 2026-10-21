@@ -13,6 +13,7 @@ import com.shuiyu.octoberrain.core.common.WereadSection
 import com.shuiyu.octoberrain.core.common.WereadShelfItem
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.feature.content.data.ContentPaths
+import com.shuiyu.octoberrain.feature.content.ui.shelf.ShelfBookCard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -24,10 +25,11 @@ private val WRAP_CONTENT = ViewGroup.LayoutParams.WRAP_CONTENT
  * 书架页面。
  *
  * 按 [com.shuiyu.octoberrain.core.common.IntegrationsConfig.bookshelfRows] 的行数
- * 展示两列书籍卡片，卡片含封面、两行书名、作者与阅读进度。数据先取三十分钟
- * 内存缓存立即渲染，再在后台刷新；手动刷新清空缓存后重新读取。默认只展示
- * 微信读书来源，本地来源开启后与微信读书条目合并，并按最近阅读顺序排列；
- * 点击条目跳转到对应阅读应用。
+ * 展示两列封面卡片：卡片以封面为主体，书名与作者以腰封形式压在封面中下部，
+ * 阅读进度由底部覆盖层与右上角百分比角标呈现。数据先取三十分钟内存缓存立即
+ * 渲染，再在后台刷新；手动刷新清空缓存后重新读取。默认只展示微信读书来源，
+ * 本地来源开启后与微信读书条目合并，并按最近阅读顺序排列；点击条目跳转到
+ * 对应阅读应用。
  */
 class BookshelfScreen : ContentScreen("书架") {
     private companion object {
@@ -257,7 +259,7 @@ class BookshelfScreen : ContentScreen("书架") {
         return merged.take(limit)
     }
 
-    /** 渲染三列书籍网格；条目不足时补空位保持列宽一致。 */
+    /** 渲染双列封面卡片网格；条目不足时补空位保持列宽一致。 */
     private fun renderGrid(
         gridHost: LinearLayout,
         entries: List<Entry>,
@@ -297,17 +299,8 @@ class BookshelfScreen : ContentScreen("书架") {
                             topMargin = tokens.gapLarge
                         }
                 }
-            for (entry in chunk) {
-                row.addView(
-                    ContentUi.bookCard(
-                        context = context,
-                        title = entry.title,
-                        author = entry.author,
-                        coverPath = entry.coverPath,
-                        progress = entry.progress,
-                        onClick = { open(entry) },
-                    ),
-                )
+            for ((column, entry) in chunk.withIndex()) {
+                row.addView(createCard(entry, column))
             }
             repeat(GRID_COLUMNS - chunk.size) {
                 row.addView(
@@ -319,6 +312,25 @@ class BookshelfScreen : ContentScreen("书架") {
             grid.addView(row)
         }
         gridHost.addView(grid)
+    }
+
+    /** 创建单本书的封面卡片；首列保留右间距，使两列留白与页边距一致。 */
+    private fun createCard(
+        entry: Entry,
+        column: Int,
+    ): View {
+        val card =
+            ShelfBookCard.create(
+                context = context,
+                title = entry.title,
+                author = entry.author,
+                coverPath = entry.coverPath,
+                progress = entry.progress,
+                onClick = { open(entry) },
+            )
+        (card.layoutParams as? LinearLayout.LayoutParams)?.marginEnd =
+            if (column == 0) tokens.gap else 0
+        return card
     }
 
     /** 按条目类型打开：本地书籍走文件打开流程，微信读书走深链。 */

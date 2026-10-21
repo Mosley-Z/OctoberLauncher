@@ -1,12 +1,14 @@
 # 十雨桌面
 
-面向安卓墨水屏设备的桌面启动器，包名 `com.shuiyu.octoberrain` 与 `applicationId` 一致。当前版本 `1.0.0`（`versionCode` 20）：功能覆盖上游 TOMO 0.5.0 的主要能力，并新增文件管理、图片查看编辑与微信读书页面；屏幕硬门禁已移除，验证基线的墨水屏为 S4 480×800（Android 11）。
+> 开发接手从 [PROJECT.md](PROJECT.md) 开始；协作约定见 [AGENTS.md](AGENTS.md)，阅读器任务见 [task](task/README.md)，设计/验收分类索引见 [docs](docs/README.md)。下文历史版本与计数应按当前源码核实。
 
-工程为原创实现，包名、类名、资源名、域名与 FileProvider authority 均与上游无共同片段；交互形态与功能范围参考上游，融合部分的来源与许可见 `docs/17-weread-fusion.md` 与 `feature/settings/.../ThirdPartyLicenses.kt`。
+面向安卓墨水屏设备的桌面启动器，包名 `com.shuiyu.octoberrain` 与 `applicationId` 一致。版本以 `VERSION` 和 `app/build.gradle.kts` 为准。功能覆盖上游 TOMO 0.5.0 的主要能力，并新增文件管理、图片查看编辑与微信读书页面；屏幕硬门禁已移除，验证基线的墨水屏为 S4 480×800（Android 11）。
+
+工程为原创实现，包名、类名、资源名、域名与 FileProvider authority 均与上游无共同片段；交互形态与功能范围参考上游，融合部分的来源与许可见 `docs/design/17-weread-fusion.md` 与 `feature/settings/.../ThirdPartyLicenses.kt`。
 
 ## 模块
 
-工程共 14 个 Gradle 工程：壳工程 `:app`、六个 `core` 库、六个 `feature` 库与 `:service`。依赖方向为 `app` 依赖各 feature 与 service，`feature` 依赖 `core`，`core` 内部单向依赖，模块之间不横向引用。模块说明见各目录下 `README.md`。
+工程由壳工程 `:app`、`core` 库、`feature` 库与 `:service` 组成，实际模块清单以 `settings.gradle.kts` 为准。依赖方向为 `app` 依赖各 feature 与 service，`feature` 依赖 `core`，`core` 内部单向依赖，模块之间不横向引用。模块说明见各目录下 `README.md`。
 
 | 工程 | 职责 |
 | --- | --- |
@@ -74,29 +76,29 @@ pwsh -NoProfile -File scripts\snapshot.ps1 -Tag 1.0.0
 
 ## 文档
 
-`docs/` 下的编号文档按主题排列，入口为 `docs/00-overview.md`。
+`docs/` 下的编号文档按主题排列，入口为 [docs/README.md](docs/README.md)。
 
 | 文档 | 内容 |
 | --- | --- |
-| `docs/00-overview.md` | 工程总览与三条主线 |
-| `docs/01-feature-inventory.md` | 按模块的功能与实现文件清单 |
-| `docs/02-current-architecture.md` | 当前结构剖析 |
-| `docs/03-target-architecture.md` | 目标架构与实现对照 |
-| `docs/04-identity-removal.md` | 上游身份隔离清单 |
-| `docs/05-device-adaptation.md` | 设备与断点适配方案 |
-| `docs/06-development-roadmap.md` | 版本路线 |
-| `docs/07-upstream-code-map.md` | 上游代码索引 |
-| `docs/08-engineering-conventions.md` | 工程规范 |
-| `docs/09-M0骨架记录.md` | M0 骨架记录 |
-| `docs/10-dev-handoff.md` | 开发交接 |
-| `docs/11-552x768-adaptation.md` | 552×768 适配记录 |
-| `docs/12-验收记录.md` | 验收记录 |
-| `docs/13-inkOS对照评估.md` | inkOS 对照评估 |
-| `docs/14-本批实施记录.md` | 本批实施记录 |
-| `docs/15-V1.0开发计划.md` | V1.0 计划与任务编号 |
-| `docs/16-墨盘移植决策.md` | 墨盘移植决策 |
-| `docs/16-files-module.md` | 文件模块设计 |
-| `docs/17-weread-fusion.md` | 微信读书融合实现说明 |
+| `docs/design/00-overview.md` | 工程总览与三条主线 |
+| `docs/design/01-feature-inventory.md` | 按模块的功能与实现文件清单 |
+| `docs/design/02-current-architecture.md` | 当前结构剖析 |
+| `docs/design/03-target-architecture.md` | 目标架构与实现对照 |
+| `docs/design/04-identity-removal.md` | 上游身份隔离清单 |
+| `docs/design/05-device-adaptation.md` | 设备与断点适配方案 |
+| `docs/design/06-development-roadmap.md` | 版本路线 |
+| `docs/design/07-upstream-code-map.md` | 上游代码索引 |
+| `docs/design/08-engineering-conventions.md` | 工程规范 |
+| `docs/acceptance/09-M0骨架记录.md` | M0 骨架记录 |
+| `docs/design/10-dev-handoff.md` | 开发交接 |
+| `docs/design/11-552x768-adaptation.md` | 552×768 适配记录 |
+| `docs/acceptance/12-验收记录.md` | 验收记录 |
+| `docs/design/13-inkOS对照评估.md` | inkOS 对照评估 |
+| `docs/acceptance/14-本批实施记录.md` | 本批实施记录 |
+| `docs/design/15-V1.0开发计划.md` | V1.0 计划与任务编号 |
+| `docs/design/16-墨盘移植决策.md` | 墨盘移植决策 |
+| `docs/design/16-files-module.md` | 文件模块设计 |
+| `docs/design/17-weread-fusion.md` | 微信读书融合实现说明 |
 
 质量记录写入 `_analysis/verify/`：每版本静态检查、发布验证与真机截图按版本号归档，团队任务的中间报告在 `_analysis/team/`，快照与上游对照材料在 `_shots/` 与 `_tools/`。
 
@@ -147,4 +149,4 @@ toolchain.path          工具链位置，换机器只改这一行
 
 ## 许可与来源
 
-本工程代码为自有实现，未复制上游源码。上游对照材料（`_tools/upstream/` 中的 APK 与逆向产物）仅用于行为对照，不参与构建与运行；第三方许可文本汇总在 `feature/settings/.../ThirdPartyLicenses.kt`，融合来源与边界见 `docs/17-weread-fusion.md`。
+本工程代码为自有实现，未复制上游源码。上游对照材料（`_tools/upstream/` 中的 APK 与逆向产物）仅用于行为对照，不参与构建与运行；第三方许可文本汇总在 `feature/settings/.../ThirdPartyLicenses.kt`，融合来源与边界见 `docs/design/17-weread-fusion.md`。

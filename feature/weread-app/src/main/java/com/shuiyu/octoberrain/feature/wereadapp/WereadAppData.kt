@@ -14,6 +14,9 @@ import com.inkread.weekread.kernel.TodoEntry
 import com.inkread.weekread.kernel.load.KernelDataLoader
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.InkLog
+import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
+import com.shuiyu.octoberrain.core.data.WereadBookSelection
+import com.shuiyu.octoberrain.core.data.WereadNoteSelection
 import com.shuiyu.octoberrain.core.render.WereadCoverStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -33,6 +36,21 @@ internal class WereadAppData(
 ) {
     /** 微读墨记数据根目录。 */
     val root: File = WereadAppPrefs.dataDir(context.applicationContext ?: context)
+
+    /** 桌面与 App 共享的本记抽取状态。 */
+    val noteSelection: WereadNoteSelection = WereadNoteSelection(root)
+
+    /** 保存手选书号，空串回到自动档。 */
+    fun selectBook(bookId: String) {
+        KernelStore(root).apply {
+            putString("book_pick", bookId.trim())
+            flush()
+        }
+        reload()
+    }
+
+    /** 当前手选书号。 */
+    fun selectedBookId(): String = KernelStore(root).getString("book_pick", "").trim()
 
     /** 内核数据装载器，读取目录内的书架、书目、笔记与统计文件。 */
     private var loader: KernelDataLoader = KernelDataLoader(root)
@@ -83,8 +101,14 @@ internal class WereadAppData(
      */
     fun currentBook(): BookProgress? {
         val shelf = shelf()
+        val selected = selectedBookId().ifEmpty { WereadBookSelection.automaticBookId(root) }
+        val current = runCatching { loader.currentBook() }.getOrNull()
         val book: ShelfBook =
-            runCatching { loader.currentBook() }.getOrNull() ?: shelf?.books?.firstOrNull() ?: return null
+            current?.takeIf { it.bookId == selected }
+                ?: shelf?.books?.firstOrNull { it.bookId == selected }
+                ?: current
+                ?: shelf?.books?.firstOrNull()
+                ?: return null
         return BookProgress().apply {
             bookId = book.bookId
             title = book.title
@@ -119,7 +143,7 @@ internal class WereadAppData(
             val fetchedAt = store.getLong("t_$mode:$baseTimeSec", 0L)
             val parsed =
                 runCatching {
-                    PeriodSnapshot.parseInto(PeriodSnapshot(), JSONObject(raw), baseTimeSec, mode, fetchedAt)
+                    PeriodSnapshot.parseInto(PeriodSnapshot(), JSONObject(raw), fetchedAt, mode, baseTimeSec)
                 }.getOrNull()
             if (parsed != null) return parsed
         }
@@ -236,7 +260,7 @@ internal class WereadAppData(
     ): Boolean {
         val host = AppServices.wereadSync ?: return false
         if (host.isRunning()) return false
-        return host.syncNow { ok, _ ->
+        return host.refresh(WereadRefreshRequest(mode, baseTimeSec)) { ok, _ ->
             InkLog.d(TAG, "周期同步结束 mode=$mode base=$baseTimeSec ok=$ok")
             onFinished(ok)
         }

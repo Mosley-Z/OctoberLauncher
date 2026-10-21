@@ -31,7 +31,18 @@ object ImageSizing {
     fun withinLimit(
         width: Int,
         height: Int,
-    ): Boolean = width > 0 && height > 0 && width.toLong() * height <= LIMIT_PIXELS
+    ): Boolean = hasPositiveSize(width, height) && width.toLong() * height <= LIMIT_PIXELS
+
+    /**
+     * 判断边界是否可解码为正尺寸图片。
+     *
+     * 宽高均为正即视为有效，不施加 [LIMIT_PIXELS] 上限。壁纸保存等场景只要求文件能被识别为图片，
+     * 超大图的解码压力由调用方的 [sampleFor] 采样与 [fitsHeap] 堆预算判断承担。
+     */
+    fun hasPositiveSize(
+        width: Int,
+        height: Int,
+    ): Boolean = width > 0 && height > 0
 
     /**
      * 把调用方期望的长边压到合法区间。

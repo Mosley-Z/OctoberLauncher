@@ -8,11 +8,13 @@ import com.inkread.weekread.kernel.CardState
 import com.inkread.weekread.kernel.CardSurface
 import com.inkread.weekread.kernel.HitRegions
 import com.inkread.weekread.kernel.PeriodSnapshot
+import com.shuiyu.octoberrain.core.common.WereadAchievement
 import com.shuiyu.octoberrain.core.common.WereadAppearance
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardDataSource
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardKernel
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardKernelHost
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardZone
+import com.shuiyu.octoberrain.feature.widgets.WereadBookCard
 import com.shuiyu.octoberrain.feature.widgets.WereadBookOption
 import java.io.File
 import kotlin.math.roundToInt
@@ -58,9 +60,6 @@ private const val CARD_UNIT: Float = 1.0f
 
 /** 卡片左右留白比例，与原版桌面卡片一致。 */
 private const val PAD_X_RATIO: Float = 0.05f
-
-/** 本记条目序号，零为全部笔记。 */
-private const val NOTE_SLOT_ALL: Int = 0
 
 /** 未配置密钥时的占位主文案。 */
 private const val PLACEHOLDER_NO_KEY: String = "微信读书未配置"
@@ -278,7 +277,10 @@ internal class KernelWereadBoard : WereadBoardKernel {
             }
         val root = File(host.context.filesDir, WEREAD_ROOT_DIR)
         val sourceImpl = KernelDataSourceImpl({ dataSource.content }, { root })
-        val cardState = CardState(surface)
+        val cardState =
+            object : CardState(surface) {
+                override fun noteProgress(): IntArray? = sourceImpl.noteProgress()
+            }
         cardState.setHost(hostImpl)
         val cardKernel = CardKernel(hostImpl, sourceImpl)
         this.host = hostImpl
@@ -513,6 +515,21 @@ internal class KernelWereadBoard : WereadBoardKernel {
     }
 
     /**
+     * 轮播书目列表，按书架快照原始顺序返回。
+     *
+     * @return 轮播书目
+     */
+    override fun bookCards(): List<WereadBookCard> = source?.bookCards().orEmpty()
+
+    /**
+     * 读取指定书目的最近一条有效划线。
+     *
+     * @param bookId 书目编号
+     * @return 划线正文，可为空
+     */
+    override fun latestMark(bookId: String): String? = source?.latestMark(bookId)
+
+    /**
      * 当前选中的书目编号。
      *
      * @return 选中的书目编号，自动档为空
@@ -739,18 +756,15 @@ private class KernelCardFiller(
         appearance: WereadAppearance,
         form: Int,
     ): String? {
-        val minutes =
-            if (!appearance.achievementEnabled) {
-                0
-            } else {
-                when (form) {
-                    CardKernel.FORM_WEEK -> appearance.effectiveWeekMin
-                    CardKernel.FORM_MONTH -> appearance.effectiveMonthMin
-                    else -> 0
-                }
-            }
-        val label = if (form == CardKernel.FORM_MONTH) "本月目标" else "本周目标"
-        return minutes.takeIf { it > 0 }?.let { "$label $it 分钟" }
+        if (form != CardKernel.FORM_WEEK && form != CardKernel.FORM_MONTH) return null
+        return source.period(CardKernel.modeOf(form))?.let { stats ->
+            WereadAchievement.text(
+                appearance,
+                week = form == CardKernel.FORM_WEEK,
+                currentPeriod = stats.isCurrentPeriod(),
+                totalSeconds = stats.totalSec.toLong(),
+            )
+        }
     }
 
     /**
@@ -772,7 +786,7 @@ private class KernelCardFiller(
         cardState.setDeskOpenLabel(host.deskOpenLabel())
         cardState.setNoteCardSize(appearance.effectiveNoteSize)
         cardState.setNoteFullSize(appearance.effectiveBodySize)
-        cardState.setNoteSlot(NOTE_SLOT_ALL)
+        cardState.setNoteSlot(source.noteSlot())
         cardState.setMonthHeatmap(appearance.monthHeatmap)
         cardState.setEmptyNote(null)
     }

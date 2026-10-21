@@ -108,10 +108,9 @@ class MainActivity : Activity() {
         InkRefreshController.attach(root)
         LauncherRouter.attach(this, ::navigate, ::goBack)
         HostFilePicker.attach(this)
-        HostWereadImport.attach(this)
-        AppServices.wereadImport = HostWereadImport
-        HostWereadWritePrefs.attach(this)
-        AppServices.wereadPrefs = HostWereadWritePrefs
+        (AppServices.lock as? LockGateImpl)?.observe {
+            mainHandler.post { syncLockState() }
+        }
         if (AppServices.lock.isLocked) showLock()
         registerReceiver(
             screenOffReceiver,
@@ -362,7 +361,11 @@ class MainActivity : Activity() {
             updateStatusBarBackground()
             return
         }
-        val overlay = AppServices.lock.createOverlay(this) ?: return
+        val overlay =
+            AppServices.lock.createOverlay(
+                this,
+                ::requestEmergencyReset,
+            ) ?: return
         lockOverlay = overlay
         lockHolder.addView(
             overlay,
@@ -386,6 +389,33 @@ class MainActivity : Activity() {
         lockOverlay = null
         lockHolder.visibility = View.GONE
         updateStatusBarBackground()
+    }
+
+    /**
+     * 锁屏长按删除键满十秒后的应急清除入口。
+     *
+     * 由锁屏覆盖层回调，先弹出确认框；确认后清除 PIN、关闭锁屏开关并收起覆盖层，
+     * 取消时按锁契约状态重新同步一次显隐。
+     */
+    private fun requestEmergencyReset() {
+        if (lockOverlay == null) return
+        InkDialogs.confirm(
+            this,
+            "是否清除密码？",
+            "确认后删除已保存的 PIN 摘要并关闭锁屏，随后直接进入桌面。",
+            confirmLabel = "清除密码",
+            cancelLabel = "取消",
+            onConfirm = { performEmergencyReset() },
+            onCancel = { syncLockState() },
+        )
+    }
+
+    /** 执行应急清除：清除 PIN 摘要、关闭锁屏开关并回到桌面。 */
+    private fun performEmergencyReset() {
+        runCatching { AppServices.lock.clearPin() }
+        // clearPin 已把锁屏开关写为 false，此处补写一次以明确关闭状态，随后收起覆盖层。
+        AppServices.config.edit { config -> config.copy(lock = config.lock.copy(enabled = false)) }
+        syncLockState()
     }
 
     /**
@@ -535,9 +565,7 @@ class MainActivity : Activity() {
         data: android.content.Intent?,
     ) {
         val handled =
-            HostFilePicker.onActivityResult(requestCode, resultCode, data) ||
-                HostWereadImport.onActivityResult(requestCode, resultCode, data) ||
-                HostWereadWritePrefs.onActivityResult(requestCode, resultCode, data)
+            HostFilePicker.onActivityResult(requestCode, resultCode, data)
         if (!handled) {
             @Suppress("DEPRECATION")
             super.onActivityResult(requestCode, resultCode, data)
@@ -561,13 +589,12 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        (AppServices.lock as? LockGateImpl)?.observe(null)
         cancelPendingExitRefresh()
         mainHandler.removeCallbacksAndMessages(null)
         runCatching { minuteTicker.stop() }
         runCatching { unregisterReceiver(screenOffReceiver) }
         HostFilePicker.detach()
-        HostWereadImport.detach()
-        HostWereadWritePrefs.detach()
         stack.forEach { runCatching { it.screen.onDestroy() } }
         stack.clear()
         LauncherRouter.detach()

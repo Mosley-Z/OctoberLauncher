@@ -117,6 +117,30 @@ class WallpaperSwapTest {
         assertTrue(File(directory, "lock_3.png").exists())
     }
 
+    @Test
+    fun `保存结果按校验回调区分失败原因`() {
+        assertEquals(
+            LockWallpaperResult.APPLIED,
+            lockWallpaperResultOf(applied = true, validated = true),
+        )
+        assertEquals(
+            LockWallpaperResult.APPLIED,
+            lockWallpaperResultOf(applied = true, validated = null),
+        )
+        assertEquals(
+            LockWallpaperResult.NOT_IMAGE,
+            lockWallpaperResultOf(applied = false, validated = false),
+        )
+        assertEquals(
+            LockWallpaperResult.CONFIG_FAILED,
+            lockWallpaperResultOf(applied = false, validated = true),
+        )
+        assertEquals(
+            LockWallpaperResult.READ_FAILED,
+            lockWallpaperResultOf(applied = false, validated = null),
+        )
+    }
+
     /** 构造测试事务，来源内容固定为 new，校验与配置结果可切换。 */
     private fun swap(
         source: ByteArrayInputStream? = ByteArrayInputStream("new".toByteArray()),

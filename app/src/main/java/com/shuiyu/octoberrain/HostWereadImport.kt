@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.WereadImporter
+import com.shuiyu.octoberrain.core.data.WereadDataGate
 import com.shuiyu.octoberrain.core.data.wereadimport.WereadImportStore
 import com.shuiyu.octoberrain.core.data.wereadimport.WereadMigrationCoordinator
 import com.shuiyu.octoberrain.core.data.wereadimport.WereadMigrationOutcome
@@ -24,7 +25,7 @@ import java.util.UUID
  * [onActivityResult] 回到这里并交给迁移编排处理。
  *
  * 迁移数据落位到 filesDir/weread，备份目录为 filesDir/weread-backup；
- * 数据目录已存在时视为已迁移，不再覆盖。
+ * 已有数据由落位器备份后替换，相同摘要由迁移编排判定幂等。
  */
 object HostWereadImport : WereadImporter {
     /** 迁移请求码，与文件选择器请求码区分。 */
@@ -74,17 +75,17 @@ object HostWereadImport : WereadImporter {
     /** 解除挂接并清理未完成请求。 */
     fun detach() {
         activityRef = null
-        pending = null
-        pendingKey = null
-        pendingFile = null
+        clearPending()
     }
 
     /**
      * 发起一次迁移。
      *
-     * 数据目录已存在时直接回调说明并返回 true，避免覆盖既有数据；
+     * 同步或迁移进行中时拒绝重入；已有数据会先备份再替换；
      * 导出组件未安装时回调说明并返回 false，由设置页提示用户安装。
+     * Android 组件准备阶段的异常种类不固定，所有失败都必须释放迁移入口。
      */
+    @Suppress("TooGenericExceptionCaught")
     override fun requestImport(onFinished: (String) -> Unit): Boolean {
         val activity = activityRef?.get()
         val reason = rejection(activity)
@@ -92,7 +93,18 @@ object HostWereadImport : WereadImporter {
             onFinished(reason ?: "当前页面无法发起迁移")
             return false
         }
-        return launch(activity, onFinished)
+        return if (!WereadDataGate.tryBeginImport()) {
+            onFinished("数据同步或迁移正在进行，请稍后重试")
+            false
+        } else {
+            try {
+                launch(activity, onFinished)
+            } catch (error: Exception) {
+                clearPending()
+                onFinished("无法发起迁移：${error.message ?: "未知错误"}")
+                false
+            }
+        }
     }
 
     /**
@@ -104,7 +116,8 @@ object HostWereadImport : WereadImporter {
     private fun rejection(activity: Activity?): String? =
         when {
             activity == null -> "当前页面无法发起迁移"
-            File(activity.filesDir, "weread").exists() -> "已存在迁移数据，跳过导入"
+            pending != null -> "迁移正在进行，请稍后重试"
+            HostWereadSync.isRunning() -> "数据同步正在进行，请稍后重试"
             else -> null
         }
 
@@ -168,8 +181,12 @@ object HostWereadImport : WereadImporter {
         if (requestCode != REQUEST_IMPORT) return false
         val callback = pending
         if (callback != null) {
-            val message = settle(resultCode, data)
-            clearPending()
+            val message =
+                try {
+                    settle(resultCode, data)
+                } finally {
+                    clearPending()
+                }
             callback(message)
         }
         return true
@@ -238,6 +255,7 @@ object HostWereadImport : WereadImporter {
                 if (outcome.skipped) {
                     "数据已迁移，跳过重复导入"
                 } else {
+                    HostWereadSync.notifyDataChanged()
                     "迁移完成：书籍 ${outcome.counts.books}，笔记 ${outcome.counts.notes}，账单 ${outcome.counts.bills}"
                 }
             is WereadMigrationOutcome.Failure -> "迁移失败：${outcome.message}"
@@ -246,6 +264,7 @@ object HostWereadImport : WereadImporter {
 
     /** 清理挂起请求状态。 */
     private fun clearPending() {
+        WereadDataGate.endImport()
         pending = null
         pendingKey = null
         pendingFile = null

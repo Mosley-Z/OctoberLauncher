@@ -123,7 +123,7 @@ class ContentSourceImpl(
     private val wereadSync =
         WereadSyncService(
             store = WereadStore(File(appContext.filesDir, WEREAD_DATA_DIR)),
-            provider = WereadSyncBridge(wereadClient),
+            provider = WereadSyncBridge(File(appContext.filesDir, WEREAD_DATA_DIR)),
         )
 
     /** 微读墨记原盘读取，卡片与负一屏优先走这里，与微读自身共用同一份数据。 */
@@ -523,6 +523,7 @@ class ContentSourceImpl(
      */
     private suspend fun syncWereadDataDirectory() {
         if (!wereadClient.isConfigured()) return
+        if (ContentPaths.integrations().effectiveWereadSource != "synced") return
         runCatching { wereadSync.sync() }
             .onFailure { error -> InkLog.w(TAG, "微读数据目录同步失败：${error.message}") }
     }

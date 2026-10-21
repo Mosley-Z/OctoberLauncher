@@ -18,7 +18,6 @@ import com.shuiyu.octoberrain.core.common.WereadStatsPeriod
 import com.shuiyu.octoberrain.core.common.WereadStatsSnapshot
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
-import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.feature.content.ContentRegistry
@@ -279,7 +278,7 @@ class WereadScreen(
         return container
     }
 
-    /** 顶部操作行：刷新当前分段与更换密钥。 */
+    /** 顶部操作行：刷新当前分段。 */
     private fun controlRow(): View {
         val tokens = DesignRuntime.tokens
         return LinearLayout(context).apply {
@@ -292,7 +291,6 @@ class WereadScreen(
                 },
             )
             addView(ContentUi.actionText(context, "刷新") { loadSection(section, force = true) })
-            addView(ContentUi.actionText(context, "更换密钥") { promptApiKey() })
             setPadding(0, 0, 0, tokens.gap)
         }
     }
@@ -345,11 +343,17 @@ class WereadScreen(
             ContentUi.emptyCard(
                 context = context,
                 title = "未配置微信读书",
-                message = "在微信读书网页版获取接口密钥后填入，即可同步书架、阅读时长与划线。",
-                actionLabel = "填写密钥",
-                onAction = { promptApiKey() },
+                message = "在「微读墨记」设置页填写或扫描二维码录入接口密钥，即可同步书架、阅读时长与划线。",
+                actionLabel = "打开设置",
+                onAction = { navigateToSettings() },
             ),
         )
+    }
+
+    /** 跳转到微读墨记设置页，密钥统一在该页面录入。 */
+    private fun navigateToSettings() {
+        runCatching { AppServices.router.navigate(Destination.WereadApp) }
+            .onFailure { toast("无法打开设置页") }
     }
 
     /** 来源关闭时的提示，不显示分段。 */
@@ -373,40 +377,6 @@ class WereadScreen(
                 onAction = { setEnabled(true) },
             ),
         )
-    }
-
-    /** 填写或更换密钥。 */
-    private fun promptApiKey() {
-        InkDialogs.input(
-            context = context,
-            title = "微信读书密钥",
-            hint = "粘贴接口密钥",
-            numeric = false,
-            password = true,
-        ) { value ->
-            val key = value.trim()
-            if (key.isEmpty()) return@input
-            val saved =
-                runCatching {
-                    AppServices.config.edit { config ->
-                        config.copy(
-                            integrations =
-                                config.integrations.copy(
-                                    wereadApiKey = key,
-                                    wereadEnabled = true,
-                                ),
-                        )
-                    }
-                }.isSuccess
-            if (!saved) {
-                toast("保存失败，请稍后重试")
-                return@input
-            }
-            source()?.wereadClient?.invalidate()
-            runCatching { AppServices.refresh.requestFullRefresh() }
-            toast("密钥已保存")
-            onResume()
-        }
     }
 
     /** 启用或关闭集成。 */

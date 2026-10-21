@@ -1,6 +1,6 @@
 package com.shuiyu.octoberrain.feature.settings
 
-import com.shuiyu.octoberrain.core.common.DEFAULT_NEGATIVE_MODULES
+import com.shuiyu.octoberrain.core.common.DeskModulePolicy
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.NegativeModule
 
@@ -42,12 +42,13 @@ internal object NegativeSettingsLogic {
         config: LauncherConfig,
         registered: List<NegativeModule>,
     ): List<String> {
-        val configured = config.desktop.negativePage.modules
-        val registeredIds = registered.map { it.id }.filter { it.isNotBlank() }
-        val known = (DEFAULT_NEGATIVE_MODULES + registeredIds).distinct()
-        val leading = configured.filter { it in known }
-        val trailing = known.filterNot { it in leading }
-        return (leading + trailing).ifEmpty { DEFAULT_NEGATIVE_MODULES }
+        // desk 是承载真实分区的整屏容器，不能作为第六张卡片显示或开关。
+        val registeredIds = registered.map { it.id }.filter { it.isNotBlank() && it != "desk" }
+        val known = DeskModulePolicy.settingsOrder(config)
+        val configured =
+            config.desktop.negativePage.modules
+                .filter { it in known || it in registeredIds }
+        return mergeKnown(configured, known) + registeredIds.filterNot { it in known || it in configured }
     }
 
     /** 读取指定模块是否处于启用状态，即模块标识是否在配置列表中。 */
@@ -55,8 +56,11 @@ internal object NegativeSettingsLogic {
         config: LauncherConfig,
         moduleId: String,
     ): Boolean =
-        config.desktop.negativePage.modules
-            .contains(moduleId)
+        if (moduleId in DeskModulePolicy.moduleIds) {
+            DeskModulePolicy.isEnabled(config, moduleId)
+        } else {
+            moduleId in config.desktop.negativePage.modules
+        }
 
     /**
      * 切换指定模块的启用状态。
@@ -68,6 +72,9 @@ internal object NegativeSettingsLogic {
         config: LauncherConfig,
         moduleId: String,
     ): LauncherConfig {
+        if (moduleId in DeskModulePolicy.moduleIds) {
+            return retainExtensions(config, DeskModulePolicy.toggle(config, moduleId))
+        }
         val page = config.desktop.negativePage
         val next = NegativeSpecs.applyNegativeModule(page.modules, moduleId, !enabled(config, moduleId))
         return config.copy(
@@ -83,6 +90,19 @@ internal object NegativeSettingsLogic {
      * 使负一屏按当前排列渲染，不再追加默认模块。
      */
     fun move(
+        config: LauncherConfig,
+        moduleId: String,
+        delta: Int,
+        registered: List<NegativeModule>,
+    ): LauncherConfig {
+        if (moduleId in DeskModulePolicy.moduleIds) {
+            val next = DeskModulePolicy.move(config, moduleId, delta)
+            return if (next === config) config else retainExtensions(config, next)
+        }
+        return moveExtension(config, moduleId, delta, registered)
+    }
+
+    private fun moveExtension(
         config: LauncherConfig,
         moduleId: String,
         delta: Int,
@@ -108,6 +128,43 @@ internal object NegativeSettingsLogic {
                         ),
                 ),
         )
+    }
+
+    /** 共享策略只维护内置模块，将扩展模块原有的顺序与开关状态合回配置。 */
+    private fun retainExtensions(
+        original: LauncherConfig,
+        updated: LauncherConfig,
+    ): LauncherConfig {
+        val source = original.desktop.negativePage
+        val page = updated.desktop.negativePage
+        return updated.copy(
+            desktop =
+                updated.desktop.copy(
+                    negativePage =
+                        page.copy(
+                            modules = mergeKnown(source.modules, page.modules),
+                            moduleOrder = mergeKnown(source.moduleOrder, page.moduleOrder),
+                            cardOrderInitialized = true,
+                        ),
+                ),
+        )
+    }
+
+    /** 用新内置顺序替换内置槽位，扩展模块保持相互顺序，不因内置策略被删除。 */
+    private fun mergeKnown(
+        original: List<String>,
+        known: List<String>,
+    ): List<String> {
+        val pending = known.toMutableList()
+        val result =
+            original.mapNotNull { id ->
+                if (id in DeskModulePolicy.moduleIds) {
+                    if (pending.isEmpty()) null else pending.removeAt(0)
+                } else {
+                    id
+                }
+            }
+        return (result + pending).distinct()
     }
 
     /** 读取模块显示名，注册表提供时优先使用注册值。 */

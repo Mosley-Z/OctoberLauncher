@@ -41,6 +41,7 @@ dependencies {
     api(project(":core:device"))
     api(project(":core:design"))
     api(project(":core:render"))
+    implementation(rootProject.files("libs/weread-kernel-1.3.2-k6-host1.jar"))
 
     // 版本目录未收拢测试库，此处直接固定版本，避免与其他模块的版本目录改动互相影响
     testImplementation("junit:junit:4.13.2")

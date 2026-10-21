@@ -940,6 +940,7 @@ internal class HomeView(
             // 位移超过两像素即视为组件手势已开始，抬手不再转发点击
             if (abs(event.x - downX) > WIDGET_CLICK_SLOP || abs(event.y - downY) > WIDGET_CLICK_SLOP) {
                 widgetGestureMoved = true
+                handler.removeCallbacks(widgetLongPressRunnable)
             }
             val view = widget
             if (view?.onTouch(WidgetTouchAction.MOVE, widgetLocalX, widgetLocalY) == true) return

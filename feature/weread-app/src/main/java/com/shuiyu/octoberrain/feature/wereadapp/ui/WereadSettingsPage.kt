@@ -2,10 +2,8 @@ package com.shuiyu.octoberrain.feature.wereadapp.ui
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
-import android.provider.Settings
 import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
@@ -15,15 +13,17 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.effectiveWereadBoardPoolMask
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkWidgets
-import com.shuiyu.octoberrain.core.render.RefreshScheduler
 import com.shuiyu.octoberrain.feature.wereadapp.WereadAppPrefs
 import com.shuiyu.octoberrain.feature.wereadapp.WereadAppSettings
+import com.shuiyu.octoberrain.feature.wereadapp.ui.qr.KeyQrPanel
 
 /**
  * 页面内设置页，按微读原版分为初始化与自定义两个页签。
@@ -39,7 +39,7 @@ internal class WereadSettingsPage(
 ) : LinearLayout(context) {
     /** 设置页对外回调。 */
     internal interface Listener {
-        /** 保存密钥后返回上一分段。 */
+        /** 完成初始化页配置后返回上一分段。 */
         fun onSaveAndBack()
     }
 
@@ -78,6 +78,9 @@ internal class WereadSettingsPage(
     /** API Key 输入框，保存与测试时读取。 */
     private var apiKeyInput: EditText? = null
 
+    /** API Key 状态文本，保存或扫码录入后即时更新。 */
+    private var keyStatusView: TextView? = null
+
     init {
         orientation = VERTICAL
         setBackgroundColor(InkColors.PAPER)
@@ -101,43 +104,28 @@ internal class WereadSettingsPage(
         content.removeAllViews()
         scroller.scrollTo(0, 0)
         apiKeyInput = null
+        keyStatusView = null
         val settings = WereadAppPrefs.settings(context)
         when (selectedTab) {
             TAB_CUSTOM -> buildCustomPage(settings)
-            else -> buildInitPage(settings)
+            else -> buildInitPage()
         }
     }
 
-    /** 初始化页，按本机角色、密钥、无障碍、卡片、帮助与更新依次排列。 */
-    private fun buildInitPage(settings: WereadAppSettings) {
-        addInitRoleSection(settings)
+    /** 初始化页，按密钥、帮助与更新依次排列。 */
+    private fun buildInitPage() {
         addInitKeySection()
-        addInitAccessibilitySection()
-        addInitCardSection(settings)
         addInitUsageSection()
-        addInitUpdateSection(settings)
+        addInitUpdateSection()
     }
 
-    /** 本机角色：阅读器端与手机端单选及说明。 */
-    private fun addInitRoleSection(settings: WereadAppSettings) {
-        addSectionTitle("本机角色")
-        addRadioGroup(
-            listOf("阅读器端", "手机端"),
-            settings.installRole.coerceIn(0, 1),
-        ) { index ->
-            update { it.copy(installRole = index) }
-        }
-        addCaption("同一 APK 两种形态：阅读器端查看阅读统计与桌面卡片；手机端作为遥控面板，主入口进设置-实验室。")
-        addCaption("切换后重开应用生效，只存本机，不上传服务器。")
-    }
-
-    /** 微信读书 API Key：输入框、粘贴、保存并返回与测试连接。 */
+    /** 微信读书 API Key：回填输入框、扫码录入、保存与测试连接。 */
     private fun addInitKeySection() {
         addSectionTitle("微信读书 API Key")
         val input =
             buildEditText(
                 hint = "粘贴 API Key（wrk- 开头）",
-                initial = "",
+                initial = currentApiKey(),
                 numeric = false,
             ).apply {
                 layoutParams = LayoutParams(0, DesignRuntime.tokens.buttonHeight, 1f)
@@ -156,38 +144,59 @@ internal class WereadSettingsPage(
         row.addView(paste)
         content.addView(row)
         content.addView(InkWidgets.spacer(context, DesignRuntime.tokens.gap))
+        addFullButton("扫描二维码录入") { openKeyQrPanel() }
+        addKeyStatusRow()
+        content.addView(InkWidgets.spacer(context, DesignRuntime.tokens.gap))
         addTwoButtons(
             leftLabel = "保存并返回",
             leftFilled = false,
             leftAction = {
                 saveApiKey(input.text.toString())
+                refreshKeyStatus()
                 listener?.onSaveAndBack()
             },
             rightLabel = "测试连接",
             rightAction = { testConnection(input.text.toString()) },
         )
         addCaption("获取 API Key：手机客户端中，进入我-设置-微信读书 Skill 复制 Key。")
-        addCaption("可从本应用手机端键盘功能快速粘贴到墨水屏端。")
     }
 
-    /** 桌面卡片无障碍：打开系统无障碍设置。 */
-    private fun addInitAccessibilitySection() {
-        addSectionTitle("桌面卡片无障碍")
-        addFullButton("打开系统无障碍设置") {
-            openAccessibilitySettings()
-        }
+    /** 打开局域网扫码录入面板，关闭后同步输入框与状态行。 */
+    private fun openKeyQrPanel() {
+        KeyQrPanel(context) {
+            apiKeyInput?.setText(currentApiKey())
+            refreshKeyStatus()
+        }.show()
     }
 
-    /** 桌面卡片：总开关与重新同步卡片显示。 */
-    private fun addInitCardSection(settings: WereadAppSettings) {
-        addSectionTitle("桌面卡片")
-        addCheckRow("卡片总开关", settings.cardEnabled) { checked ->
-            update { it.copy(cardEnabled = checked) }
-        }
-        addFullButton("重新同步卡片显示（卡片该出现却没出现时点这里）") {
-            RefreshScheduler.notifyContentChanged()
-            InkDialogs.toast(context, "已请求重新同步卡片显示")
-        }
+    /** 添加密钥状态行，展示已配置时的前四位与后四位。 */
+    private fun addKeyStatusRow() {
+        val value = InkWidgets.caption(context, keyStatusText(currentApiKey()))
+        keyStatusView = value
+        val row =
+            horizontalRow().apply {
+                minimumHeight = DesignRuntime.tokens.listRowHeight
+                setPadding(DesignRuntime.tokens.gap, 0, DesignRuntime.tokens.gap, 0)
+                addView(
+                    InkWidgets.body(context, "接口密钥状态").apply {
+                        layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                    },
+                )
+                addView(value)
+            }
+        content.addView(row)
+    }
+
+    /** 按当前配置刷新状态行文本。 */
+    private fun refreshKeyStatus() {
+        keyStatusView?.text = keyStatusText(currentApiKey())
+    }
+
+    /** 生成密钥状态文本，空密钥显示未配置。 */
+    private fun keyStatusText(key: String): String {
+        val trimmed = key.trim()
+        if (trimmed.isEmpty()) return "未配置"
+        return "已配置（${trimmed.take(4)}****${trimmed.takeLast(4)}）"
     }
 
     /** 怎么用：打开使用说明。 */
@@ -196,28 +205,17 @@ internal class WereadSettingsPage(
         addFullButton("怎么用") { showHelp() }
     }
 
-    /** 版本与更新：当前版本、更新通道、云端备用更新源与检查更新。 */
-    private fun addInitUpdateSection(settings: WereadAppSettings) {
+    /** 内置页随十雨桌面升级，检查与安装统一使用宿主更新服务。 */
+    private fun addInitUpdateSection() {
         addSectionTitle("版本与更新")
         val version = WereadAppPrefs.versionName(context)
         val code = WereadAppPrefs.versionCode(context)
         val versionRow =
-            InkWidgets.labelRow(context, "当前版本", "$version（$code）")
-        versionRow.isClickable = true
-        versionRow.isFocusable = true
-        versionRow.setOnClickListener { handleVersionTap() }
+            InkWidgets.labelRow(context, "十雨桌面版本", "$version（$code）")
         content.addView(versionRow)
-        addBody("更新通道")
-        addRadioGroup(UPDATE_CHANNEL_LABELS, settings.updateChannel.coerceIn(0, 1)) { index ->
-            update { it.copy(updateChannel = index) }
-        }
-        addCaption("正式版更新更稳，Beta 尝鲜包含预览版本，两条通道的版本号不可直接比较。")
-        addCaption("内置页只记录选择，检查与安装由十雨桌面的更新入口统一完成。")
-        addCheckRow("云端备用更新源", settings.cloudFallback) { checked ->
-            update { it.copy(cloudFallback = checked) }
-        }
-        addCaption("GitHub 连不上时自动改用备用地址，让更新在受限网络下也能完成。")
-        addFullButton("检查更新") {
+        addCaption("微读墨记功能与内核随十雨桌面一起更新，不单独安装原 App。")
+        addCaption("检查与下载使用十雨桌面更新设置中的清单地址。")
+        addFullButton("检查十雨桌面更新") {
             if (AppServices.hasRouter()) {
                 AppServices.router.navigate(Destination.Update)
             }
@@ -237,14 +235,14 @@ internal class WereadSettingsPage(
         addCustomMonthStyleSection(settings)
         addCustomNoteSizeSection(settings)
         addCustomSwitchModeSection(settings)
-        addCustomPoolSection(settings)
+        addCustomPoolSection()
         addCustomExportSection(settings)
         addCustomRankSection(settings)
     }
 
     /** 刷新绑定：三个勾选项横向排列。 */
     private fun addCustomBindSection(settings: WereadAppSettings) {
-        addBody("刷新绑定（点「更新于…」一并刷新勾选项）")
+        addBody("刷新绑定（点「更新于…」一并刷新勾选项）：桌面卡片右下角的刷新按钮与「更新于…」遵循同一组勾选。")
         val row = horizontalRow()
         addWeightedCheck(row, "本周", settings.bindWeek) { checked -> update { it.copy(bindWeek = checked) } }
         addWeightedCheck(row, "本月", settings.bindMonth) { checked -> update { it.copy(bindMonth = checked) } }
@@ -330,21 +328,22 @@ internal class WereadSettingsPage(
         addCaption("循环模式：点卡片左上角，依次切换到下一张。列表模式：点卡片左上角弹出列表，直接选一张。")
     }
 
-    /** 桌面显示的卡片：五种形态勾选，至少保留一张；改动即时过滤形态下拉。 */
-    private fun addCustomPoolSection(settings: WereadAppSettings) {
+    /** 桌面显示的卡片：五种形态勾选，至少保留一项；本书即书籍轮播。 */
+    private fun addCustomPoolSection() {
         addSectionTitle("桌面显示的卡片")
+        val poolMask = currentPoolMask()
         val firstRow = horizontalRow()
         POOL_LABELS.take(3).forEachIndexed { index, label ->
-            addWeightedCheck(firstRow, label, settings.poolMask and POOL_BITS[index] != 0) { checked ->
-                togglePool(settings.poolMask, index, checked)
+            addWeightedCheck(firstRow, label, poolMask and POOL_BITS[index] != 0) { checked ->
+                togglePool(poolMask, index, checked)
             }
         }
         content.addView(firstRow)
         val secondRow = horizontalRow()
         POOL_LABELS.drop(3).forEachIndexed { offset, label ->
             val index = offset + 3
-            addWeightedCheck(secondRow, label, settings.poolMask and POOL_BITS[index] != 0) { checked ->
-                togglePool(settings.poolMask, index, checked)
+            addWeightedCheck(secondRow, label, poolMask and POOL_BITS[index] != 0) { checked ->
+                togglePool(poolMask, index, checked)
             }
         }
         secondRow.addView(
@@ -352,27 +351,38 @@ internal class WereadSettingsPage(
             LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f),
         )
         content.addView(secondRow)
-        addCaption("只影响桌面卡片；App 内各页面的查看不受影响。至少要保留一张卡片。")
+        addCaption("决定桌面小组件右下角「切换」按钮可轮换的形态，至少保留一项；本书即书籍轮播。只影响桌面卡片；App 内各页面的查看不受影响。")
     }
 
-    /** 切换形态池某一位；清空全部形态时提示并保留原值。 */
+    /** 读取桌面形态池掩码；配置未就绪时按五项全开处理。 */
+    private fun currentPoolMask(): Int {
+        if (!AppServices.isReady()) return POOL_MASK_ALL
+        return AppServices.config.state.value.desktop.effectiveWereadBoardPoolMask
+    }
+
+    /** 切换形态池某一位；取消最后一项时保留本周。 */
     private fun togglePool(
         currentMask: Int,
         index: Int,
         checked: Boolean,
     ) {
-        val nextMask =
-            if (checked) {
-                currentMask or POOL_BITS[index]
-            } else {
-                currentMask and POOL_BITS[index].inv()
-            }
+        val nextMask = if (checked) currentMask or POOL_BITS[index] else currentMask and POOL_BITS[index].inv()
         if (nextMask == 0) {
-            InkDialogs.toast(context, "至少要保留一张卡片")
-            render()
+            InkDialogs.toast(context, "至少要保留一项，已保留本周")
+            applyPoolMask(POOL_BITS[0])
             return
         }
-        update { it.copy(poolMask = nextMask) }
+        applyPoolMask(nextMask)
+    }
+
+    /** 写入桌面形态池掩码并刷新桌面组件。 */
+    private fun applyPoolMask(mask: Int) {
+        if (!AppServices.isReady()) return
+        AppServices.config.edit { config ->
+            config.copy(desktop = config.desktop.copy(wereadBoardPoolMask = mask))
+        }
+        render()
+        AppServices.refresh.requestPartial()
     }
 
     /** 本记字号文案，形如「17 号 · 20.4px」。 */
@@ -444,17 +454,6 @@ internal class WereadSettingsPage(
             }
         }
 
-    /** 打开系统无障碍设置。 */
-    private fun openAccessibilitySettings() {
-        runCatching {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }.onFailure {
-            InkDialogs.toast(context, "无法打开系统无障碍设置")
-        }
-    }
-
     /** 读取当前配置中的接口密钥，配置未就绪时返回空串。 */
     private fun currentApiKey(): String {
         if (!AppServices.isReady()) return ""
@@ -498,25 +497,13 @@ internal class WereadSettingsPage(
             .orEmpty()
     }
 
-    /** 版本号连击计数，达到次数后展开实验室内容。 */
-    private fun handleVersionTap() {
-        val count = WereadAppPrefs.recordVersionTap(context, System.currentTimeMillis())
-        if (count >= WereadAppPrefs.VERSION_TAP_COUNT) {
-            WereadAppPrefs.setLabEnabled(context, true)
-            InkDialogs.toast(context, "实验室内容已展开")
-            return
-        }
-        val remain = WereadAppPrefs.VERSION_TAP_COUNT - count
-        if (remain <= 2) InkDialogs.toast(context, "再点击 $remain 次展开实验室内容")
-    }
-
     /** 显示帮助文本。 */
     private fun showHelp() {
         InkDialogs.confirm(
             context,
             "使用说明",
             "阅读页展示整卡统计；本记形态可切换筛选、选书与导出；" +
-                "设置页修改立即生效，连续点击版本号五次可展开实验室内容。",
+                "设置页修改立即生效，实验室提供锁屏与续航优化。",
             confirmLabel = "知道了",
             onConfirm = {},
         )
@@ -774,9 +761,6 @@ internal class WereadSettingsPage(
         /** 两个页签的文案，顺序与下标一致。 */
         val TAB_LABELS: List<String> = listOf("初始化", "自定义")
 
-        /** 更新通道文字。 */
-        val UPDATE_CHANNEL_LABELS: List<String> = listOf("正式版（稳定）", "Beta（尝鲜）")
-
         /** 成就目标档位文字。 */
         val KIND_LABELS: List<String> = listOf("关", "完美", "狂暴", "自定义")
 
@@ -797,6 +781,9 @@ internal class WereadSettingsPage(
 
         /** 形态池位掩码，低五位依次对应本周、本月、本书、本记、待办。 */
         val POOL_BITS: IntArray = intArrayOf(1, 2, 4, 8, 16)
+
+        /** 五种形态全开的掩码，作为配置未就绪时的显示初值。 */
+        const val POOL_MASK_ALL: Int = 0x1F
 
         /** 卡片档本记字号下限。 */
         const val NOTE_CARD_SIZE_MIN: Int = 12

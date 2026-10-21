@@ -118,6 +118,17 @@ class LauncherConfigJsonTest {
         assertEquals("legacy-salt", decoded.lock.salt)
     }
 
+    /** 旧配置缺少应急清除开关时按默认值解析为开启，保证升级后长按流程仍可用。 */
+    @Test
+    fun `旧配置缺失应急清除开关时为开启`() {
+        val decoded =
+            AppJson.format.decodeFromString<LauncherConfig>(
+                "{\"version\":6,\"lock\":{\"pinHash\":\"legacy-hash\",\"salt\":\"legacy-salt\"}}",
+            )
+        assertEquals("legacy-hash", decoded.lock.pinHash)
+        assertTrue(decoded.lock.emergencyResetEnabled)
+    }
+
     /** 剔除本机凭据后的配置编码不包含密钥、摘要与盐，备份文件不再携带凭据。 */
     @Test
     fun `导出配置剔除本机凭据`() {

@@ -26,7 +26,9 @@ internal object BookshelfSpecs {
     private val STATS_LABELS: List<String> = listOf("月统计", "年统计", "全部")
 
     /** 数据来源的显示文本，顺序与取值表一致。 */
-    private val WEREAD_SOURCE_LABELS: List<String> = listOf("迁移导入", "独立同步", "仅本地缓存")
+    private val WEREAD_SOURCE_LABELS: List<String> = listOf("独立同步", "仅本地缓存")
+
+    private val WEREAD_SOURCE_VALUES: List<String> = listOf("synced", "local")
 
     val groups: List<SettingsGroupSpec> =
         listOf(
@@ -70,49 +72,22 @@ internal object BookshelfSpecs {
                 id = "bookshelf.wereadSource",
                 group = GROUP_BOOKSHELF_WEREAD,
                 title = "数据来源",
-                hint = "迁移导入读微读墨记导出的数据目录，独立同步由本机直连接口写同一目录；两者共用桌面卡片与负一屏的数据",
+                hint = "独立同步通过微信读书官方接口更新数据；仅本地缓存暂停联网刷新",
                 control =
                     choiceIntegrations(
                         options = WEREAD_SOURCE_LABELS,
                         read = { integrations ->
-                            IntegrationsConfig.WEREAD_SOURCE_OPTIONS
+                            WEREAD_SOURCE_VALUES
                                 .indexOf(integrations.effectiveWereadSource)
                                 .coerceAtLeast(0)
                         },
                         write = { integrations, index ->
                             integrations.copy(
-                                wereadSource = IntegrationsConfig.WEREAD_SOURCE_OPTIONS[index],
+                                wereadSource = WEREAD_SOURCE_VALUES[index],
                             )
                         },
                     ),
                 effect = SettingEffect.CONTENT_REFRESH,
-            ),
-            SettingSpec(
-                id = "bookshelf.wereadKey",
-                group = GROUP_BOOKSHELF_WEREAD,
-                title = "接口密钥",
-                hint = "填写以 wrk- 开头的接口密钥；未配置时不加载微信读书数据",
-                control =
-                    SettingControl.Action(value = { config ->
-                        if (config.integrations.wereadApiKey.isBlank()) "未配置" else "已配置"
-                    }),
-                effect = SettingEffect.NONE,
-            ),
-            SettingSpec(
-                id = "bookshelf.wereadKeyScan",
-                group = GROUP_BOOKSHELF_WEREAD,
-                title = "扫码录入密钥",
-                hint = "手机扫二维码后在网页中提交密钥，适用于密钥较长不便输入的场景",
-                control = SettingControl.Action(value = { "生成二维码" }),
-                effect = SettingEffect.NONE,
-            ),
-            SettingSpec(
-                id = "bookshelf.wereadKeyClear",
-                group = GROUP_BOOKSHELF_WEREAD,
-                title = "清除密钥",
-                hint = "移除本机保存的密钥，微信读书数据停止刷新",
-                control = SettingControl.Action(),
-                effect = SettingEffect.NONE,
             ),
             SettingSpec(
                 id = "bookshelf.wereadRefresh",
@@ -169,14 +144,6 @@ internal object BookshelfSpecs {
                         },
                     ),
                 effect = SettingEffect.PARTIAL,
-            ),
-            SettingSpec(
-                id = "bookshelf.wereadImport",
-                group = GROUP_BOOKSHELF_WEREAD,
-                title = "从微读墨记迁移",
-                hint = "读取已安装微读墨记的书籍、笔记与账单；已迁移过时跳过",
-                control = SettingControl.Button(),
-                effect = SettingEffect.CONTENT_REFRESH,
             ),
             SettingSpec(
                 id = "bookshelf.wereadSyncNow",

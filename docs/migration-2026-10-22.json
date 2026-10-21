@@ -1,0 +1,162 @@
+[
+  {
+    "Old": "docs/00-overview.md",
+    "New": "docs/design/00-overview.md"
+  },
+  {
+    "Old": "docs/01-feature-inventory.md",
+    "New": "docs/design/01-feature-inventory.md"
+  },
+  {
+    "Old": "docs/02-current-architecture.md",
+    "New": "docs/design/02-current-architecture.md"
+  },
+  {
+    "Old": "docs/03-target-architecture.md",
+    "New": "docs/design/03-target-architecture.md"
+  },
+  {
+    "Old": "docs/04-identity-removal.md",
+    "New": "docs/design/04-identity-removal.md"
+  },
+  {
+    "Old": "docs/05-device-adaptation.md",
+    "New": "docs/design/05-device-adaptation.md"
+  },
+  {
+    "Old": "docs/06-development-roadmap.md",
+    "New": "docs/design/06-development-roadmap.md"
+  },
+  {
+    "Old": "docs/07-upstream-code-map.md",
+    "New": "docs/design/07-upstream-code-map.md"
+  },
+  {
+    "Old": "docs/08-engineering-conventions.md",
+    "New": "docs/design/08-engineering-conventions.md"
+  },
+  {
+    "Old": "docs/09-M0骨架记录.md",
+    "New": "docs/acceptance/09-M0骨架记录.md"
+  },
+  {
+    "Old": "docs/10-dev-handoff.md",
+    "New": "docs/design/10-dev-handoff.md"
+  },
+  {
+    "Old": "docs/11-552x768-adaptation.md",
+    "New": "docs/design/11-552x768-adaptation.md"
+  },
+  {
+    "Old": "docs/12-验收记录.md",
+    "New": "docs/acceptance/12-验收记录.md"
+  },
+  {
+    "Old": "docs/13-inkOS对照评估.md",
+    "New": "docs/design/13-inkOS对照评估.md"
+  },
+  {
+    "Old": "docs/14-本批实施记录.md",
+    "New": "docs/acceptance/14-本批实施记录.md"
+  },
+  {
+    "Old": "docs/15-V1.0开发计划.md",
+    "New": "docs/design/15-V1.0开发计划.md"
+  },
+  {
+    "Old": "docs/16-墨盘移植决策.md",
+    "New": "docs/design/16-墨盘移植决策.md"
+  },
+  {
+    "Old": "docs/16-files-module.md",
+    "New": "docs/design/16-files-module.md"
+  },
+  {
+    "Old": "docs/17-weread-fusion.md",
+    "New": "docs/design/17-weread-fusion.md"
+  },
+  {
+    "Old": "docs/18-handoff-v1.0.1-and-weread-v1.3.2.md",
+    "New": "docs/acceptance/18-handoff-v1.0.1-and-weread-v1.3.2.md"
+  },
+  {
+    "Old": "docs/19-weread-export-bridge.md",
+    "New": "docs/design/19-weread-export-bridge.md"
+  },
+  {
+    "Old": "docs/20-weread-fidelity-remediation.md",
+    "New": "docs/design/20-weread-fidelity-remediation.md"
+  },
+  {
+    "Old": "docs/202610210141来自CODEX的CODE REVIEW.md",
+    "New": "docs/acceptance/202610210141来自CODEX的CODE REVIEW.md"
+  },
+  {
+    "Old": "docs/21-weread-native-adaptation.md",
+    "New": "docs/design/21-weread-native-adaptation.md"
+  },
+  {
+    "Old": "docs/22-weread-standalone-plan.md",
+    "New": "docs/design/22-weread-standalone-plan.md"
+  },
+  {
+    "Old": "docs/23-weread-standalone-execution.md",
+    "New": "docs/design/23-weread-standalone-execution.md"
+  },
+  {
+    "Old": "docs/23-weread-standalone-workplan.md",
+    "New": "docs/design/23-weread-standalone-workplan.md"
+  },
+  {
+    "Old": "docs/24-weread-spec-reference.md",
+    "New": "docs/design/24-weread-spec-reference.md"
+  },
+  {
+    "Old": "docs/25-weread-internalization-plan.md",
+    "New": "docs/design/25-weread-internalization-plan.md"
+  },
+  {
+    "Old": "docs/26-device-adaptation-report.md",
+    "New": "docs/acceptance/26-device-adaptation-report.md"
+  },
+  {
+    "Old": "docs/27-weread-page-parity.md",
+    "New": "docs/acceptance/27-weread-page-parity.md"
+  },
+  {
+    "Old": "docs/28-weread-batch1-remediation.md",
+    "New": "docs/acceptance/28-weread-batch1-remediation.md"
+  },
+  {
+    "Old": "docs/29-weread-batch2-remediation.md",
+    "New": "docs/acceptance/29-weread-batch2-remediation.md"
+  },
+  {
+    "Old": "docs/30-weread-batch3-remediation.md",
+    "New": "docs/acceptance/30-weread-batch3-remediation.md"
+  },
+  {
+    "Old": "docs/31-weread-batch4-remediation.md",
+    "New": "docs/acceptance/31-weread-batch4-remediation.md"
+  },
+  {
+    "Old": "docs/32-weread-review-remediation-summary.md",
+    "New": "docs/design/32-weread-review-remediation-summary.md"
+  },
+  {
+    "Old": "docs/33-dsh-development-playbook.md",
+    "New": "docs/design/33-dsh-development-playbook.md"
+  },
+  {
+    "Old": "docs/34-files-reader-upgrade-plan.md",
+    "New": "docs/design/34-files-reader-upgrade-plan.md"
+  },
+  {
+    "Old": "docs/开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播.md",
+    "New": "docs/design/开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播.md"
+  },
+  {
+    "Old": "docs/书架重构任务目标.md",
+    "New": "docs/design/书架重构任务目标.md"
+  }
+]

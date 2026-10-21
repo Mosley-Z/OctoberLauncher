@@ -1,3 +1,73 @@
+## 1.0.26
+
+- 负一屏书架与桌面书籍轮播改为按最近在读排序：解析原盘 `assets.json` 的 `readUpdateTime` 并按时间降序稳定排列，缺失时间的书排在后面，选中书不再置顶（任务 2.6）。
+- 桌面「本书」形态底部信息整体放大两成：已读百分比、时长、进度条与「打开」「切换」「刷新」三个按钮同步放大，宽度不足时压缩按钮内边距而不裁切文字（任务 2.6）。
+- 负一屏设置页调整排版：分组标题上下留白加宽、行名与右侧控件同基线、说明文字单独一行并按 1.3 倍行距换行、开关与加减号触控区放大到 40dp、分隔线只在分组之间出现（任务 2.6）。
+
+## 1.0.25
+
+- 桌面阅读卡片恢复「本周」「本月」「本书」「本记」「待办」五种形态：本书沿用自绘书籍轮播，其余四形态沿用各自旧版整卡渲染，「切换」按形态池顺序轮换并写回配置（任务 2.5）。
+- 「设置-微读墨记-设置-自定义」恢复五个形态勾选项，决定切换按钮可轮换的形态，取消最后一项时保留本周；初始化页删除桌面卡片总开关（任务 2.5）。
+- 锁屏 PIN 摘要默认迭代轮数由十二万降到两万，S4 实测单次校验由 6886 毫秒降到 1285 毫秒；已存旧摘要仍可校验且不自动重算，重新设置密码后按新轮数写入（任务 2.5）。
+- 负一屏书架缓存上限提升到十本，并新增「书架行数」1 至 5 行调节，每行两本（任务 2.5）。
+
+## 1.0.24
+
+- 桌面阅读卡片右下角新增「切换」「刷新」两个描边按钮：切换在书籍轮播与单张之间切换并写入版式序号，刷新重绑内核并按刷新绑定的勾选重取数据（任务 2.4）。
+- 「设置-微读墨记-设置-自定义」的「桌面显示的卡片」改为「书籍轮播」「单张」两项单选，与桌面按钮共用同一序号，并说明刷新按钮与「更新于…」遵循同一组勾选（任务 2.4）。
+- 锁屏背景保存不再因像素总数超过八千万而判定失败，失败提示按读取失败、非图片、配置写入未确认分类给出原因（任务 2.4）。
+- 锁屏背景的文件选择器新增缩略图与「网格/列表」切换，网格复用文件页四列布局，列表带行首缩略图（任务 2.4）。
+
+## 1.0.23
+
+- 锁屏长按删除键期间只保留删除键外圈进度弧，不再显示提示文字；十秒触发确认框的行为与文案保持原样（任务 2.3）。
+- 锁屏背景入口从锁屏面板迁到「设置-微读墨记-实验室-锁屏密码-锁屏背景」，提供「选择图片」与「恢复默认」，背景状态行显示当前文件名或「默认纸色」（任务 2.3）。
+- 微信读书 API Key 入口收敛到「设置-微读墨记-初始化」：输入框回填已存密钥、新增配置状态行与「扫描二维码录入」，删除桌面卡片无障碍分组，并移除书架设置与内置阅读页的密钥入口（任务 2.3）。
+- 负一屏书架模块改为双列封面卡片，重建腰封、进度浮层与右上角百分比角标，取书与点击展开浮层语义保持不变（任务 2.3）。
+
+## 1.0.22
+
+- 书架展示区改为双列封面主导布局，书名与作者合并为覆盖封面的横向腰封，阅读进度改为贴底浮层并保留右下角状态图标，右上角新增百分比角标，界面内不再展示页数（任务 2.2）。
+- 桌面阅读组件改为极简杂志版式：左上大号时间与日期、右上当前书籍划线笔记、中部五层封面轮播、中央下方衬线书名、底部进度与打开按钮，左右滑动切换并保持候选书目与选中书同步（任务 2.2）。
+- 锁屏支持长按删除键十秒弹出确认框应急清除密码，确认后关闭锁屏进入桌面；设置页新增“长按删除键应急清除”开关，默认开启（任务 2.2）。
+- 锁屏面板新增“选择图片”入口，经系统文件选择器设置背景，替换失败保留原图，失配的旧路径按未设置处理（任务 2.2）。
+- 应用图标更换为剪纸云雨图，提供自适应图标前景与各密度方形、圆形位图（任务 2.2）。
+
+## 1.0.21
+
+- 锁屏 PIN 摘要校验移至后台线程，输入错误密码不再阻塞输入派发并触发无响应；校验期间显示等待提示，失败后进入抖动反馈（任务 2.1）。
+- 锁屏面板样式与微读墨记对齐：白底网点或壁纸加面板白纱、圆形描边按键、错误红字与抖动、删除键置于右下角，输满四位自动校验并移除确认键（任务 2.1）。
+
+## 1.0.20
+
+- 实验室密码、自动锁定和背景接入十雨桌面唯一锁屏服务，支持确认设置、清除和立即锁定。
+- App 内保留全部阅读形态与足迹，桌面卡片启用池只影响桌面。
+- 内置页随十雨桌面统一更新，移除无执行效果的通道与备用源开关。
+- 按用户要求移除远程翻页模块与页签，实验室保留锁屏和续航优化。
+
+## 1.0.19
+
+- 墨台按配置顺序展示五个模块，开关真实生效，关闭全部后保持为空，关闭的模块可重新启用并保留位置。
+- 阅读指纹支持最多 50 本书的多选、搜索、清空和确认/取消，选择与字号持久保存，并兼容原版导入偏好。
+- 手填价格与移出书目写入持久状态，清价和恢复书目不再被旧值覆盖；同步和重启保留人工编辑。
+- 墨台内核计算与绘制使用串行后台队列，页面笔记缓存避免逐条摘录反复读取全库；补丁源码与构建方法随仓库保留。
+- 壁纸按实际分区导出，阅读指纹使用原版 480×800 纸张，预览适配屏幕，保存提示使用实际文件名。
+- 移除原 App 数据导入和配置回写入口，默认独立同步微信读书，旧缓存继续保留。
+
+## 1.0.18
+
+- 阅读成就使用原版目标和剩余/达成文案，桌面与内置阅读页共用，历史周期不显示当前成就。
+- 桌面和阅读页刷新实际请求当前形态，并按偏好补拉周、月与本书；本记强制同步笔记，待办仅重读本地。
+- 本记使用完整索引和共享持久状态，支持当日稳定抽取、访问历史、选书顺序与跨天推进；手动本书选择持久保存并补查真实进度。
+- 桌面待办过滤已完成项；卡片切换支持启用池内循环或列表选择。
+
+## 1.0.17
+
+- 修复微读迁移被已有空目录或同步数据阻断；替换前备份，配置保存失败时恢复原目录，导入成功后使用导入来源。
+- 宿主与内容层统一同步适配：阅读进度与累计时长改取逐书接口，自动本书按最近阅读时间选择，阅读资产不再用周期榜单近似。
+- 笔记本索引完整分页，同步划线及个人想法，统一书名、作者、价格、进度与章节字段；逐本保存缓存，失败保留数据并支持续补。
+- 同步与迁移互斥；部分同步明确报告待补项，网络失败后停止后续逐书请求。
+
 ## 1.0.14
 
 - 桌面组件「本书」形态的选书弹层改用内核 `BookPicker`：遮罩与「点空白处关闭」、白色底板、标题行「选一本书」与关闭、浅灰行分隔线、选中行左侧黑竖条、四边墨框，行文字垂直居中；点击按 `hitTest` 分三支处理，拖动走 `scrollBy`，选中后按 `bookIdAt` 切书。删除组件内自绘浮层实现（`pickerLayout`、`isSelectedRow`、`selectBook(action)`、`ACTION_PICK_*`）。
@@ -8,7 +78,7 @@
 
 ## 1.0.13
 
-- 周期行挂载高度改为 `dpRound(44f)` 换算（`TypedValue` 转换后 `roundToInt`），S4 219dpi 得 60px、P4 210dpi 得 58px；两机基线量测写入 `docs/27-weread-page-parity.md` 第六节。
+- 周期行挂载高度改为 `dpRound(44f)` 换算（`TypedValue` 转换后 `roundToInt`），S4 219dpi 得 60px、P4 210dpi 得 58px；两机基线量测写入 `docs/acceptance/27-weread-page-parity.md` 第六节。
 - 待办对话框改为实例像素属性与固定尺寸描边按钮，面板、日期行、时间行、动作行与按钮左右边界与微读实测误差不超过 1px。
 - 事实修正两项：「选记搜索行放大镜」不成立，微读 `NotePickView.java` 无图标绘制，十雨与之一致；「遮罩纯色无渐隐」不成立，两侧同为 `SCRIM = 0xFFD8D8D8` 单色 `drawRect`。两项均从差异表与 `docs/27` 第九节删除。
 - 版本号 33，versionName 1.0.13。
@@ -50,7 +120,7 @@
 - 版本号 28，versionName 1.0.8。
 # 变更记录
 
-本文件按版本记录变更，条目后标注对应任务编号。版本号规则见 `docs/15-V1.0开发计划.md`。
+本文件按版本记录变更，条目后标注对应任务编号。版本号规则见 `docs/design/15-V1.0开发计划.md`。
 
 ## 0.9.0 基线
 
@@ -58,7 +128,7 @@ versionCode 9，versionName 0.9.0，2026-10-19。
 
 目录快照 `D:\DSHStation\OctoberLauncher-V0.9`，含 2893 个文件的 SHA-256 清单，清单摘要 `f96d95de10f2ac6521a55ad195034ded7bee3f080f14a182b7de1b04c4476454`。
 
-本版为 V1.0 开发的起点，代码复核与两项融合评估的结果记录在 `_analysis/code-review-and-fusion-eval.md`，开发计划见 `docs/15-V1.0开发计划.md`。已知状态：debug 与 release 均可构建，release 未签名，单元测试三处失败，持续集成配置按该状态无法通过。
+本版为 V1.0 开发的起点，代码复核与两项融合评估的结果记录在 `_analysis/code-review-and-fusion-eval.md`，开发计划见 `docs/design/15-V1.0开发计划.md`。已知状态：debug 与 release 均可构建，release 未签名，单元测试三处失败，持续集成配置按该状态无法通过。
 
 ## 0.9.1
 
@@ -107,7 +177,7 @@ versionCode 12，versionName 0.9.3，2026-10-20。
 - task-18 统一解码：`core/render` 新增 `ImageDecoder`（EXIF 方向归一、长边限幅、像素与堆预算）、`ImageSizing`、`ThumbKey`、`ThumbCache`、`DitherCore`，`BitmapPipe` 改为委托，七处分散解码改走统一入口，新增 28 例测试；`Ditherer` 支持两级量化并保留原有接口。
 - task-20 缓存接入：`ThumbCacheRegistry` 按目标长边与抖动开关复用缓存实例，`ThumbCacheLoader` 统一「命中返回、未命中解码写入」，书封网格、图片目录、书架封面组件、图片组件四处接入；目录变更、图标写入与壁纸写入接入失效与 `RefreshScheduler.notifyContentChanged`；真机两轮浏览各 200 项，PSS 48185 KB 至 76344 KB 再至 75673 KB，磁盘缓存约 872 KB，EXIF 方向样张由 320×240 归一为 240×320。
 - task-24 索引隔离：索引文件改为按实例命名 `index-<长边>-dither<0|1>.txt`，修正多实例共用 `index.txt` 时互相覆盖条目，新增 `ThumbIndexTest` 4 例。
-- task-19 与决策：墨盘移植分析完成（源码 9320 行，建议移植 6968 行、重写 2352 行、放弃 1497 行，分四批次），据此形成 `docs/16-墨盘移植决策.md`，明确文件模块归属、权限模型、Provider authority、三档几何、相册与编辑范围。
+- task-19 与决策：墨盘移植分析完成（源码 9320 行，建议移植 6968 行、重写 2352 行、放弃 1497 行，分四批次），据此形成 `docs/design/16-墨盘移植决策.md`，明确文件模块归属、权限模型、Provider authority、三档几何、相册与编辑范围。
 - task-21 提前入库：`feature:files` 模块骨架与数据层（八个数据层文件、`FilePager`、33 例测试）随本版入库，文件入口默认隐藏，页面接入自 0.9.4 起；该项计入 0.9.4 第一阶段。
 
 门禁复核（Lead 独立执行）：`gradle --offline testDebugUnitTest check :app:assembleDebug :app:assembleRelease` 通过，27 个套件、214 个用例、0 失败、1 跳过；`check` 含 `ktlintCheck`、`detekt`、`lint` 全部通过，超 120 列行 0；调试包 3554769 字节，发布包 484535 字节，签名 `CN=Android Debug`；S4 真机安装最终调试包后启动、桌面绘制与组件选择页正常。门禁数据、真机过程与遗留事项见 `_analysis/verify/0.9.3-gate.md`。
@@ -178,8 +248,8 @@ versionCode 20，versionName 1.0.0，2026-10-20。
 - task-35 桌面壁纸复验：桌面壁纸替换路径、旧文件删除与锁屏壁纸在 S4 上通过，量化四档观感与锁屏压层正常，重启后保留。
 - task-34 设置项补齐：`appearance.image` 分组新增六条声明（图片目录信息与更换、缩略图质量、缩略图抖动、缓存占用与清理）；`Models.kt:210` 新增 `thumbnailQuality` 与 `thumbnailDither` 两字段，配置版本保持 7；`core/render/ThumbProfile.kt` 提供三档参数与像素映射，`ThumbCache.clear()` 与 `ThumbIndex.reset()` 支撑缓存清理；settings 模块 44 例测试。
 - task-39 负一屏卡片开关：新增 `NegativeSpecs.kt` 101 行与分组 `negative.cards`，两条 Toggle 维护 `config.desktop.negativePage.modules`，未知标识顺序保留；`Models.kt:97` 默认模块改为 `["bookshelf","negative_files"]`，`CURRENT_VERSION` 未变、无迁移；`NegativeSpecsTest` 8 例。
-- task-36 文档新增：`docs/16-files-module.md`（数据层、页层、查看器、编辑、相册、负一屏卡片、测试与已知问题）与 `docs/17-weread-fusion.md`（融合边界、数据层、组件、页面与设置、许可、差异与后续）。
-- task-37 文档重写：`docs/03-target-architecture.md` 13 节按实现重写；`docs/08-engineering-conventions.md` 增加静态检查与 Lint 基线章节；`docs/01-feature-inventory.md` 按 Destination、组件目录与设置声明重写。
+- task-36 文档新增：`docs/design/16-files-module.md`（数据层、页层、查看器、编辑、相册、负一屏卡片、测试与已知问题）与 `docs/design/17-weread-fusion.md`（融合边界、数据层、组件、页面与设置、许可、差异与后续）。
+- task-37 文档重写：`docs/design/03-target-architecture.md` 13 节按实现重写；`docs/design/08-engineering-conventions.md` 增加静态检查与 Lint 基线章节；`docs/design/01-feature-inventory.md` 按 Destination、组件目录与设置声明重写。
 - task-38 仓库整理：根 `README.md` 重写为 150 行，上游 APK 移至 `_tools/upstream/` 并注明来源，13 个模块 README 补齐；`_analysis` 与 `_shots` 移出工程目录需 Doow 许可，本版未执行。
 - 9.1 全量回归：`gradle --offline -q --rerun-tasks testDebugUnitTest check :app:assembleDebug :app:assembleRelease` 退出码 0，73.5 秒；53 个套件、482 个用例、0 失败、1 跳过；detekt 14 个模块 0 条，Lint 基线 72 条无新增，ktlint 通过，超 120 列 0 行；调试包 3833368 字节、SHA-256 `c4b83072033292e29d65737ff34d55aa0369174c0902f09bc0c0637d18aabfd3`，发布包 567265 字节、SHA-256 `cb20c8aa9af620828f3c68f00b4cecc823b4910513cc71ba83bf04243b4a9064`；`mapping.txt` 90247 行 9622056 字节。
 - 9.4 发布准备：版本号置 `1.0.0`、`versionCode` 20，`VERSION` 同步；S4 上安装混淆后的发布包，冷启动 1053 毫秒，桌面、负一屏两张卡片、文件页与查看器正常，PSS 30761 KB，日志无崩溃与反序列化异常。门禁数据、真机过程与遗留见 `_analysis/verify/1.0.0-gate.md`。
@@ -239,7 +309,7 @@ versionCode 26，versionName 1.0.6，2026-10-20。
 - 周期选择器可切换范围改为解析 stats.json 的 d_<mode>:<base> 键。内核 KernelStore.listText() 列出的是目录文件而非偏好键，原实现扫不到已缓存周期，导致左箭头始终禁用。
 - 洞察页改为按偏移量调用内核渲染器整页绘制，修复滚动后空白；排行分区支持分区内滚动。
 - 负一屏分区抬头与空态引导增加左右内边距，由 DeskSectionStyle.paddingXPx 统一计算；设置态模块行的上移与下移按钮改为半间距，模块名改为单行省略，消除窄屏上右侧箭头被挤出。
-- 新增 docs/26-device-adaptation-report.md，记录 P4（552×768）与 S4（480×800）的双设备检查、七项问题、反思对照与处置。
+- 新增 docs/acceptance/26-device-adaptation-report.md，记录 P4（552×768）与 S4（480×800）的双设备检查、七项问题、反思对照与处置。
 - 发布构建的模块反射入口补上 WereadAppModule 保留规则。该类以类名字符串经 Class.forName 装配，R8 重命名后发布包进入内置页只显示「页面模块尚未接入」；同时保留内部类名便于日志对照。
 - 门禁：gradle --offline testDebugUnitTest check :app:assembleDebug :app:assembleRelease 退出码 0，126 套件 1100 用例 0 失败 2 跳过；`app-release.apk` 758041 字节，SHA-256 `89a4c0c6545ecdc93b61f96347fcd9060dc2c76656d1f24b9be0f27596ce3968`；`app-debug.apk` 4406511 字节，SHA-256 `2711c8eb627eb8e658b8301018972d3005b8fa6fc944afd787400840757df641`。
 - 真机验证：S4 上设置首页卡片进入内置页，四页签常显、周期切换与长按跳年、本记筛选菜单、选书过滤、导出长图、洞察滚动、待办增删改查均正常；P4 上设置首页入口与负一屏留白正常。
@@ -283,7 +353,7 @@ versionCode 23，versionName 1.0.3，2026-10-20。
 - 书封显示：新增 `core/render` 的 `WereadCoverStore`，按书目标识缓存封面到 `files/weread_covers`，组件「本书」形态经 `KernelHostImpl.coverBitmap` 取图，负一屏书架卡片经 `ContentUi.decodeCover` 取图，两处共用同一缓存；原先两处均只显示书名首字。
 - 待办空态：`KernelCardFiller` 的占位文案按形态区分，待办形态无数据时显示「暂无待办」与「下拉刷新或稍后再试」，已配置密钥时不再提示填写密钥。
 - 卡片互动：待办形态正文区点击由无响应改为打开待办页，本记与本书同理打开对应页面。
-- 独立承载方案：新增 `docs/22-weread-standalone-plan.md`，给出不安装微读墨记时由十雨独立提供取数、存储与渲染的模块划分与五阶段计划。
+- 独立承载方案：新增 `docs/design/22-weread-standalone-plan.md`，给出不安装微读墨记时由十雨独立提供取数、存储与渲染的模块划分与五阶段计划。
 - 门禁数据：`gradle --offline testDebugUnitTest check :app:assembleDebug :app:assembleRelease` 退出码 0，118 个测试套件 1054 个用例 0 失败 2 跳过，ktlintCheck 与 detekt 全模块零告警；调试包 4077023 字节，SHA-256 `49dbb907a4ddd62f9d2e053504bed5e82b51d6cf61bf661a6dec7eebb68dc5a8`；发布包 679429 字节，SHA-256 `3c8a2507617d36134681b90146c38e839e17ceacd4d36a454200f9272ec028dd`。
 - 真机验证：S4 装发布包后，负一屏书架卡片与组件「本书」形态均显示书封，待办形态显示「暂无待办」与「下拉刷新或稍后再试」，点击待办正文进入待办页；截图存 `_analysis/verify/20261020-135930/`，文件名为 `rel-1.0.3-` 前缀；启动日志无 FATAL EXCEPTION 与 ANR。
 - 目录快照：D:\DSHStation\_snapshots\OctoberLauncher-1.0.3，清单摘要 `3aa249045a278c1fca877da8e8f1a4ebcddc5cdc602a10a758f7372f2bbcde1a`。
@@ -293,7 +363,7 @@ versionCode 23，versionName 1.0.3，2026-10-20。
 
 versionCode 22，versionName 1.0.2，2026-10-20。
 
-与微读墨记 1.3.2-beta 同步的第二版，主题是把微读墨记的桌面卡片与墨台模块按原版排版一比一纳入十雨桌面，不再自带一套简化渲染。整改方案见 `docs/21-weread-native-adaptation.md`。
+与微读墨记 1.3.2-beta 同步的第二版，主题是把微读墨记的桌面卡片与墨台模块按原版排版一比一纳入十雨桌面，不再自带一套简化渲染。整改方案见 `docs/design/21-weread-native-adaptation.md`。
 
 - 组件一比一（P0、P1）：`WereadBoardWidget` 删除十二个自绘方法与数据装配，由 738 行降至 380 行，绘制只剩内核 `render` 一条路径；`KernelCardFiller` 补齐 `CardState` 三十二个 setter 中缺失的十九项（`setNoteHint`、`setAchievementText`、`setNoteCardSize`、`setNoteFullSize`、`setMonthHeatmap`、`setNoteSlot`、`setCoverBitmap`、`setErrorText`、`setEmptyNote`、`setMonthScrollMax`、`setNoteScrollY`、`setNoteLineH`、`setNoteViewH`、`setNoteContentH`、`setNoteScrollMax`、`setDeskEnabled`、`setDeskOpenLabel`）；交互按原版 `CardInteraction.java` 复刻，触摸序列经 `WidgetTouchAction` 与 `WidgetTouchTarget` 传入卡片，长按回组件选择器。
 - 墨台渲染入内核（P2）：微读侧新增 `kernel.desk` 的 `DeskHost`、`DeskPage`、`DeskRenderer`、`DeskModules`、`DeskPrefs` 与账单、阅读资产、阅读指纹三个分区，另新增 `kernel.load.KernelDataLoader` 与 `KernelDataSource` 直接读原盘文件；产出 `weread-kernel-1.3.2-k2.jar`，163494 字节，SHA-256 `a9855a4fb493a1b3c86f3c941aa46cacc7715557a5267b8b2155cf3a3b260241`，57 个 class，`Kernel-Api-Version: 2`，两次构建字节一致；`CardView` 与 `CardState` 补齐 `setMonthScrollY`、`setMonthScrollMax`、`setNoteScrollY`、`setNoteLineH`、`setNoteViewH`、`setNoteContentH`、`setNoteScrollMax`、`setFullscreen`、`setNoteExpanded` 九个状态写回方法，月历滚动不再依赖反射。

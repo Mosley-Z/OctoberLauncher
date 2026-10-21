@@ -7,11 +7,14 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.LauncherConfig
+import com.shuiyu.octoberrain.core.common.DeskModulePolicy
+import com.shuiyu.octoberrain.core.common.NegativePageConfig
 import com.shuiyu.octoberrain.core.common.WereadDeskConfig
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkWidgets
+import com.shuiyu.octoberrain.core.wereadsync.WereadDeskEditsStore
+import java.io.File
 
 /**
  * 墨台设置态。
@@ -19,6 +22,9 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
  * 设置态在同一页面内替换列表态显示，分三组：模块开关与排序、阅读资产过滤、阅读指纹选书与
  * 字号。修改即时写入配置并同步到墨单、阅读资产、阅读指纹三个内核分区；写入后调用
  * [onChanged] 通知宿主刷新列表，不发生页面跳转。
+ *
+ * 版式上每个分组以标题起段，标题上方留一档大间距，行名与右侧控件同基线，说明文字单独
+ * 成行并放宽行距；分组之间只画一条分隔线，行与行之间不再重复画线。
  *
  * @param context 页面上下文。
  * @param onClose 关闭设置态回到列表态的回调。
@@ -33,6 +39,8 @@ internal class DeskSettingsView(
     private val onPickFingerprint: () -> Unit,
 ) : LinearLayout(context) {
     private val tokens = DesignRuntime.tokens
+
+    private val edits = WereadDeskEditsStore(File(context.filesDir, "weread"))
 
     private val body: LinearLayout =
         LinearLayout(context).apply {
@@ -57,27 +65,210 @@ internal class DeskSettingsView(
     fun render() {
         body.removeAllViews()
         renderModuleGroup()
-        body.addView(DeskSectionStyle.buildDivider(context))
+        addGroupDivider()
+        renderShelfGroup()
+        addGroupDivider()
         renderAssetGroup()
-        body.addView(DeskSectionStyle.buildDivider(context))
+        addGroupDivider()
         renderFingerprintGroup()
     }
+
+    /**
+     * 添加分组标题。
+     *
+     * 标题上方留一档大间距，与上一分组的分隔线拉开距离；标题与首行之间留常规间距，
+     * 使标题独立成段，不与首行文字粘连。
+     *
+     * @param title 分组标题。
+     */
+    private fun addGroupTitle(title: String) {
+        body.addView(
+            InkWidgets.heading(context, title),
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                topMargin = tokens.gapLarge
+                bottomMargin = tokens.gap
+            },
+        )
+    }
+
+    /**
+     * 添加说明文字。
+     *
+     * 说明字号比正文小一档，行距放宽到 [HINT_LINE_SPACING] 倍，宽度撑满内容区并自动换行；
+     * 与上方行名之间留 [HINT_GAP_DP] 的空距，避免说明紧贴行名。
+     *
+     * @param text 说明文案。
+     */
+    private fun addHint(text: String) {
+        body.addView(
+            InkWidgets.caption(context, text).apply {
+                setTextColor(InkColors.INK_3)
+                setLineSpacing(0f, HINT_LINE_SPACING)
+            },
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                topMargin = tokens.dp(HINT_GAP_DP)
+            },
+        )
+    }
+
+    /** 在分组之间插入分隔线，上下各留一档常规间距，避免压住上一组的末行文字。 */
+    private fun addGroupDivider() {
+        body.addView(
+            DeskSectionStyle.buildDivider(context),
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                topMargin = tokens.gap
+                bottomMargin = tokens.gap
+            },
+        )
+    }
+
+    /**
+     * 添加设置项行。
+     *
+     * 行与行之间统一留一档常规间距，使行名、说明与下一行之间形成稳定的纵向节奏。
+     *
+     * @param row 设置项行。
+     */
+    private fun addItem(row: LinearLayout) {
+        body.addView(
+            row,
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                topMargin = tokens.gap
+            },
+        )
+    }
+
+    /**
+     * 构造设置行容器。
+     *
+     * 行高取分区行高与 [ROW_MIN_HEIGHT_DP] 的较大值，行内控件因此有不小于 40dp 的触控高度；
+     * 行名与右侧控件垂直居中，落在同一基线上。
+     *
+     * @return 空行容器。
+     */
+    private fun newRow(): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = maxOf(DeskSectionStyle.rowHeightPx(context), tokens.dp(ROW_MIN_HEIGHT_DP))
+        }
+
+    /**
+     * 向行内加入行名。
+     *
+     * 行名占满剩余宽度，单行显示并在尾部省略，右侧控件因此靠向行尾，与行名之间留出距离。
+     *
+     * @param row 目标行。
+     * @param label 行名。
+     */
+    private fun addRowLabel(
+        row: LinearLayout,
+        label: String,
+    ) {
+        row.addView(
+            InkWidgets.body(context, label).apply {
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            },
+            LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+        )
+    }
+
+    /**
+     * 构造触控控件。
+     *
+     * 文案居中，最小宽高各 [TOUCH_TARGET_DP] 见方，点击区覆盖整块空白，相邻控件之间不再
+     * 依赖文字本身的大小，减少误触。
+     *
+     * @param label 控件文案。
+     * @param color 文字颜色。
+     * @param onClick 点击回调。
+     * @return 触控控件。
+     */
+    private fun touchControl(
+        label: String,
+        color: Int,
+        onClick: () -> Unit,
+    ): TextView =
+        InkWidgets.caption(context, label).apply {
+            setTextColor(color)
+            gravity = Gravity.CENTER
+            minWidth = tokens.dp(TOUCH_TARGET_DP)
+            minimumWidth = minWidth
+            minHeight = tokens.dp(TOUCH_TARGET_DP)
+            minimumHeight = minHeight
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onClick() }
+        }
+
+    /**
+     * 构造加减数值控件。
+     *
+     * 减号、数值、加号横向排列，数值定宽居中，两个按钮的触控区各 [TOUCH_TARGET_DP] 见方；
+     * 控件左侧留半个常规间距，与行名之间保持距离。
+     *
+     * @param value 当前数值文案。
+     * @param onMinus 减号点击回调。
+     * @param onPlus 加号点击回调。
+     * @return 加减控件容器。
+     */
+    private fun buildStepper(
+        value: String,
+        onMinus: () -> Unit,
+        onPlus: () -> Unit,
+    ): LinearLayout =
+        LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(tokens.gap / 2, 0, 0, 0)
+            addView(touchControl(ACTION_STEP_MINUS, InkColors.INK, onMinus))
+            addView(
+                InkWidgets.body(context, value).apply {
+                    gravity = Gravity.CENTER
+                    minWidth = tokens.dp(VALUE_MIN_WIDTH_DP)
+                    minimumWidth = minWidth
+                },
+            )
+            addView(touchControl(ACTION_STEP_PLUS, InkColors.INK, onPlus))
+        }
+
+    /**
+     * 构造只有行名的动作行。
+     *
+     * 整行可点击，行高与其它设置行一致，说明文字由调用方另行添加。
+     *
+     * @param label 动作文案。
+     * @param onAction 点击回调。
+     * @return 可点击的动作行。
+     */
+    private fun buildActionRow(
+        label: String,
+        onAction: () -> Unit,
+    ): LinearLayout =
+        newRow().apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onAction() }
+            addRowLabel(this, label)
+        }
 
     /** 渲染模块开关与排序分组。 */
     private fun renderModuleGroup() {
         val config = AppServices.config.state.value
-        body.addView(InkWidgets.heading(context, GROUP_MODULES))
-        val modules = config.desktop.negativePage.modules
-        body.addView(
-            InkWidgets.caption(context, HINT_MODULES).apply { setTextColor(InkColors.INK_3) },
-        )
+        addGroupTitle(GROUP_MODULES)
+        addHint(HINT_MODULES)
+        val modules = DeskModulePolicy.settingsOrder(config)
         modules.forEachIndexed { index, id ->
-            body.addView(buildModuleRow(id, index, modules.size))
+            addItem(buildModuleRow(id, index, modules.size))
         }
     }
 
     /**
      * 构造单个模块的开关与排序行。
+     *
+     * 行名占满左侧剩余宽度，开关与上下移按钮依次排列在行尾；三个控件的触控区均不小于
+     * [TOUCH_TARGET_DP] 见方。
      *
      * @param moduleId 模块标识。
      * @param index 模块在展示顺序中的下标。
@@ -89,40 +280,24 @@ internal class DeskSettingsView(
         index: Int,
         count: Int,
     ): LinearLayout {
-        val row =
-            LinearLayout(context).apply {
-                orientation = HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = DeskSectionStyle.rowHeightPx(context)
-            }
-        val enabled = isModuleEnabled(moduleId)
-        val switchView =
-            InkWidgets.caption(context, if (enabled) STATE_ON else STATE_OFF).apply {
-                setTextColor(if (enabled) InkColors.INK else InkColors.INK_3)
-                isClickable = true
-                setOnClickListener { toggleModule(moduleId) }
-            }
+        val row = newRow()
+        val enabled = DeskModulePolicy.isEnabled(AppServices.config.state.value, moduleId)
+        addRowLabel(row, labelOf(moduleId))
         row.addView(
-            InkWidgets.body(context, labelOf(moduleId)).apply {
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-            },
-            LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            touchControl(
+                label = if (enabled) STATE_ON else STATE_OFF,
+                color = if (enabled) InkColors.INK else InkColors.INK_3,
+            ) { toggleModule(moduleId) },
         )
-        row.addView(switchView, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        row.addView(
-            buildMoveButton(ACTION_UP, index > 0) { moveModule(moduleId, -1) },
-            LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
-        )
-        row.addView(
-            buildMoveButton(ACTION_DOWN, index < count - 1) { moveModule(moduleId, 1) },
-            LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT),
-        )
+        row.addView(buildMoveButton(ACTION_UP, index > 0) { moveModule(moduleId, -1) })
+        row.addView(buildMoveButton(ACTION_DOWN, index < count - 1) { moveModule(moduleId, 1) })
         return row
     }
 
     /**
      * 构造上移或下移按钮。
+     *
+     * 不可用时文字改用浅色并关闭点击，保留占位使行内控件位置稳定。
      *
      * @param label 按钮文案。
      * @param enabled 是否可用。
@@ -134,34 +309,63 @@ internal class DeskSettingsView(
         enabled: Boolean,
         onMove: () -> Unit,
     ): TextView =
-        InkWidgets.caption(context, label).apply {
-            setTextColor(if (enabled) InkColors.INK else InkColors.INK_4)
+        touchControl(label, if (enabled) InkColors.INK else InkColors.INK_4, onMove).apply {
             isEnabled = enabled
             isClickable = enabled
-            // 三个右侧控件在窄屏上会挤出行宽，水平间距取半个间距单位。
-            setPadding(tokens.gap / 2, 0, 0, 0)
-            if (enabled) setOnClickListener { onMove() }
         }
 
-    /** 渲染阅读资产过滤分组。 */
+    /** 渲染书架分组：行数行与说明分两层展示。 */
+    private fun renderShelfGroup() {
+        val page = AppServices.config.state.value.desktop.negativePage
+        addGroupTitle(GROUP_SHELF)
+        val row = newRow()
+        addRowLabel(row, LABEL_SHELF_ROWS)
+        row.addView(
+            buildStepper(
+                value = page.effectiveShelfRows.toString(),
+                onMinus = { stepShelfRows(-1) },
+                onPlus = { stepShelfRows(1) },
+            ),
+        )
+        addItem(row)
+        addHint(HINT_SHELF_ROWS)
+    }
+
+    /**
+     * 调整书架行数。
+     *
+     * 结果夹取到 [NegativePageConfig.SHELF_ROWS_MIN] 与 [NegativePageConfig.SHELF_ROWS_MAX]，
+     * 写入后由宿主重建分区，书架按新行数立即重排。
+     *
+     * @param delta 位移，负值减少，正值增加。
+     */
+    private fun stepShelfRows(delta: Int) {
+        AppServices.config.edit { config ->
+            val page = config.desktop.negativePage
+            val next =
+                (page.effectiveShelfRows + delta)
+                    .coerceIn(NegativePageConfig.SHELF_ROWS_MIN, NegativePageConfig.SHELF_ROWS_MAX)
+            config.copy(desktop = config.desktop.copy(negativePage = page.copy(shelfRows = next)))
+        }
+        onChanged()
+        render()
+    }
+
+    /** 渲染阅读资产过滤分组：两个开关、恢复动作与已移出数量说明。 */
     private fun renderAssetGroup() {
         val desk = AppServices.config.state.value.integrations.wereadDesk
-        body.addView(InkWidgets.heading(context, GROUP_ASSET))
-        body.addView(buildToggleRow(ASSET_SHELF_ONLY, desk.assetShelfOnly) { setAssetShelfOnly(it) })
-        body.addView(buildToggleRow(ASSET_FINISHED_ONLY, desk.assetFinishedOnly) { setAssetFinishedOnly(it) })
-        body.addView(
-            InkWidgets.caption(context, ACTION_RESTORE_HIDDEN).apply {
-                isClickable = true
-                setOnClickListener { restoreHidden() }
-            },
-        )
-        body.addView(
-            InkWidgets.caption(context, hiddenSummary(desk.hiddenIds.size)).apply { setTextColor(InkColors.INK_3) },
-        )
+        addGroupTitle(GROUP_ASSET)
+        addItem(buildToggleRow(ASSET_SHELF_ONLY, desk.assetShelfOnly) { setAssetShelfOnly(it) })
+        addItem(buildToggleRow(ASSET_FINISHED_ONLY, desk.assetFinishedOnly) { setAssetFinishedOnly(it) })
+        addItem(buildActionRow(ACTION_RESTORE_HIDDEN) { restoreHidden() })
+        addHint(hiddenSummary(edits.hiddenIds(desk.hiddenIds).size))
     }
 
     /**
      * 构造开关行。
+     *
+     * 行名与开关同基线，开关触控区不小于 [TOUCH_TARGET_DP] 见方；整行同样可点击，
+     * 便于在墨水瓶上点按。
      *
      * @param label 开关名称。
      * @param checked 当前状态。
@@ -173,179 +377,51 @@ internal class DeskSettingsView(
         checked: Boolean,
         onToggle: (Boolean) -> Unit,
     ): LinearLayout {
-        val row =
-            LinearLayout(context).apply {
-                orientation = HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = DeskSectionStyle.rowHeightPx(context)
-                isClickable = true
-                setOnClickListener { onToggle(!checked) }
-            }
+        val row = newRow()
+        row.isClickable = true
+        row.setOnClickListener { onToggle(!checked) }
+        addRowLabel(row, label)
         row.addView(
-            InkWidgets.body(context, label),
-            LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-        )
-        row.addView(
-            InkWidgets.caption(context, if (checked) STATE_ON else STATE_OFF).apply {
-                setTextColor(if (checked) InkColors.INK else InkColors.INK_3)
-            },
+            touchControl(
+                label = if (checked) STATE_ON else STATE_OFF,
+                color = if (checked) InkColors.INK else InkColors.INK_3,
+            ) { onToggle(!checked) },
         )
         return row
     }
 
-    /** 渲染阅读指纹分组。 */
+    /** 渲染阅读指纹分组：选书动作与字号行。 */
     private fun renderFingerprintGroup() {
         val desk = AppServices.config.state.value.integrations.wereadDesk
-        body.addView(InkWidgets.heading(context, GROUP_FINGERPRINT))
-        body.addView(
-            InkWidgets.caption(context, ACTION_PICK_BOOK).apply {
-                isClickable = true
-                setOnClickListener { onPickFingerprint() }
-            },
-        )
-        val row =
-            LinearLayout(context).apply {
-                orientation = HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = DeskSectionStyle.rowHeightPx(context)
-            }
+        addGroupTitle(GROUP_FINGERPRINT)
+        addItem(buildActionRow(ACTION_PICK_BOOK) { onPickFingerprint() })
+        val row = newRow()
+        addRowLabel(row, LABEL_FP_FONT)
         row.addView(
-            InkWidgets.body(context, LABEL_FP_FONT),
-            LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            buildStepper(
+                value = desk.effectiveFpFontPx.toString(),
+                onMinus = { stepFpFont(-1) },
+                onPlus = { stepFpFont(1) },
+            ),
         )
-        row.addView(
-            InkWidgets.caption(context, ACTION_FONT_MINUS).apply {
-                isClickable = true
-                setOnClickListener { stepFpFont(-1) }
-            },
-        )
-        row.addView(
-            InkWidgets.body(context, desk.effectiveFpFontPx.toString()).apply {
-                gravity = Gravity.CENTER
-                setPadding(tokens.gap, 0, tokens.gap, 0)
-            },
-        )
-        row.addView(
-            InkWidgets.caption(context, ACTION_FONT_PLUS).apply {
-                isClickable = true
-                setOnClickListener { stepFpFont(1) }
-            },
-        )
-        body.addView(row)
+        addItem(row)
     }
 
-    /**
-     * 判断模块的开关状态。
-     *
-     * 内核三项（墨单、阅读资产、阅读指纹）的开关由开关掩码决定，顺序列表始终保留三项；
-     * 书架与最近图片属于宿主分区，开关即顺序列表是否包含该标识。
-     *
-     * @param moduleId 模块标识。
-     * @return 开启时为 true。
-     */
-    private fun isModuleEnabled(moduleId: String): Boolean {
-        val config = AppServices.config.state.value
-        if (moduleId !in KERNEL_MODULE_IDS) {
-            return config.desktop.negativePage.modules
-                .contains(moduleId)
-        }
-        return config.integrations.wereadDesk.effectiveOnMask and bitOf(moduleId) != 0
-    }
-
-    /**
-     * 取模块对应的开关掩码位。
-     *
-     * @param moduleId 内核模块标识。
-     * @return 掩码位，未知模块返回零。
-     */
-    private fun bitOf(moduleId: String): Int =
-        when (moduleId) {
-            MODULE_BILL -> WereadDeskConfig.BIT_BILL
-            MODULE_RANK -> WereadDeskConfig.BIT_RANK
-            MODULE_FP -> WereadDeskConfig.BIT_FP
-            else -> 0
-        }
-
-    /**
-     * 切换模块开关。
-     *
-     * 内核三项只切换开关掩码，顺序列表保持五项；其余模块直接增删顺序列表。
-     *
-     * @param moduleId 模块标识。
-     */
+    /** 切换模块开关，配置和渲染共用同一规则。 */
     private fun toggleModule(moduleId: String) {
-        val config = AppServices.config.state.value
-        val modules = config.desktop.negativePage.modules
-        if (moduleId in KERNEL_MODULE_IDS) {
-            val mask = config.integrations.wereadDesk.effectiveOnMask xor bitOf(moduleId)
-            AppServices.config.edit { current ->
-                current.copy(
-                    integrations =
-                        current.integrations.copy(
-                            wereadDesk = current.integrations.wereadDesk.copy(onMask = mask),
-                        ),
-                )
-            }
-            onChanged()
-            return
-        }
-        val next = if (modules.contains(moduleId)) modules - moduleId else modules + moduleId
-        writeModules(next)
+        AppServices.config.edit { config -> DeskModulePolicy.toggle(config, moduleId) }
+        onChanged()
+        render()
     }
 
-    /**
-     * 调整模块在列表中的位置。
-     *
-     * @param moduleId 模块标识。
-     * @param delta 位移，负值上移，正值下移。
-     */
+    /** 调整模块位置，保持关闭模块可重新开启。 */
     private fun moveModule(
         moduleId: String,
         delta: Int,
     ) {
-        val current = AppServices.config.state.value.desktop.negativePage.modules
-        val index = current.indexOf(moduleId)
-        if (index < 0) return
-        val target = index + delta
-        if (target !in current.indices) return
-        val next = current.toMutableList()
-        next.removeAt(index)
-        next.add(target, moduleId)
-        writeModules(next)
-    }
-
-    /**
-     * 写入五项顺序并同步内核顺序与开关掩码。
-     *
-     * @param modules 新的模块顺序。
-     */
-    private fun writeModules(modules: List<String>) {
-        AppServices.config.edit { config -> applyModules(config, modules) }
+        AppServices.config.edit { config -> DeskModulePolicy.move(config, moduleId, delta) }
         onChanged()
-    }
-
-    /**
-     * 把模块顺序写入配置，同时更新内核三项顺序与开关掩码。
-     *
-     * @param config 当前配置。
-     * @param modules 新的模块顺序。
-     * @return 更新后的配置。
-     */
-    private fun applyModules(
-        config: LauncherConfig,
-        modules: List<String>,
-    ): LauncherConfig {
-        val kernelOrder = modules.filter { it in KERNEL_MODULE_IDS }
-        val desk = config.integrations.wereadDesk
-        var mask = desk.effectiveOnMask
-        // 顺序列表中缺失的内核模块清除对应掩码位，列表内的模块保持原开关状态。
-        KERNEL_MODULE_IDS.filter { it !in modules }.forEach { mask = mask and bitOf(it).inv() }
-        val desktop = config.desktop.copy(negativePage = config.desktop.negativePage.copy(modules = modules))
-        val integrations =
-            config.integrations.copy(
-                wereadDesk = desk.copy(order = kernelOrder, onMask = mask),
-            )
-        return config.copy(desktop = desktop, integrations = integrations)
+        render()
     }
 
     /**
@@ -363,6 +439,7 @@ internal class DeskSettingsView(
             )
         }
         onChanged()
+        render()
     }
 
     /**
@@ -380,10 +457,15 @@ internal class DeskSettingsView(
             )
         }
         onChanged()
+        render()
     }
 
     /** 恢复已移出书目。 */
     private fun restoreHidden() {
+        if (!edits.restoreHidden()) {
+            AppServices.router.toast("恢复失败，请稍后重试")
+            return
+        }
         AppServices.config.edit { config ->
             config.copy(
                 integrations =
@@ -393,6 +475,7 @@ internal class DeskSettingsView(
             )
         }
         onChanged()
+        render()
     }
 
     /**
@@ -414,6 +497,7 @@ internal class DeskSettingsView(
             )
         }
         onChanged()
+        render()
     }
 
     /**
@@ -456,6 +540,15 @@ internal class DeskSettingsView(
         /** 资产分组标题。 */
         const val GROUP_ASSET: String = "阅读资产过滤"
 
+        /** 书架分组标题。 */
+        const val GROUP_SHELF: String = "书架分区"
+
+        /** 书架行数标签。 */
+        const val LABEL_SHELF_ROWS: String = "书架行数"
+
+        /** 书架行数说明。 */
+        const val HINT_SHELF_ROWS: String = "负一屏每行两本，最多五行共十本"
+
         /** 指纹分组标题。 */
         const val GROUP_FINGERPRINT: String = "阅读指纹"
 
@@ -470,6 +563,12 @@ internal class DeskSettingsView(
 
         /** 下移动作文案。 */
         const val ACTION_DOWN: String = "↓"
+
+        /** 加减控件的减号文案。 */
+        const val ACTION_STEP_MINUS: String = "－"
+
+        /** 加减控件的加号文案。 */
+        const val ACTION_STEP_PLUS: String = "＋"
 
         /** 开关名称：只统计书架。 */
         const val ASSET_SHELF_ONLY: String = "只统计书架"
@@ -486,11 +585,20 @@ internal class DeskSettingsView(
         /** 指纹字号标签。 */
         const val LABEL_FP_FONT: String = "字号"
 
-        /** 字号减小动作文案。 */
-        const val ACTION_FONT_MINUS: String = "－"
+        /** 说明文字与上一行之间的距离，取 3dp 使两层信息贴合但不粘连。 */
+        const val HINT_GAP_DP: Float = 3f
 
-        /** 字号增大动作文案。 */
-        const val ACTION_FONT_PLUS: String = "＋"
+        /** 说明文字的行距倍数，放宽到 1.3 倍便于长句阅读。 */
+        const val HINT_LINE_SPACING: Float = 1.3f
+
+        /** 触控控件的最小边长，保证点击区不小于 40dp 见方。 */
+        const val TOUCH_TARGET_DP: Float = 40f
+
+        /** 加减控件中数值的最小宽度。 */
+        const val VALUE_MIN_WIDTH_DP: Float = 40f
+
+        /** 设置行的最小高度，与触控区要求一致。 */
+        const val ROW_MIN_HEIGHT_DP: Float = 40f
 
         /** 模块标识：墨单。 */
         const val MODULE_BILL: String = "bill"
@@ -506,9 +614,6 @@ internal class DeskSettingsView(
 
         /** 模块标识：最近图片。 */
         const val MODULE_RECENT: String = "negative_files"
-
-        /** 内核模块标识集合。 */
-        val KERNEL_MODULE_IDS: List<String> = listOf(MODULE_BILL, MODULE_RANK, MODULE_FP)
 
         /** 展示名称：墨单。 */
         const val LABEL_BILL: String = "墨单"

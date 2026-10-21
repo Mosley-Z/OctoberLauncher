@@ -21,4 +21,17 @@ interface WereadSyncHost {
      * @return 已受理返回 true，密钥缺失或同步进行中返回 false
      */
     fun syncNow(onFinished: (Boolean, String) -> Unit): Boolean
+
+    /** 按当前阅读形态强制取远端数据，并补拉用户开启的绑定目标。 */
+    fun refresh(
+        request: WereadRefreshRequest,
+        onFinished: (Boolean, String) -> Unit,
+    ): Boolean = syncNow(onFinished)
 }
+
+/** 卡片刷新意图；起点为 0 表示当前期，书目为空表示读取共享选书偏好。 */
+data class WereadRefreshRequest(
+    val mode: String,
+    val baseTimeSec: Long = 0L,
+    val bookId: String = "",
+)

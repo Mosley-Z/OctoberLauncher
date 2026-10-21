@@ -38,6 +38,7 @@ internal object WereadWallpaperDialog {
         val dialog = Dialog(context)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         dialog.setContentView(buildContent(context, bitmap) { dialog.dismiss() })
+        dialog.show()
         dialog.window?.apply {
             setBackgroundDrawableResource(android.R.color.white)
             setLayout(
@@ -45,7 +46,6 @@ internal object WereadWallpaperDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
         }
-        dialog.show()
     }
 
     /**
@@ -174,7 +174,7 @@ internal object WereadWallpaperDialog {
                         WereadWallpaperStore.saveToGallery(appContext, name, bitmap)
                     }.getOrDefault(false)
                 toastOnMain(
-                    if (stored) SAVE_DONE_PREFIX + WereadWallpaperStore.fileName() else SAVE_FAILED,
+                    if (stored) SAVE_DONE_PREFIX + name else SAVE_FAILED,
                 )
             },
             THREAD_NAME,

@@ -20,9 +20,9 @@ android {
             libs.versions.targetSdk
                 .get()
                 .toInt()
-        // V1.0.7 外观即时生效与周期窗口、内置页实验室页签常显与走查缺陷修复；版本号同时作为微读共存判定的阈值下限
-        versionCode = 36
-        versionName = "1.0.16"
+        // 1.0.26：书架与轮播按最近在读排序、轮播底部文字按钮放大、负一屏设置页排版调整。
+        versionCode = 46
+        versionName = "1.0.26"
     }
 
     buildTypes {

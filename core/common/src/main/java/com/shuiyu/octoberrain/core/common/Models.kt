@@ -114,7 +114,7 @@ val NEGATIVE_MODULE_ID_ALIASES: Map<String, String> =
  *
  * 参数 enabled 为是否启用负一屏；kind 为内容来源；
  * limit 为单屏展示条目上限；showProgress 表示是否绘制进度条；
- * showCover 表示是否绘制封面缩略图。
+ * showCover 表示是否绘制封面缩略图；shelfRows 为书架分区的展示行数。
  */
 @Serializable
 data class NegativePageConfig(
@@ -130,6 +130,8 @@ data class NegativePageConfig(
      * 新增模块注册后在此追加即可显示。
      */
     val modules: List<String> = DEFAULT_NEGATIVE_MODULES,
+    /** 墨台设置的完整顺序，保留关闭模块的位置；空值兼容旧配置。 */
+    val moduleOrder: List<String> = emptyList(),
     /**
      * 可切换形态的模块当前形态编号。
      *
@@ -139,7 +141,39 @@ data class NegativePageConfig(
     val forms: Map<String, Int> = emptyMap(),
     /** 是否已按新版默认顺序初始化过模块顺序，避免升级后重复重排。 */
     val cardOrderInitialized: Boolean = false,
-)
+    /**
+     * 书架分区的展示行数，每行两本。
+     *
+     * 旧配置缺少该字段时取 [SHELF_ROWS_DEFAULT]；越界值在读取时由 [effectiveShelfRows]
+     * 夹取到 [SHELF_ROWS_MIN] 与 [SHELF_ROWS_MAX] 之间，写回配置的始终是夹取后的值。
+     */
+    val shelfRows: Int = SHELF_ROWS_DEFAULT,
+) {
+    /** 夹取到合法区间的书架行数。 */
+    val effectiveShelfRows: Int
+        get() = shelfRows.coerceIn(SHELF_ROWS_MIN, SHELF_ROWS_MAX)
+
+    /** 书架分区本次展示的条目上限，等于有效行数与每行本数之积。 */
+    val shelfVisibleLimit: Int
+        get() = effectiveShelfRows * SHELF_COLUMNS
+
+    companion object {
+        /** 书架行数下限。 */
+        const val SHELF_ROWS_MIN: Int = 1
+
+        /** 书架行数上限。 */
+        const val SHELF_ROWS_MAX: Int = 5
+
+        /** 书架行数默认值。 */
+        const val SHELF_ROWS_DEFAULT: Int = 2
+
+        /** 书架分区每行的卡片数。 */
+        const val SHELF_COLUMNS: Int = 2
+
+        /** 书架分区的取书上限，等于行数上限与每行本数之积。 */
+        const val SHELF_ITEM_LIMIT: Int = SHELF_ROWS_MAX * SHELF_COLUMNS
+    }
+}
 
 /** 应用排序方式。 */
 @Serializable
@@ -406,7 +440,9 @@ data class NotificationConfig(
  * 参数 pinHash 与 salt 为 PIN 摘要与盐；iterations 为 PBKDF2 轮数，
  * 低于 [PinHasher.DEFAULT_ITERATIONS] 的旧值在计算时统一提升；
  * enabled 为是否启用锁屏；autoLock 表示熄屏后立即上锁；
- * failedAttempts 为连续校验失败次数；lockoutUntilMillis 为退避锁定截止时间。
+ * emergencyResetEnabled 表示锁屏界面长按删除键满十秒后是否允许应急清除密码，
+ * 旧配置缺少该字段时按开启解析；failedAttempts 为连续校验失败次数；
+ * lockoutUntilMillis 为退避锁定截止时间。
  */
 @Serializable
 data class LockConfig(
@@ -415,6 +451,7 @@ data class LockConfig(
     val iterations: Int = PinHasher.DEFAULT_ITERATIONS,
     val enabled: Boolean = false,
     val autoLock: Boolean = true,
+    val emergencyResetEnabled: Boolean = true,
     val failedAttempts: Int = 0,
     val lockoutUntilMillis: Long = 0L,
 )
@@ -551,7 +588,20 @@ data class WereadDeskConfig(
     val hiddenIds: List<String> = emptyList(),
     /** 阅读指纹字号，取值见 [FP_FONT_OPTIONS]。 */
     val fpFontPx: Int = FP_FONT_DEFAULT,
+    /** 阅读指纹选书，按勾选顺序保存，最多 50 本。 */
+    val fpBookIds: List<String> = emptyList(),
+    /** 区分尚未迁移与用户明确清空。 */
+    val fpBooksConfigured: Boolean = false,
 ) {
+    /** 排除空标识与重复项，保留用户选择顺序。 */
+    val effectiveFpBookIds: List<String>
+        get() =
+            fpBookIds
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .take(FP_BOOK_LIMIT)
+
     /** 校验后的分区顺序：丢弃未知标识并去重，为空时回退默认顺序。 */
     val effectiveOrder: List<String>
         get() {
@@ -602,6 +652,9 @@ data class WereadDeskConfig(
 
         /** 阅读指纹默认字号。 */
         const val FP_FONT_DEFAULT: Int = 18
+
+        /** 原版指纹选书上限。 */
+        const val FP_BOOK_LIMIT: Int = 50
     }
 
     /** 校验后的指纹字号：不在档位内时回退默认值。 */
@@ -643,7 +696,7 @@ data class IntegrationsConfig(
     val wereadMenu: WereadMenuConfig = WereadMenuConfig(),
     /** 微读墨记墨台的分区顺序与开关，负一屏三项与桌面整体卡片共用。 */
     val wereadDesk: WereadDeskConfig = WereadDeskConfig(),
-    /** 微读数据来源，imported 表示经微读墨记导入，synced 表示双向同步，local 表示自行取数。 */
+    /** 微信读书数据来源：synced 通过官方接口更新，local 仅使用本机缓存。 */
     val wereadSource: String = WEREAD_SOURCE_DEFAULT,
 ) {
     /** 校验微信读书刷新间隔，非法值按默认六十分钟处理。 */
@@ -658,7 +711,7 @@ data class IntegrationsConfig(
             wereadStatsRange.takeIf { it in WEREAD_STATS_OPTIONS }
                 ?: WEREAD_STATS_DEFAULT
 
-    /** 校验微读数据来源，非法值按导入来源处理。 */
+    /** 旧 imported 与未知来源统一使用官方同步，保留已有缓存。 */
     val effectiveWereadSource: String
         get() =
             wereadSource.takeIf { it in WEREAD_SOURCE_OPTIONS }
@@ -677,11 +730,11 @@ data class IntegrationsConfig(
         /** 微信读书统计范围可选值，依次为月、年与全部。 */
         val WEREAD_STATS_OPTIONS: List<String> = listOf("month", "year", "overall")
 
-        /** 微读数据来源默认值，与微读墨记共存时经导入获得。 */
-        const val WEREAD_SOURCE_DEFAULT: String = "imported"
+        /** 默认通过官方接口同步。 */
+        const val WEREAD_SOURCE_DEFAULT: String = "synced"
 
-        /** 微读数据来源可选值，依次为导入、双向同步与十雨自行取数。 */
-        val WEREAD_SOURCE_OPTIONS: List<String> = listOf("imported", "synced", "local")
+        /** 数据来源可选值：官方同步与仅本地缓存。 */
+        val WEREAD_SOURCE_OPTIONS: List<String> = listOf("synced", "local")
     }
 }
 

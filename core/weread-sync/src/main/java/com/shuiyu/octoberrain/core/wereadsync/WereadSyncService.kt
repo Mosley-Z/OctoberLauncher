@@ -1,18 +1,13 @@
 package com.shuiyu.octoberrain.core.wereadsync
 
 import com.shuiyu.octoberrain.core.common.InkLog
+import com.shuiyu.octoberrain.core.data.WereadDataGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.time.DayOfWeek
 import java.time.Instant
@@ -27,6 +22,9 @@ import java.time.temporal.TemporalAdjusters
  * 这样解析规则改动不会牵动存储格式，存储格式可用纯单元测试覆盖。
  */
 interface WereadSyncProvider {
+    /** 本轮分项请求失败说明，不含请求凭据。 */
+    fun warnings(): List<String> = emptyList()
+
     /** 拉取书架，失败返回空值。 */
     suspend fun shelf(): List<WereadShelfBook>?
 
@@ -65,6 +63,9 @@ interface WereadSyncProvider {
 data class WereadNoteBatch(
     val indexJson: String,
     val notes: List<WereadNoteFile>,
+    val complete: Boolean = true,
+    val remainingBooks: Int = 0,
+    val updatedFiles: Int = notes.size,
 )
 
 /**
@@ -76,7 +77,7 @@ data class WereadNoteBatch(
  * @param statCount 写入的统计周期数量
  * @param assetCount 写入的资产书目数量
  * @param billCount 写入的账单期数
- * @param noteCount 写入的笔记篇数
+ * @param noteCount 本轮更新的划线或想法文件数，缓存命中不计入
  */
 data class WereadSyncReport(
     val success: Boolean,
@@ -91,8 +92,8 @@ data class WereadSyncReport(
 /**
  * 把提供者的数据编排为内核可读的数据目录，并记录同步状态。
  *
- * 同步顺序固定为书架、统计、账单、资产、笔记：书架最先写入，界面在后续步骤完成前
- * 就能显示书目；每一步失败都不阻断后续步骤，最终以报告形式汇总。
+ * 先读取书架与统计，再补逐书资产并合并到书架，最后同步笔记。
+ * 每一步失败保留已有数据，最终以报告形式汇总。
  *
  * @param store 数据目录写入器
  * @param provider 数据提供者
@@ -117,7 +118,14 @@ class WereadSyncService(
         mutex.withLock {
             // 同步包含网络请求与多次整档写入，调用方可能在主线程协程中等待；
             // 统一切到 IO 调度器，避免周期数量增多后阻塞界面。
-            withContext(Dispatchers.IO) { runSync(bases) }
+            if (!WereadDataGate.tryBeginSync()) {
+                return@withLock WereadSyncReport(false, "同步或迁移正在进行，请稍后重试")
+            }
+            try {
+                withContext(Dispatchers.IO) { runSync(bases) }
+            } finally {
+                WereadDataGate.endSync()
+            }
         }
 
     /**
@@ -134,20 +142,26 @@ class WereadSyncService(
         val started = clock()
         val shelf = provider.shelf()
         val stats = fetchStats(bases)
-        val times = longestByBook(stats)
-        val shelfCount = writeShelf(shelf, times)
+        val assets = provider.assets()
+        val shelfCount = writeShelf(enrichShelf(shelf, assets))
         val statCount = writeStats(stats)
         val billCount = writeBills(bases, stats)
-        val assetCount = writeAssets(shelf, stats)
-        val noteCount = writeNotes()
+        val assetCount = writeAssets(assets)
+        val notes = provider.notes()
+        val noteCount = writeNotes(notes)
+        val warnings = provider.warnings().toMutableList()
+        if (notes != null && !notes.complete) warnings += "笔记仍有 ${notes.remainingBooks} 本待补齐"
         val total = shelfCount + statCount + billCount + assetCount + noteCount
-        val success = total > 0
+        val success = total > 0 && warnings.isEmpty()
         // 已取到数据却没有任何一条确认落盘，说明失败在写入侧而非网络侧。
         val fetchedSomething = shelf != null || stats.isNotEmpty()
+        val warningText = warnings.joinToString("；")
         val message =
             when {
+                warnings.isNotEmpty() ->
+                    "部分同步：书架 $shelfCount 本、资产 $assetCount 本、笔记更新 $noteCount 份；$warningText"
                 success ->
-                    "同步完成：书架 $shelfCount 本、统计 $statCount 期、账单 $billCount 期、资产 $assetCount 本、笔记 $noteCount 篇"
+                    "同步完成：书架 $shelfCount 本、统计 $statCount 期、账单 $billCount 期、资产 $assetCount 本、笔记更新 $noteCount 份"
                 fetchedSomething -> "同步写入失败，已取到数据但未能存储，请检查存储空间"
                 else -> "同步未取得数据"
             }
@@ -207,72 +221,37 @@ class WereadSyncService(
     /** 周期在缓存中的键。 */
     private fun periodKey(period: WereadSyncPeriod): String = "${period.mode}:${period.baseTimeSec}"
 
-    /**
-     * 写入书架与当前书目，返回写入数量。
-     *
-     * 网关书架响应不带逐书时长，时长只在统计的阅读榜单里出现，因此先用统计
-     * 合并出时长再落盘，「本书」卡片才能显示真实的阅读时长。
-     *
-     * @param shelf 书架条目
-     * @param times 书目标识到累计秒数的映射
-     * @return 写入数量
-     */
-    private suspend fun writeShelf(
+    /** 逐本补查结束后再保存书架，确保本轮历史书进度与资产一致。 */
+    private fun enrichShelf(
         shelf: List<WereadShelfBook>?,
-        times: Map<String, Int>,
-    ): Int {
-        // 接口失败（null）时保留本地缓存；合法空列表说明远端书架已清空，需要同步清空本地。
-        val written =
-            when {
-                shelf == null -> 0
-                shelf.isEmpty() -> clearShelf()
-                else -> persistShelf(shelf, times)
+        assets: List<WereadAssetBook>?,
+    ): List<WereadShelfBook>? {
+        val byId = assets.orEmpty().associateBy { it.bookId }
+        return shelf?.map { book ->
+            val asset = byId[book.bookId]
+            if (asset == null) {
+                book
+            } else {
+                book.copy(
+                    readingSeconds = asset.readingSeconds,
+                    progress = asset.progress,
+                    finished = book.finished || asset.finished,
+                    finishTimeMillis = maxOf(book.finishTimeMillis, asset.finishTimeMillis),
+                )
             }
-        return written
+        }
     }
 
-    /** 清空本地书架与当前书目，返回写入数量。 */
-    private fun clearShelf(): Int {
-        store.writeShelf(emptyList(), clock())
-        store.writeShelfIds(emptyList())
-        store.writeCurrentBook(null)
-        return 0
-    }
-
-    /** 合并时长后落盘书架，任一步写盘失败时返回 0 并保留已写入的部分。 */
-    private fun persistShelf(
-        shelf: List<WereadShelfBook>,
-        times: Map<String, Int>,
-    ): Int {
-        val enriched =
-            shelf.map { book ->
-                book.copy(readingSeconds = times[book.bookId] ?: book.readingSeconds)
-            }
-        // 先写书架本体与标识表，两步都成功后再写当前书目，避免半套数据被下游读到。
-        val stored = store.writeShelf(enriched, clock()) && store.writeShelfIds(enriched.map { book -> book.bookId })
-        if (!stored) return 0
-        store.writeCurrentBook(currentOf(enriched, times))
-        return enriched.size
-    }
-
-    /**
-     * 选出「本书」卡片要展示的书目。
-     *
-     * 书架顺序按加入时间而非阅读时间，直接取第一本未读完的书会落到刚加进书架、
-     * 尚无阅读记录的书上。统计的阅读榜单带逐书时长，时长大于零说明确实在读，
-     * 因此在有记录且未读完的书里取时长最大的一本；都没有记录时退回第一本未读完的书。
-     *
-     * @param shelf 已合并时长的书架条目
-     * @param times 书目标识到累计秒数的映射
-     * @return 当前书目，书架为空时返回 null
-     */
-    private fun currentOf(
-        shelf: List<WereadShelfBook>,
-        times: Map<String, Int>,
-    ): WereadShelfBook? {
-        val reading = shelf.filter { book -> !book.finished && (times[book.bookId] ?: 0) > 0 }
-        return reading.maxByOrNull { book -> times[book.bookId] ?: 0 }
-            ?: shelf.firstOrNull { book -> !book.finished }
+    /** 书架失败时保留缓存；自动本书按最近阅读选取，不按累计时长猜测。 */
+    private fun writeShelf(shelf: List<WereadShelfBook>?): Int {
+        if (shelf == null) return 0
+        val stored = store.writeShelf(shelf, clock()) && store.writeShelfIds(shelf.map { it.bookId })
+        return if (stored) {
+            store.writeCurrentBook(shelf.filter { it.readUpdateTime > 0 }.maxByOrNull { it.readUpdateTime })
+            shelf.size
+        } else {
+            0
+        }
     }
 
     /** 写入各周期统计，返回确认落盘的数量。 */
@@ -310,91 +289,16 @@ class WereadSyncService(
             period.mode == WereadStore.MODE_WEEKLY || period.mode == WereadStore.MODE_MONTHLY
         }
 
-    /** 写入资产书目，返回写入数量。 */
-    private suspend fun writeAssets(
-        shelf: List<WereadShelfBook>?,
-        stats: Map<String, String>,
-    ): Int {
-        val direct = provider.assets().orEmpty()
-        val books = if (direct.isNotEmpty()) direct else shelfAssets(shelf, longestByBook(stats))
-        if (books.isEmpty()) return 0
-        return if (store.writeAssets(books)) books.size else 0
-    }
-
-    /**
-     * 在网关未提供资产视图时，用书架条目与各期榜单合成一份资产清单。
-     *
-     * 网关书架响应只有书名、作者、封面与读完标记，没有逐书时长与进度，
-     * 时长改从统计响应 `readLongest` 的 `readTime` 合并，读完时刻沿用书架记录；
-     * 进度留零，内核会按完成标记换算为一百。只保留有阅读时长的书目，
-     * 因为原版资产页按阅读时长排序，零时长的条目既排不进榜也带不出金额。
-     *
-     * @param shelf 书架条目
-     * @param longest 各期榜单中逐书时长，键为书目标识
-     * @return 资产条目，无阅读记录时返回空表
-     */
-    private fun shelfAssets(
-        shelf: List<WereadShelfBook>?,
-        longest: Map<String, Int>,
-    ): List<WereadAssetBook> =
-        shelf
-            .orEmpty()
-            .map { book ->
-                WereadAssetBook(
-                    bookId = book.bookId,
-                    title = book.title,
-                    author = book.author,
-                    readingSeconds = longest[book.bookId] ?: book.readingSeconds,
-                    priceFen = 0,
-                    paidFen = 0,
-                    progress = book.progress,
-                    finished = book.finished,
-                    finishTimeMillis = book.finishTimeMillis,
-                )
-            }.filter { asset -> asset.readingSeconds > 0 }
-
-    /**
-     * 从各期统计响应中汇总逐书阅读时长。
-     *
-     * `readLongest` 每期最多十条，元素形如 `{book:{bookId,…}, readTime:秒}`，
-     * 同一本书出现在多期时取最大值，避免重复累加。
-     *
-     * @param stats 已取到的统计响应
-     * @return 书目标识到秒数的映射
-     */
-    private fun longestByBook(stats: Map<String, String>): Map<String, Int> {
-        val result = HashMap<String, Int>()
-        stats.values.forEach { raw -> collectLongest(raw, result) }
-        return result
-    }
-
-    /** 把单份统计响应里的榜单条目合并进逐书时长表。 */
-    private fun collectLongest(
-        raw: String,
-        target: MutableMap<String, Int>,
-    ) {
-        val root = runCatching { Json.parseToJsonElement(raw).jsonObject }.getOrNull()
-        val list = root?.get("readLongest") as? JsonArray ?: return
-        list.forEach { element -> mergeLongestEntry(element, target) }
-    }
-
-    /** 合并单条榜单条目，缺失字段时跳过。 */
-    private fun mergeLongestEntry(
-        element: JsonElement,
-        target: MutableMap<String, Int>,
-    ) {
-        val item = runCatching { element.jsonObject }.getOrNull()
-        val book = item?.get("book")?.let { node -> runCatching { node.jsonObject }.getOrNull() }
-        val id = book?.get("bookId")?.jsonPrimitive?.contentOrNull
-        val seconds = item?.get("readTime")?.jsonPrimitive?.intOrNull ?: 0
-        if (id != null && seconds > 0) target.merge(id, seconds, ::maxOf)
+    /** 资产只能来自逐书累计数据，周期 Top10 不能代替累计资产。 */
+    private fun writeAssets(books: List<WereadAssetBook>?): Int {
+        if (books == null) return 0
+        return if (books.isNotEmpty() && store.writeAssets(books)) books.size else 0
     }
 
     /** 写入笔记索引与逐篇内容，返回确认落盘的数量。 */
-    private suspend fun writeNotes(): Int {
-        val batch = provider.notes()
+    private fun writeNotes(batch: WereadNoteBatch?): Int {
         // 接口无数据时保留本地缓存；有数据但写盘失败时返回 0，表示本轮未确认落盘。
-        val written = if (batch != null && store.writeNotes(batch.indexJson, batch.notes)) batch.notes.size else 0
+        val written = if (batch != null && store.writeNotes(batch.indexJson, batch.notes)) batch.updatedFiles else 0
         return written
     }
 
@@ -417,7 +321,7 @@ class WereadSyncService(
         /** 同步状态在内核键值文件中的键名。 */
         const val KEY_SYNC_STATE: String = "weread_sync_state"
 
-        /** 一周取数的耗时上限，超过后跳过剩余周期，保证一轮同步不超过一分钟。 */
+        /** 统计取数的耗时预算，超过后跳过剩余周期；不包含逐书资产与笔记补全。 */
         private const val MAX_FETCH_MILLIS: Long = 45_000L
 
         /** 默认同步覆盖的周数，含当前周。 */

@@ -4,297 +4,173 @@ import android.app.Dialog
 import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Gravity
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowManager
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.WereadDeskConfig
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
-import com.shuiyu.octoberrain.core.design.InkTokens
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.feature.content.ui.ContentUi
 
-/**
- * 阅读指纹的书目选择对话框。
- *
- * 对话框列出内核给出的候选书目，支持按书名筛选，选中后把书目编号交给调用方
- * 写入内核配置并重绘分区。候选书目由内核从原盘笔记与书架数据汇总得到，
- * 未提供候选时对话框不打开，由调用方给出提示。
- */
+/** 本地书目多选；搜索与清空只修改草稿，确认后才写回。 */
 internal object FingerprintBookDialog {
-    /**
-     * 展示书目选择对话框。
-     *
-     * @param context 界面上下文
-     * @param candidates 候选书目，每个元素按编号与书名的顺序给出
-     * @param onPick 选中回调，参数为书目编号
-     */
     fun show(
         context: Context,
         candidates: List<Array<String>>,
-        onPick: (String) -> Unit,
+        selected: List<String>,
+        onConfirm: (List<String>) -> Unit,
     ) {
-        if (candidates.isEmpty()) {
-            runCatching { AppServices.router.toast(EMPTY_MESSAGE) }
+        if (candidates.isEmpty() && selected.isEmpty()) {
+            AppServices.router.toast("暂无可选的指纹书目")
             return
         }
         val dialog = Dialog(context)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val builder = RowBuilder(context, list, dialog, onPick)
-        val search = buildSearch(context) { keyword -> builder.render(candidates, keyword) }
-        dialog.setContentView(buildContent(context, search, list) { dialog.dismiss() })
-        builder.render(candidates, "")
-        dialog.window?.apply {
-            setLayout(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-        }
-        dialog.show()
-    }
-
-    /**
-     * 构建对话框内容视图。
-     *
-     * @param context 视图上下文
-     * @param search 搜索框
-     * @param list 候选行容器
-     * @param onClose 关闭动作
-     * @return 内容视图
-     */
-    private fun buildContent(
-        context: Context,
-        search: EditText,
-        list: LinearLayout,
-        onClose: () -> Unit,
-    ): LinearLayout {
-        val tokens = DesignRuntime.tokens
         val root =
             LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(InkColors.PAPER)
-                setPadding(0, tokens.gap, 0, tokens.pageBottom)
+                val tokens = DesignRuntime.tokens
+                setPadding(tokens.pageGutter, tokens.gap, tokens.pageGutter, tokens.pageBottom)
             }
-        root.addView(buildTitleBar(context, tokens, onClose))
-        val searchParams =
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-        searchParams.leftMargin = tokens.pageGutter
-        searchParams.rightMargin = tokens.pageGutter
-        root.addView(search, searchParams)
-        val scroll =
-            ScrollView(context).apply {
-                isFillViewport = true
-                addView(
-                    list,
-                    ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ),
-                )
-            }
-        root.addView(
-            scroll,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f,
-            ),
-        )
-        return root
-    }
-
-    /**
-     * 构建标题行。
-     *
-     * @param context 视图上下文
-     * @param tokens 当前设计令牌
-     * @param onClose 关闭动作
-     * @return 标题行视图
-     */
-    private fun buildTitleBar(
-        context: Context,
-        tokens: InkTokens,
-        onClose: () -> Unit,
-    ): LinearLayout {
-        val bar =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = tokens.topBarHeight
-                setPadding(tokens.pageGutter, 0, tokens.pageGutter, 0)
-            }
-        bar.addView(
-            InkWidgets.heading(context, TITLE).apply {
-                layoutParams =
-                    LinearLayout.LayoutParams(
-                        0,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        1f,
-                    )
-            },
-        )
-        bar.addView(ContentUi.actionText(context, CLOSE) { onClose() })
-        return bar
-    }
-
-    /**
-     * 构建搜索框。
-     *
-     * @param context 视图上下文
-     * @param onChange 关键词变化回调
-     * @return 搜索框
-     */
-    private fun buildSearch(
-        context: Context,
-        onChange: (String) -> Unit,
-    ): EditText {
-        val tokens = DesignRuntime.tokens
+        root.addView(InkWidgets.heading(context, "选择指纹书目"))
         val search =
             EditText(context).apply {
-                hint = SEARCH_HINT
+                hint = "搜索书名"
                 setSingleLine(true)
                 setTextColor(InkColors.INK)
                 setHintTextColor(InkColors.INK_3)
-                setPadding(tokens.gap, 0, tokens.gap, 0)
-                minimumHeight = tokens.listRowHeight
             }
+        root.addView(search)
+        val info = InkWidgets.caption(context, "")
+        root.addView(info)
+        val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(
+            ScrollView(context).apply { addView(list) },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f),
+        )
+        val bar = LinearLayout(context)
+        val selection = Selection(selected)
+        val confirm =
+            ContentUi.actionText(context, "确定") {
+                onConfirm(selection.ids.toList())
+                dialog.dismiss()
+            }
+        val renderer = Rows(context, candidates, list, info, confirm, selection)
+        bar.addView(
+            ContentUi.actionText(context, "清空") {
+                selection.ids.clear()
+                renderer.render(search.text.toString())
+            },
+        )
+        bar.addView(ContentUi.actionText(context, "取消") { dialog.dismiss() })
+        bar.addView(confirm)
+        root.addView(bar)
+        watchSearch(search, renderer)
+        dialog.setContentView(root)
+        renderer.render("")
+        dialog.show()
+        dialog.window?.apply {
+            setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+    }
+
+    private fun watchSearch(
+        search: EditText,
+        renderer: Rows,
+    ) {
         search.addTextChangedListener(
             object : TextWatcher {
                 override fun beforeTextChanged(
-                    text: CharSequence?,
+                    s: CharSequence?,
                     start: Int,
                     count: Int,
                     after: Int,
                 ) = Unit
 
                 override fun onTextChanged(
-                    text: CharSequence?,
+                    s: CharSequence?,
                     start: Int,
                     before: Int,
                     count: Int,
                 ) = Unit
 
-                override fun afterTextChanged(editable: Editable?) {
-                    onChange(editable?.toString().orEmpty())
+                override fun afterTextChanged(s: Editable?) {
+                    renderer.render(s?.toString().orEmpty())
                 }
             },
         )
-        return search
     }
 
-    /**
-     * 候选书目行的构建器。
-     *
-     * 按筛选关键词重建行列表，点击行时关闭对话框并回传书目编号。
-     *
-     * @param context 视图上下文
-     * @param container 行容器
-     * @param dialog 所属对话框，用于选中后关闭
-     * @param onPick 选中回调
-     */
-    private class RowBuilder(
-        private val context: Context,
-        private val container: LinearLayout,
-        private val dialog: Dialog,
-        private val onPick: (String) -> Unit,
+    private class Selection(
+        selected: List<String>,
     ) {
-        /**
-         * 按关键词筛选并重绘候选行。
-         *
-         * @param candidates 全部候选书目
-         * @param keyword 筛选关键词，为空时展示全部
-         */
-        fun render(
-            candidates: List<Array<String>>,
-            keyword: String,
-        ) {
-            container.removeAllViews()
-            val tokens = DesignRuntime.tokens
-            val matched =
-                candidates.filter { entry ->
-                    keyword.isBlank() || titleOf(entry).contains(keyword, ignoreCase = true)
-                }
-            if (matched.isEmpty()) {
-                container.addView(
-                    InkWidgets.caption(context, NO_MATCH).apply {
-                        setPadding(tokens.pageGutter, tokens.gap, tokens.pageGutter, tokens.gap)
-                    },
-                )
-                return
-            }
-            matched.forEach { entry ->
-                container.addView(buildRow(entry, tokens))
-            }
-        }
-
-        /**
-         * 构建单个候选行。
-         *
-         * @param entry 候选书目，元素按编号与书名的顺序给出
-         * @param tokens 当前设计令牌
-         * @return 可点击的行视图
-         */
-        private fun buildRow(
-            entry: Array<String>,
-            tokens: InkTokens,
-        ): LinearLayout {
-            val row =
-                LinearLayout(context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    minimumHeight = tokens.listRowHeight
-                    setPadding(tokens.pageGutter, tokens.gap, tokens.pageGutter, tokens.gap)
-                    isClickable = true
-                    isFocusable = true
-                    setOnClickListener {
-                        onPick(idOf(entry))
-                        dialog.dismiss()
-                    }
-                }
-            row.addView(InkWidgets.body(context, titleOf(entry)))
-            if (entry.size > 1) {
-                row.addView(InkWidgets.caption(context, idOf(entry)))
-            }
-            row.addView(InkWidgets.divider(context))
-            return row
-        }
-
-        /**
-         * 读取候选书目的编号。
-         *
-         * @param entry 候选书目
-         * @return 书目编号，缺失时返回空串
-         */
-        private fun idOf(entry: Array<String>): String = entry.firstOrNull().orEmpty()
-
-        /**
-         * 读取候选书目的书名。
-         *
-         * @param entry 候选书目
-         * @return 书名，缺失时回退为编号
-         */
-        private fun titleOf(entry: Array<String>): String =
-            entry.getOrNull(1)?.takeIf { it.isNotBlank() } ?: idOf(entry)
+        val ids = LinkedHashSet(WereadDeskConfig(fpBookIds = selected).effectiveFpBookIds)
     }
 
-    /** 对话框标题。 */
-    private const val TITLE: String = "选择指纹书目"
+    /** 限制单次构建的行数，并如实显示总数、匹配数和可见数。 */
+    private class Rows(
+        private val context: Context,
+        private val candidates: List<Array<String>>,
+        private val list: LinearLayout,
+        private val info: TextView,
+        private val confirm: TextView,
+        private val selection: Selection,
+    ) {
+        private var countText = ""
 
-    /** 关闭按钮文案。 */
-    private const val CLOSE: String = "关闭"
+        fun render(keyword: String) {
+            list.removeAllViews()
+            val matched =
+                candidates.filter {
+                    title(it).contains(keyword.trim(), ignoreCase = true)
+                }
+            countText = "共 ${candidates.size} 本，匹配 ${matched.size} 本，显示 ${matched.take(ROW_LIMIT).size} 本"
+            if (matched.size > ROW_LIMIT) countText += "（上限 300，请搜索缩小范围）"
+            matched.take(ROW_LIMIT).forEach { entry ->
+                val id = entry.firstOrNull().orEmpty()
+                if (id.isNotBlank()) list.addView(checkBox(id, title(entry)))
+            }
+            if (matched.isEmpty()) list.addView(InkWidgets.caption(context, "没有匹配的书目"))
+            updateCount()
+        }
 
-    /** 搜索框提示文案。 */
-    private const val SEARCH_HINT: String = "搜索书名"
+        private fun checkBox(
+            id: String,
+            title: String,
+        ): CheckBox =
+            CheckBox(context).apply {
+                text = title
+                setTextColor(InkColors.INK)
+                minimumHeight = DesignRuntime.tokens.listRowHeight
+                isChecked = id in selection.ids
+                setOnCheckedChangeListener { button, checked ->
+                    if (checked && selection.ids.size >= WereadDeskConfig.FP_BOOK_LIMIT) {
+                        button.isChecked = false
+                        AppServices.router.toast("最多选择 50 本书")
+                    } else {
+                        if (checked) selection.ids.add(id) else selection.ids.remove(id)
+                    }
+                    updateCount()
+                }
+            }
 
-    /** 无匹配书目时的提示文案。 */
-    private const val NO_MATCH: String = "没有匹配的书目"
+        private fun updateCount() {
+            info.text = "$countText；已选 ${selection.ids.size} 本"
+            confirm.text = "确定（${selection.ids.size}）"
+        }
 
-    /** 候选书目为空时的提示文案。 */
-    private const val EMPTY_MESSAGE: String = "暂无可选的指纹书目"
+        private fun title(entry: Array<String>): String =
+            entry.getOrNull(1)?.takeIf { it.isNotBlank() } ?: entry.firstOrNull().orEmpty()
+    }
+
+    private const val ROW_LIMIT = 300
 }

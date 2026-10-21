@@ -679,8 +679,16 @@ interface LockGate {
     /** 清除 PIN 并关闭锁屏。 */
     fun clearPin()
 
-    /** 创建锁屏覆盖视图，未启用锁屏返回 null。 */
-    fun createOverlay(context: Context): View?
+    /**
+     * 创建锁屏覆盖视图，未启用锁屏返回 null。
+     *
+     * @param context 视图上下文
+     * @param onEmergencyReset 长按删除键满十秒后的应急清除请求，由宿主弹出确认框并执行清除
+     */
+    fun createOverlay(
+        context: Context,
+        onEmergencyReset: () -> Unit = {},
+    ): View?
 
     /** 执行一次屏幕关闭后的上锁决策。 */
     fun onScreenOff()
