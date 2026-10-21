@@ -71,9 +71,10 @@ internal class WereadBoardPainter {
         canvas: Canvas,
         scene: WereadBoardScene,
         frame: WereadBoardFrame,
+        scale: Float,
     ): WereadBoardChrome {
         canvas.drawColor(InkColors.PAPER)
-        scene.slots.forEach { drawCover(canvas, scene, frame, it) }
+        scene.slots.forEach { drawCover(canvas, scene, frame, it, scale) }
         drawClock(canvas, scene, frame)
         drawNote(canvas, scene, frame)
         drawTitle(canvas, scene, frame)
@@ -95,6 +96,7 @@ internal class WereadBoardPainter {
         scene: WereadBoardScene,
         frame: WereadBoardFrame,
         slot: WereadCoverSlot,
+        scale: Float,
     ) {
         val book = scene.books.getOrNull(slot.index) ?: return
         val bounds = coverBoundsOf(frame, slot).takeIf { it.width > 0f && it.height > 0f } ?: return
@@ -116,7 +118,30 @@ internal class WereadBoardPainter {
                 bounds.centerY + height / 2f,
             )
             canvas.drawBitmap(bitmap, null, rect, bitmapPaint)
+            drawCoverBorder(canvas, scale)
         }
+    }
+
+    /**
+     * 在封面矩形内缘描一圈细边框。
+     *
+     * 描边宽度按组件缩放取不小于 1 像素的值，落在封面矩形内侧，不影响位图裁切。
+     *
+     * @param canvas 目标画布
+     * @param scale 组件缩放倍数
+     */
+    private fun drawCoverBorder(
+        canvas: Canvas,
+        scale: Float,
+    ) {
+        val stroke = maxOf(MIN_BORDER_STROKE, scale)
+        val inset = stroke / 2f
+        rect.set(rect.left + inset, rect.top + inset, rect.right - inset, rect.bottom - inset)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = stroke
+        paint.color = InkColors.INK_2
+        canvas.drawRect(rect, paint)
+        paint.style = Paint.Style.FILL
     }
 
     /**
@@ -370,5 +395,8 @@ internal class WereadBoardPainter {
 
         /** 信息文字与按钮之间的间距比例。 */
         const val INFO_BUTTON_GAP_RATIO: Float = 1.20f
+
+        /** 封面边框的最小描边宽度。 */
+        const val MIN_BORDER_STROKE: Float = 1f
     }
 }

@@ -20,6 +20,12 @@ object ImageSizing {
     /** RGB_565 的每像素字节数，用于估算解码所需的堆空间。 */
     const val BYTES_PER_PIXEL = 2
 
+    /** ARGB_8888 的每像素字节数，壁纸解码使用该配置。 */
+    const val ARGB_BYTES_PER_PIXEL = 4
+
+    /** 按堆预算继续降采样时允许的倍增次数，超过后按无法解码处理。 */
+    private const val BUDGET_SAMPLE_STEPS = 8
+
     /** 图标缓存管线的像素总量上限，与既有 `BitmapPipe` 语义保持一致。 */
     const val ICON_MAX_PIXELS = 4_000_000
 
@@ -104,6 +110,35 @@ object ImageSizing {
         val w = (width / safeSample).coerceAtLeast(1).toLong()
         val h = (height / safeSample).coerceAtLeast(1).toLong()
         return w * h
+    }
+
+    /**
+     * 按可用堆预算调整采样倍率。
+     *
+     * 在调用方已确定的采样倍率上继续倍增，直到 ARGB 位图与旋转产生的中间位图合计不超过可用堆；
+     * 倍增次数超过 [BUDGET_SAMPLE_STEPS] 仍不满足时返回 null，由调用方按解码失败处理。
+     *
+     * @param width 原图宽
+     * @param height 原图高
+     * @param sample 调用方已确定的采样倍率
+     * @param availableBytes 当前可用堆字节数
+     * @return 满足预算的采样倍率；预算不足时返回 null
+     */
+    fun sampleWithinBudget(
+        width: Int,
+        height: Int,
+        sample: Int,
+        availableBytes: Long,
+    ): Int? {
+        if (!hasPositiveSize(width, height) || availableBytes <= 0L) return null
+        val budgetPixels = availableBytes / (ARGB_BYTES_PER_PIXEL * 2)
+        var current = sample.coerceAtLeast(1)
+        var steps = 0
+        while (steps < BUDGET_SAMPLE_STEPS && sampledPixels(width, height, current) > budgetPixels) {
+            current *= 2
+            steps += 1
+        }
+        return if (sampledPixels(width, height, current) <= budgetPixels) current else null
     }
 
     /**

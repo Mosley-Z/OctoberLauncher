@@ -43,8 +43,12 @@ class KernelShelfSortTest {
     @Test
     fun loaderShelfWinsOverNetworkCache() {
         val loader = snapshot("p4-book")
-        val network = snapshot("stale-one", "stale-two")
-        val chosen = preferredShelf(loader, null, network)
+        val chosen =
+            preferredShelf(
+                { loader },
+                { error("加载器已有数据时不应读取原盘") },
+                { error("加载器已有数据时不应读取网络缓存") },
+            )
         assertSame(loader, chosen)
         assertEquals(listOf("p4-book"), chosen?.books?.map { it.bookId })
     }
@@ -53,8 +57,33 @@ class KernelShelfSortTest {
     @Test
     fun emptyCandidatesFallThroughToNetwork() {
         val network = snapshot("stale-one")
-        val chosen = preferredShelf(snapshot(), null, network)
+        val chosen =
+            preferredShelf(
+                { snapshot() },
+                { null },
+                { network },
+            )
         assertSame(network, chosen)
+    }
+
+    /** 命中有效书架后，后续来源不再被求值。 */
+    @Test
+    fun laterProvidersAreNotEvaluated() {
+        var calls = 0
+        val chosen =
+            preferredShelf(
+                { snapshot("first") },
+                {
+                    calls += 1
+                    null
+                },
+                {
+                    calls += 1
+                    null
+                },
+            )
+        assertEquals(0, calls)
+        assertEquals("first", chosen?.books?.first()?.bookId)
     }
 
     /** 时间新的排在前面，缺失时间的书排在最后。 */

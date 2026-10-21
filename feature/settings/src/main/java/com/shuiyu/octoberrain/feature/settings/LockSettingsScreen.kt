@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.design.InkDialogs
@@ -80,7 +81,7 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
     /**
      * 在后台线程计算 PIN 摘要并写入，完成后回到主线程提示并刷新页面。
      *
-     * 摘要使用十万级迭代的 PBKDF2，放在主线程执行会阻塞输入派发并可能触发无响应。
+     * 摘要使用 PBKDF2 迭代，放在主线程执行会阻塞输入派发并可能触发无响应。
      *
      * @param pin 四位数字 PIN
      * @param context 用于提示的上下文
@@ -91,8 +92,14 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
     ) {
         Thread(
             {
+                val enteredAt = System.nanoTime()
+                InkLog.d("LockTiming", "TEMP savePin thread-enter")
                 val saved = runCatching { AppServices.lock.setPin(pin) }.isSuccess
+                val setPinMs = (System.nanoTime() - enteredAt) / 1_000_000L
+                InkLog.d("LockTiming", "TEMP savePin setPin=${setPinMs}ms")
                 mainHandler.post {
+                    val mainMs = (System.nanoTime() - enteredAt) / 1_000_000L
+                    InkLog.d("LockTiming", "TEMP savePin main-callback=${mainMs}ms")
                     if (saved) {
                         updateLock { it.copy(enabled = true) }
                         SettingsUi.toast(context, "PIN 已设置")

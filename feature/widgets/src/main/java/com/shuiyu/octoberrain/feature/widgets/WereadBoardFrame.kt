@@ -316,8 +316,8 @@ internal data class WereadBoardFrame(
         /** 笔记行高相对字号的倍数。 */
         private const val NOTE_LINE_RATIO: Float = 1.55f
 
-        /** 常规尺寸下的笔记行数。 */
-        private const val NOTE_LINES: Int = 3
+        /** 笔记正文最多占用的行数，字号不随文本长度变化。 */
+        private const val NOTE_LINES: Int = 2
 
         /** 紧凑尺寸下的笔记行数。 */
         private const val COMPACT_NOTE_LINES: Int = 2

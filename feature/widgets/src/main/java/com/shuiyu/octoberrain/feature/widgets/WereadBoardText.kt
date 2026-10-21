@@ -23,12 +23,30 @@ internal fun clipNoteLines(
     maxLines: Int,
 ): List<String> {
     val wrapped = InkDraw.wrap(text, paint, maxWidth, maxLines + 1)
-    return when {
+    return limitNoteLines(wrapped, maxLines) { line -> InkDraw.ellipsize("$line$NOTE_ELLIPSIS", paint, maxWidth) }
+}
+
+/**
+ * 把折行结果限制在指定行数内。
+ *
+ * 行数未超限时原样返回；超限时只保留前若干行，并把末行交给调用方追加省略号，
+ * 由此控制笔记占用的高度，字号不随文本长度变化。
+ *
+ * @param wrapped 已折行的文本
+ * @param maxLines 最多保留的行数
+ * @param ellipsize 末行处理函数，负责在行尾追加省略号并按宽度截断
+ * @return 行数受限的文本行
+ */
+internal inline fun limitNoteLines(
+    wrapped: List<String>,
+    maxLines: Int,
+    ellipsize: (String) -> String,
+): List<String> =
+    when {
         wrapped.size <= maxLines -> wrapped
         wrapped.isEmpty() -> wrapped
         else ->
             wrapped.take(maxLines).toMutableList().also { kept ->
-                kept[kept.lastIndex] = InkDraw.ellipsize("${kept.last()}$NOTE_ELLIPSIS", paint, maxWidth)
+                kept[kept.lastIndex] = ellipsize(kept.last())
             }
     }
-}

@@ -2,6 +2,7 @@ package com.shuiyu.octoberrain.core.render
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -101,5 +102,27 @@ class ImageSizingTest {
         val bytes = pixels * ImageSizing.BYTES_PER_PIXEL
         assertTrue(ImageSizing.fitsHeap(1000, 1000, 1, bytes * 2))
         assertFalse(ImageSizing.fitsHeap(1000, 1000, 1, bytes * 2 - 1))
+    }
+
+    @Test
+    fun `超大宽高按堆预算继续降采样`() {
+        val budget = 32L * 1024L * 1024L
+        val sample = checkNotNull(ImageSizing.sampleWithinBudget(12_000, 9_000, 4, budget))
+
+        assertEquals(8, sample)
+        val bytes = ImageSizing.sampledPixels(12_000, 9_000, sample) * ImageSizing.ARGB_BYTES_PER_PIXEL * 2
+        assertTrue(bytes <= budget)
+    }
+
+    @Test
+    fun `预算充足时保持既有采样倍率`() {
+        val budget = 128L * 1024L * 1024L
+        assertEquals(4, ImageSizing.sampleWithinBudget(12_000, 9_000, 4, budget))
+    }
+
+    @Test
+    fun `预算不足或尺寸无效时返回空`() {
+        assertNull(ImageSizing.sampleWithinBudget(12_000, 9_000, 1, 1L))
+        assertNull(ImageSizing.sampleWithinBudget(0, 9_000, 1, 64L * 1024L * 1024L))
     }
 }

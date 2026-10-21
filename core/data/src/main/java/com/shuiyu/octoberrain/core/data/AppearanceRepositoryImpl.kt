@@ -328,6 +328,7 @@ class AppearanceRepositoryImpl(
      *
      * 参数 quantize 为量化档位；档位非 0 时对目标尺寸位图抖动。
      * 解码与抖动均在调用方所在的 IO 线程执行，函数本身不切换线程。
+     * 采样倍率按当前可用堆继续下调，预算不足时返回 null，由调用方回退到默认纸色。
      */
     private fun decodeWallpaper(
         path: String,
@@ -336,9 +337,22 @@ class AppearanceRepositoryImpl(
         quantize: Int,
     ): Bitmap? {
         val size = ImageDecoder.sizeIgnoringLimit(path)
-        val sample = size?.let { ImageSizing.requestSample(it[0], it[1], width, height) }
+        val baseSample = size?.let { ImageSizing.requestSample(it[0], it[1], width, height) }
+        val sample =
+            size?.let { bounds ->
+                baseSample?.let {
+                    ImageSizing.sampleWithinBudget(bounds[0], bounds[1], it, availableHeapBytes())
+                }
+            }
         val decoded = sample?.let { ImageDecoder.decodeWithSample(path, it, keepAlpha = true) }
         return decoded?.let { renderWallpaper(it, width, height, quantize) }
+    }
+
+    /** 当前进程可用堆字节数，用于解码前的预算判断。 */
+    private fun availableHeapBytes(): Long {
+        val runtime = Runtime.getRuntime()
+        val used = runtime.totalMemory() - runtime.freeMemory()
+        return runtime.maxMemory() - used
     }
 
     /** 把解码结果按中心裁剪绘制到目标尺寸并执行量化。 */

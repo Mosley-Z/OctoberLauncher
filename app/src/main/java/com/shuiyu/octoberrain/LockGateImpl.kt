@@ -5,10 +5,13 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import com.shuiyu.octoberrain.core.common.ConfigStore
+import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.common.LockGate
+import com.shuiyu.octoberrain.core.common.LockGeneration
 import com.shuiyu.octoberrain.core.common.PinHasher
 import com.shuiyu.octoberrain.core.common.PinLockPolicy
+import com.shuiyu.octoberrain.core.common.PinMigration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +50,12 @@ class LockGateImpl(
     /** 主线程回调器，校验结果回到主线程更新界面。 */
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /** 解锁代次，校验期间熄屏、重新锁定或改密时用于作废旧结果。 */
+    private val generation = LockGeneration()
+
+    /** 校验成功后的摘要迁移与失败记录写回。 */
+    private val pinMigration = PinMigration(config)
+
     override val isLocked: Boolean
         get() = _state.value
 
@@ -57,33 +66,82 @@ class LockGateImpl(
     override fun lock() {
         val lockConfig = config.state.value.lock
         if (lockConfig.enabled && hasPin()) {
+            generation.bump()
             _state.value = true
             observer?.invoke(true)
         }
     }
 
-    override fun unlock(pin: String): Boolean {
-        if (!hasPin()) return true
+    override fun unlock(pin: String): Boolean = verifyPin(pin) == LockVerifyResult.PASSED
+
+    /**
+     * 校验 PIN 并提交结果。
+     *
+     * 校验开始前记录解锁代次，校验返回后仅当代次未变时写入失败次数或解除锁定；
+     * 代次已变说明期间发生了熄屏、重新锁定或改密，本次结果作废，界面不再提示错误。
+     *
+     * @param pin 待校验的四位密码
+     * @return 校验通过、密码错误或结果作废
+     */
+    private fun verifyPin(pin: String): LockVerifyResult {
         val lockConfig = config.state.value.lock
-        val salt = lockConfig.salt ?: return false
-        val stored = lockConfig.pinHash ?: return false
+        val salt = lockConfig.salt
+        val stored = lockConfig.pinHash
         val now = System.currentTimeMillis()
-        if (PinLockPolicy.remainingLockoutSeconds(lockConfig.lockoutUntilMillis, now) > 0L) {
-            return false
-        }
-        val ok = runCatching { PinHasher.verify(pin, salt, stored) }.getOrDefault(false)
-        if (ok) {
-            applySuccess(pin, salt, lockConfig)
+        return if (!hasPin()) {
+            LockVerifyResult.PASSED
+        } else if (salt == null ||
+            stored == null ||
+            PinLockPolicy.remainingLockoutSeconds(lockConfig.lockoutUntilMillis, now) > 0L
+        ) {
+            LockVerifyResult.FAILED
         } else {
-            applyFailure(lockConfig, now)
+            val mark = generation.current()
+            // 临时测量：PBKDF2 耗时与轮数，用于判断解锁时延的分布。
+            val verifyStartedAt = System.nanoTime()
+            val ok = runCatching { PinHasher.verify(pin, salt, stored) }.getOrDefault(false)
+            val verifyMs = (System.nanoTime() - verifyStartedAt) / 1_000_000L
+            InkLog.d("LockTiming", "TEMP unlock verify=${verifyMs}ms rounds=${PinHasher.iterationsOf(stored)}")
+            val committed =
+                generation.commitIfCurrent(mark) {
+                    if (ok) {
+                        applySuccess(pin, salt, lockConfig)
+                    } else {
+                        val attempts = lockConfig.failedAttempts + 1
+                        val backoff = PinLockPolicy.backoffMillis(attempts)
+                        val until = if (backoff > 0L) now + backoff else lockConfig.lockoutUntilMillis
+                        config.edit { current ->
+                            current.copy(
+                                lock =
+                                    current.lock.copy(
+                                        failedAttempts = attempts,
+                                        lockoutUntilMillis = until,
+                                    ),
+                            )
+                        }
+                    }
+                }
+            when {
+                !committed -> {
+                    InkLog.d("LockTiming", "TEMP unlock stale mark=$mark")
+                    LockVerifyResult.CANCELLED
+                }
+                ok -> LockVerifyResult.PASSED
+                else -> LockVerifyResult.FAILED
+            }
         }
-        return ok
     }
 
     override fun setPin(pin: String) {
+        generation.bump()
         val salt = PinHasher.newSalt()
         val iterations = PinHasher.effectiveIterations(config.state.value.lock.iterations)
+        // 临时测量：摘要计算与配置写入的耗时。
+        val hashStartedAt = System.nanoTime()
         val hash = PinHasher.hash(pin, salt, iterations)
+        val hashMs = (System.nanoTime() - hashStartedAt) / 1_000_000L
+        InkLog.d("LockTiming", "TEMP setPin hash=${hashMs}ms rounds=$iterations")
+        val editStartedAt = System.nanoTime()
         config.edit { current ->
             current.copy(
                 lock =
@@ -97,10 +155,14 @@ class LockGateImpl(
                     ),
             )
         }
+        val editMs = (System.nanoTime() - editStartedAt) / 1_000_000L
+        InkLog.d("LockTiming", "TEMP setPin edit=${editMs}ms")
         _state.value = false
+        generation.bump()
     }
 
     override fun clearPin() {
+        generation.bump()
         config.edit { current ->
             current.copy(
                 lock =
@@ -129,11 +191,17 @@ class LockGateImpl(
                 // PBKDF2 迭代耗时在低端设备上可达数秒，必须在后台线程执行，
                 // 校验结果回到主线程再驱动界面状态。
                 verifyScope.launch {
-                    val passed = runCatching { unlock(pin) }.getOrDefault(false)
-                    mainHandler.post { onResult(passed) }
+                    val enteredAt = System.nanoTime()
+                    InkLog.d("LockTiming", "TEMP unlock coroutine-enter")
+                    val result = runCatching { verifyPin(pin) }.getOrDefault(LockVerifyResult.FAILED)
+                    mainHandler.post {
+                        val mainMs = (System.nanoTime() - enteredAt) / 1_000_000L
+                        InkLog.d("LockTiming", "TEMP unlock main-callback=${mainMs}ms")
+                        onResult(result)
+                    }
                 }
             },
-            onUnlocked = {},
+            onUnlocked = { InkLog.d("LockTiming", "TEMP unlock onUnlocked") },
             remainingAttempts = {
                 PinLockPolicy.remainingAttempts(config.state.value.lock.failedAttempts)
             },
@@ -152,7 +220,10 @@ class LockGateImpl(
 
     override fun onScreenOff() {
         val lockConfig = config.state.value.lock
-        if (lockConfig.enabled && lockConfig.autoLock) lock()
+        if (lockConfig.enabled && lockConfig.autoLock) {
+            generation.bump()
+            lock()
+        }
     }
 
     /** 安装锁状态监听，界面用来切换覆盖层。 */
@@ -161,7 +232,7 @@ class LockGateImpl(
     }
 
     /**
-     * 校验成功后的状态处理：清空失败记录，必要时把旧摘要升级为新格式。
+     * 校验成功后的状态处理：迁移摘要、清空失败记录并解除锁定。
      *
      * @param pin 本次校验通过的 PIN
      * @param salt 当前盐串
@@ -173,44 +244,13 @@ class LockGateImpl(
         lockConfig: LockConfig,
     ) {
         val target = PinHasher.effectiveIterations(lockConfig.iterations)
-        val upgrade = PinHasher.needsUpgrade(lockConfig.pinHash.orEmpty(), target)
-        val upgradedHash = if (upgrade) PinHasher.hash(pin, salt, target) else null
-        config.edit { current ->
-            current.copy(
-                lock =
-                    current.lock.copy(
-                        pinHash = upgradedHash ?: current.lock.pinHash,
-                        iterations = target,
-                        failedAttempts = 0,
-                        lockoutUntilMillis = 0L,
-                    ),
-            )
-        }
+        // 临时测量：摘要迁移与配置写入的耗时。
+        val commitStartedAt = System.nanoTime()
+        pinMigration.onVerified(pin, salt, lockConfig.pinHash.orEmpty(), target)
+        val commitMs = (System.nanoTime() - commitStartedAt) / 1_000_000L
+        InkLog.d("LockTiming", "TEMP unlock commit=${commitMs}ms target=$target")
+        generation.bump()
         _state.value = false
         observer?.invoke(false)
-    }
-
-    /**
-     * 校验失败后的状态处理：累加失败次数，达到阈值时写入退避截止时间。
-     *
-     * @param lockConfig 校验开始时的锁屏配置
-     * @param now 本次校验的毫秒时间戳
-     */
-    private fun applyFailure(
-        lockConfig: LockConfig,
-        now: Long,
-    ) {
-        val attempts = lockConfig.failedAttempts + 1
-        val backoff = PinLockPolicy.backoffMillis(attempts)
-        val until = if (backoff > 0L) now + backoff else lockConfig.lockoutUntilMillis
-        config.edit { current ->
-            current.copy(
-                lock =
-                    current.lock.copy(
-                        failedAttempts = attempts,
-                        lockoutUntilMillis = until,
-                    ),
-            )
-        }
     }
 }

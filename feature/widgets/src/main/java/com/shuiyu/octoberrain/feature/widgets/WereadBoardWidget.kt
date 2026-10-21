@@ -357,7 +357,7 @@ class WereadBoardWidget(
                         date = dateText(),
                         cover = { bookId -> covers.bitmap(bookId) },
                     )
-                val current = painter.draw(canvas, scene, layout)
+                val current = painter.draw(canvas, scene, layout, boardScaleOf(width))
                 chrome = current
                 drawRefreshMark(canvas, layout, current)
             }
@@ -645,17 +645,47 @@ class WereadBoardWidget(
      */
     private fun refreshBoard(): Boolean {
         val active = ensureKernel() ?: return false
+        reloadLocal(active)
+        if (form != WereadBoardForm.TODO) {
+            val mode = refreshModeOf(form)
+            AppServices.wereadSync?.refresh(WereadRefreshRequest(mode, bookId = kernelBookId())) { _, _ ->
+                handler.post { onRemoteRefresh(active) }
+            }
+        }
+        return true
+    }
+
+    /**
+     * 重建内核状态并重读本地缓存，同时在右下角显示刷新标记。
+     *
+     * @param active 已绑定的内核实例
+     */
+    private fun reloadLocal(active: WereadBoardKernel) {
         active.refreshData()
         refreshMarkVisible = true
         handler.removeCallbacks(refreshMarkTask)
         handler.postDelayed(refreshMarkTask, REFRESH_MARK_MS)
         reload(force = true)
         requestDraw()
-        AppServices.wereadSync?.refresh(WereadRefreshRequest(REFRESH_MODE_BOOK, bookId = kernelBookId())) { _, _ ->
-            handler.post { onRemoteRefresh(active) }
-        }
-        return true
     }
+
+    /**
+     * 把当前形态映射为远端刷新模式。
+     *
+     * 与「更新于」点击使用同一组模式值：本周、本月、本书、本记分别对应
+     * 周、月、本书与笔记刷新，待办只读本地数据，由调用方提前返回。
+     *
+     * @param form 当前形态
+     * @return 刷新模式
+     */
+    private fun refreshModeOf(form: WereadBoardForm): String =
+        when (form) {
+            WereadBoardForm.WEEK -> REFRESH_MODE_WEEKLY
+            WereadBoardForm.MONTH -> REFRESH_MODE_MONTHLY
+            WereadBoardForm.BOOK -> REFRESH_MODE_BOOK
+            WereadBoardForm.NOTE -> REFRESH_MODE_NOTE
+            WereadBoardForm.TODO -> REFRESH_MODE_TODO
+        }
 
     /**
      * 远端刷新结束后重建内核并重读本地缓存。
@@ -905,8 +935,20 @@ class WereadBoardWidget(
 
     /** 本组件的固定常量。 */
     companion object {
-        /** 远端刷新使用的模式，按书目拉取。 */
+        /** 本周形态的刷新模式。 */
+        const val REFRESH_MODE_WEEKLY: String = "weekly"
+
+        /** 本月形态的刷新模式。 */
+        const val REFRESH_MODE_MONTHLY: String = "monthly"
+
+        /** 本书形态的刷新模式。 */
         const val REFRESH_MODE_BOOK: String = "book"
+
+        /** 本记形态的刷新模式。 */
+        const val REFRESH_MODE_NOTE: String = "note"
+
+        /** 待办形态只读本地，保留模式值用于分支判定。 */
+        const val REFRESH_MODE_TODO: String = "todo"
 
         /** 笔记读取线程名称。 */
         const val NOTE_THREAD_NAME: String = "weread-board-note"

@@ -47,12 +47,12 @@ class PinHasherTest {
     }
 
     @Test
-    fun `历史十二万轮摘要仍可校验且不触发重算`() {
+    fun `历史十二万轮摘要可校验并判定需要迁移`() {
         val hash = PinHasher.hash("1124", salt, LEGACY_ROUNDS)
         assertEquals(LEGACY_ROUNDS, PinHasher.iterationsOf(hash))
         assertTrue(PinHasher.verify("1124", salt, hash))
         assertFalse(PinHasher.verify("1125", salt, hash))
-        assertFalse(PinHasher.needsUpgrade(hash, PinHasher.DEFAULT_ITERATIONS))
+        assertTrue(PinHasher.needsUpgrade(hash, PinHasher.DEFAULT_ITERATIONS))
     }
 
     @Test

@@ -107,7 +107,12 @@ internal class KernelDataSourceImpl(
      *
      * @return 书架快照，无数据时为空
      */
-    private fun rawShelf(): ShelfSnapshot? = preferredShelf(loaderShelf(), disk()?.shelf(), networkShelf())
+    private fun rawShelf(): ShelfSnapshot? =
+        preferredShelf(
+            { loaderShelf() },
+            { disk()?.shelf() },
+            { networkShelf() },
+        )
 
     /**
      * 读取内核加载器给出的书架。
@@ -572,13 +577,18 @@ internal fun recentFirstShelf(
 }
 
 /**
- * 按优先级选取第一个非空书架快照。
+ * 按优先级逐级读取书架快照，命中即停止。
  *
  * 调用顺序即优先级：内核加载器、原盘数据、网络缓存。空列表视为无数据，
- * 继续尝试下一项。
+ * 继续调用下一来源；后面的来源在前一来源给出有效书架时不会被求值。
  *
- * @param snapshots 候选书架快照，按优先级从高到低排列
+ * @param providers 按优先级排列的读取函数
  * @return 第一个含书目的快照，全部为空时为空
  */
-internal fun preferredShelf(vararg snapshots: ShelfSnapshot?): ShelfSnapshot? =
-    snapshots.firstOrNull { snapshot -> snapshot != null && snapshot.books.isNotEmpty() }
+internal fun preferredShelf(vararg providers: () -> ShelfSnapshot?): ShelfSnapshot? {
+    for (provider in providers) {
+        val snapshot = provider()
+        if (snapshot != null && snapshot.books.isNotEmpty()) return snapshot
+    }
+    return null
+}

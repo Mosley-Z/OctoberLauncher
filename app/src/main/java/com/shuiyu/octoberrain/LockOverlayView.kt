@@ -12,6 +12,23 @@ import com.shuiyu.octoberrain.core.design.InkColors
 import kotlin.math.sin
 
 /**
+ * 校验结果三态：通过、密码错误、已作废。
+ *
+ * 已作废表示校验期间发生了熄屏、重新锁定或改密，本次输入的结果不再具备提交条件，
+ * 界面回到等待输入状态且不提示错误。
+ */
+enum class LockVerifyResult {
+    /** 校验通过。 */
+    PASSED,
+
+    /** 密码错误。 */
+    FAILED,
+
+    /** 校验期间锁状态变化，结果作废。 */
+    CANCELLED,
+}
+
+/**
  * 锁屏覆盖视图：自绘四位数字键盘，样式与微读墨记锁屏对齐。
  *
  * 面板按屏幕高度等比布局：标题基线位于 0.20 高度，四位圆点位于 0.32 高度，
@@ -19,7 +36,8 @@ import kotlin.math.sin
  * 按键为白底黑描边的圆形，删除键位于右下角，输入满四位立即提交。
  *
  * PIN 校验由 [verify] 在后台线程执行并在完成后回调主线程，避免 PBKDF2 迭代阻塞
- * 输入事件派发；校验期间忽略按键，失败后清空输入并播放抖动动画。
+ * 输入事件派发；校验期间忽略按键，失败后清空输入并播放抖动动画，结果作废时
+ * 清空输入直接回到等待输入状态。
  *
  * 应急清除：按住删除键满十秒期间仅在删除键外圈绘制进度圆弧，达到阈值后通过
  * [onEmergencyReset] 请求宿主弹出确认框，确认框与清除逻辑均由宿主实现。
@@ -28,7 +46,7 @@ import kotlin.math.sin
  */
 class LockOverlayView(
     context: Context,
-    private val verify: (String, (Boolean) -> Unit) -> Unit,
+    private val verify: (String, (LockVerifyResult) -> Unit) -> Unit,
     private val onUnlocked: () -> Unit,
     private val remainingAttempts: () -> Int = { 0 },
     private val lockoutSeconds: () -> Long = { 0L },
@@ -169,34 +187,43 @@ class LockOverlayView(
     }
 
     /**
-     * 提交四位密码校验：校验期间锁定按键，完成后按结果解锁或抖动提示。
+     * 提交四位密码校验：校验期间锁定按键，完成后按结果解锁、抖动提示或静默复位。
      *
-     * 校验通过后隐藏自身并通过 [onUnlocked] 通知宿主；校验失败时保留四位圆点的
-     * 实心状态播放抖动，抖动结束由 [shakeTicker] 清空输入。
+     * 校验通过后隐藏自身并通过 [onUnlocked] 通知宿主；密码错误时保留四位圆点的
+     * 实心状态播放抖动，抖动结束由 [shakeTicker] 清空输入；结果作废时清空输入与
+     * 校验提示，不播放抖动，回到等待输入状态。
      */
     private fun submit() {
         if (verifying || digits.length != PIN_LENGTH) return
         verifying = true
         message = "校验中…"
         invalidate()
-        verify(digits.toString()) { passed ->
+        verify(digits.toString()) { result ->
             verifying = false
-            if (passed) {
-                digits.setLength(0)
-                message = ""
-                invalidate()
-                visibility = GONE
-                onUnlocked()
-            } else {
-                val lockout = lockoutSeconds()
-                val remaining = remainingAttempts()
-                message =
-                    when {
-                        lockout > 0L -> "尝试次数过多，$lockout 秒后重试"
-                        remaining in 1..2 -> "密码错误，剩余 $remaining 次"
-                        else -> "密码错误，请重试"
-                    }
-                startShake()
+            when (result) {
+                LockVerifyResult.PASSED -> {
+                    digits.setLength(0)
+                    message = ""
+                    invalidate()
+                    visibility = GONE
+                    onUnlocked()
+                }
+                LockVerifyResult.FAILED -> {
+                    val lockout = lockoutSeconds()
+                    val remaining = remainingAttempts()
+                    message =
+                        when {
+                            lockout > 0L -> "尝试次数过多，$lockout 秒后重试"
+                            remaining in 1..2 -> "密码错误，剩余 $remaining 次"
+                            else -> "密码错误，请重试"
+                        }
+                    startShake()
+                }
+                LockVerifyResult.CANCELLED -> {
+                    digits.setLength(0)
+                    message = ""
+                    invalidate()
+                }
             }
         }
     }

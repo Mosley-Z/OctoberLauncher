@@ -125,19 +125,19 @@ object PinHasher {
     /**
      * 判断摘要是否需要按目标轮数重算。
      *
-     * 旧格式摘要与登记轮数低于目标值的摘要需要重算；登记轮数不低于目标值时保持原摘要，
-     * 避免把历史高轮数摘要重算为更高轮数而增加校验耗时。
+     * 旧格式摘要与登记轮数不等于目标轮数的摘要都需要重算，包括高于目标值的历史默认轮数，
+     * 使校验耗时回到当前默认值；轮数一致时保持原摘要，避免无谓的重复派生。
      *
      * @param stored 已保存的摘要串
      * @param targetIterations 目标轮数
-     * @return 旧格式或登记轮数低于目标值时返回 true
+     * @return 旧格式或登记轮数与目标值不同时返回 true
      */
     fun needsUpgrade(
         stored: String,
         targetIterations: Int,
     ): Boolean {
         val current = iterationsOf(stored)
-        return current == null || current < effectiveIterations(targetIterations)
+        return current == null || current != effectiveIterations(targetIterations)
     }
 
     /**

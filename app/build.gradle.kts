@@ -20,9 +20,9 @@ android {
             libs.versions.targetSdk
                 .get()
                 .toInt()
-        // 1.0.26：书架与轮播按最近在读排序、轮播底部文字按钮放大、负一屏设置页排版调整。
-        versionCode = 46
-        versionName = "1.0.26"
+        // 1.0.27：轮播笔记限两行、封面细边框、刷新按形态映射，并修复校验代次、旧摘要迁移与壁纸解码预算。
+        versionCode = 47
+        versionName = "1.0.27"
     }
 
     buildTypes {
