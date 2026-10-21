@@ -1,8 +1,18 @@
 # 当前状态与接力
 
-更新时间：2026-10-22 01:32；维护者：1.0.26 发布集成者。此处只代表本轮结束时的检查范围。
+更新时间：2026-10-22 01:56；维护者：1.0.27 发布集成者。此处只代表本轮结束时的检查范围。
 
-## 1.0.26 状态（本轮发布）
+## 1.0.27 状态（本轮发布）
+
+- 本轮完成：轮播笔记限两行、封面细边框、刷新按形态映射、书架数据源惰性回退；修复校验代次作废（静默）、旧摘要迁移、壁纸解码堆预算。
+- 实测：十二万轮 `verify` 约 10.9–12.1 秒，两万轮约 1.8–1.9 秒，`commit` 与主线程回调各在 20 毫秒级；熄屏打断时 `stale mark=` 命中、覆盖层无红字。
+- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；debug 4,937,235 字节、release 1,211,641 字节。
+- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.27`（17829 文件，摘要 `9b79fd75379fe1445cf2df96035b25cd43bf5afbe9eb6b9fc333fb6122e5ea4b`）；验收记录 `_analysis/verify/1.0.27-team-r6.md`。
+- Git：`325c6b2 feat: 1.0.27 轮播笔记限两行、封面细边框与刷新按形态，修复审计问题` 已推送 `origin master`。
+- 待办：`LockGateImpl` 与 `LockSettingsScreen` 的 `LockTiming` 临时日志待删；统计页（微信读书「统计」）与阅读月历的组件跳转待用户确认删除范围；本轮所选书无划线笔记，笔记两行只由单测覆盖。
+- 设备：P4 写回 `_analysis/device/accept-1.0.27/p4-mig-base.xml`（摘要与盐一致、失败计数 0、壁纸回原路径）；S4 保留用户 PIN 1124（20000 轮）。
+
+## 1.0.26 状态
 
 - 已完成三项诉求并双机验收：负一屏书架与桌面书籍轮播统一按最近在读排序（`assets.json` 的 `readUpdateTime`）、本书形态默认定位最近在读首本、轮播底部信息行放大 1.1 倍、负一屏设置页重排。
 - 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；产物 debug 5,121,077 字节、release 1,210,349 字节。
