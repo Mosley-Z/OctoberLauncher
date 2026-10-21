@@ -1,8 +1,18 @@
 # 当前状态与接力
 
-更新时间：2026-10-22 00:47；维护者：1.0.25 发布集成者。此处只代表本轮结束时的检查范围。
+更新时间：2026-10-22 01:32；维护者：1.0.26 发布集成者。此处只代表本轮结束时的检查范围。
 
-## 1.0.25 状态（本轮发布）
+## 1.0.26 状态（本轮发布）
+
+- 已完成三项诉求并双机验收：负一屏书架与桌面书籍轮播统一按最近在读排序（`assets.json` 的 `readUpdateTime`）、本书形态默认定位最近在读首本、轮播底部信息行放大 1.1 倍、负一屏设置页重排。
+- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；产物 debug 5,121,077 字节、release 1,210,349 字节。
+- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.26`（17781 文件，摘要 `7df63a11360f110192bb49f4521a2ae8c90e8da2ead139ef2357636090c7d4e5`）；验收记录 `_analysis/verify/1.0.26-team-r5.md`。
+- Git：`5690ed4 feat: 1.0.26 书架按最近在读排序、轮播底部放大与负一屏设置排版` 已推送 `origin master`；推送需经 `http://127.0.0.1:7890` 代理，凭据由 `gh auth setup-git` 提供。
+- 设备：P4 写回 `_analysis/device/accept-1.0.26/p4-restore.xml`（失败计数 0、摘要与盐一致）；S4 保留用户 PIN 1124（20000 轮）与既有配置，未改锁屏与模块设置。
+- 遗留：轮播侧层「看理想」为公众号条目无封面，按占位框绘制；`Models.kt` 与 `LockSettingsScreen` 两处 KDoc 仍写「十万级迭代」；`scripts/snapshot.ps1` 在无 `pwsh` 的环境需 UTF-8 BOM 副本并显式传 `-Root`。
+- 本轮交接：[2026-10-22-1.0.26-release.md](sessions/2026-10-22-1.0.26-release.md)。
+
+## 1.0.25 状态
 
 - 已完成四条诉求并双机验收：桌面卡片五形态（本书＝轮播，其余沿用旧样式）、初始化页删除卡片总开关、锁屏 PBKDF2 默认降到 20000 轮并给壁纸页面内提示、负一屏书架十本与 1–5 行调节。
 - 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；产物 debug 5,109,420 字节、release 1,209,001 字节。
