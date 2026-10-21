@@ -14,7 +14,6 @@ import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.WEREAD_BOARD_WIDGET_ID
 import com.shuiyu.octoberrain.core.common.WereadAppearance
 import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
-import com.shuiyu.octoberrain.core.common.WereadSection
 import com.shuiyu.octoberrain.core.common.effectiveWereadBoardPoolMask
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.widget.WidgetHitRegion
@@ -484,17 +483,6 @@ class WereadBoardWidget(
                     zone.action,
                 )
         }
-        if (form == WereadBoardForm.WEEK || form == WereadBoardForm.MONTH) {
-            val headerBottom = (BOARD_HEADER_H * scale).roundToInt()
-            regions +=
-                WidgetHitRegion(
-                    0,
-                    headerBottom,
-                    widthPx.coerceAtLeast(1),
-                    (heightPx - headerBottom).coerceAtLeast(1),
-                    ACTION_CARD_OPEN,
-                )
-        }
         return regions
     }
 
@@ -632,7 +620,6 @@ class WereadBoardWidget(
             action == ACTION_NOTE_EXPAND -> toggleNoteExpanded()
             action == ACTION_NOTE_FILTER -> navigate(Destination.Note)
             action.startsWith(ACTION_TODO_PREFIX) -> toggleTodo(action.removePrefix(ACTION_TODO_PREFIX))
-            action == ACTION_CARD_OPEN -> openBody()
             else -> false
         }
 
@@ -846,18 +833,6 @@ class WereadBoardWidget(
         requestDraw()
         return true
     }
-
-    /**
-     * 打开本周与本月形态的正文页面。
-     *
-     * @return 是否完成跳转
-     */
-    private fun openBody(): Boolean =
-        when (form) {
-            WereadBoardForm.WEEK -> navigate(Destination.WereadTab(WereadSection.STATS))
-            WereadBoardForm.MONTH -> navigate(Destination.WereadCalendar)
-            else -> false
-        }
 
     /**
      * 跳转目标页，未装配路由时返回失败。

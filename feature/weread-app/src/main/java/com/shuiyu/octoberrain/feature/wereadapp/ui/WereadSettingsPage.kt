@@ -26,9 +26,9 @@ import com.shuiyu.octoberrain.feature.wereadapp.WereadAppSettings
 import com.shuiyu.octoberrain.feature.wereadapp.ui.qr.KeyQrPanel
 
 /**
- * 页面内设置页，按微读原版分为初始化与自定义两个页签。
+ * 页面内设置页，按微读原版分为初始化、自定义与锁屏密码三个页签。
  *
- * 两个页签常显在顶部，切换后只重建当前页内容；每页纵向滚动，表单改动写入
+ * 三个页签常显在顶部，切换后只重建当前页内容；每页纵向滚动，表单改动写入
  * `kernel_prefs` 对应键，内核与桌面卡片按同一份偏好读取，改动即写即生效。
  *
  * @param context 创建视图的上下文
@@ -75,6 +75,12 @@ internal class WereadSettingsPage(
             addView(content)
         }
 
+    /** 锁屏密码页宿主，切到该页签时显示，避免与外层滚动容器嵌套。 */
+    private val lockHost = FrameLayout(context)
+
+    /** 锁屏密码页，首次切换到该页签时创建。 */
+    private var lockPage: WereadLockPage? = null
+
     /** API Key 输入框，保存与测试时读取。 */
     private var apiKeyInput: EditText? = null
 
@@ -91,6 +97,11 @@ internal class WereadSettingsPage(
             scroller,
             LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f),
         )
+        addView(
+            lockHost,
+            LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f),
+        )
+        lockHost.visibility = GONE
         render()
     }
 
@@ -101,6 +112,12 @@ internal class WereadSettingsPage(
 
     /** 重建当前页签内容。 */
     private fun render() {
+        if (selectedTab == TAB_LOCK) {
+            showLockPage()
+            return
+        }
+        scroller.visibility = VISIBLE
+        lockHost.visibility = GONE
         content.removeAllViews()
         scroller.scrollTo(0, 0)
         apiKeyInput = null
@@ -110,6 +127,21 @@ internal class WereadSettingsPage(
             TAB_CUSTOM -> buildCustomPage(settings)
             else -> buildInitPage()
         }
+    }
+
+    /** 显示锁屏密码页，首次进入时创建并加入宿主。 */
+    private fun showLockPage() {
+        scroller.visibility = GONE
+        lockHost.visibility = VISIBLE
+        if (lockPage == null) {
+            val created = WereadLockPage(context)
+            lockPage = created
+            lockHost.addView(
+                created,
+                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
+            )
+        }
+        lockPage?.refresh()
     }
 
     /** 初始化页，按密钥、帮助与更新依次排列。 */
@@ -503,7 +535,7 @@ internal class WereadSettingsPage(
             context,
             "使用说明",
             "阅读页展示整卡统计；本记形态可切换筛选、选书与导出；" +
-                "设置页修改立即生效，实验室提供锁屏与续航优化。",
+                "设置页修改立即生效；锁屏密码页可设置四位 PIN 与锁屏背景。",
             confirmLabel = "知道了",
             onConfirm = {},
         )
@@ -758,8 +790,11 @@ internal class WereadSettingsPage(
         /** 自定义页签下标。 */
         const val TAB_CUSTOM: Int = 1
 
-        /** 两个页签的文案，顺序与下标一致。 */
-        val TAB_LABELS: List<String> = listOf("初始化", "自定义")
+        /** 锁屏密码页签下标。 */
+        const val TAB_LOCK: Int = 2
+
+        /** 三个页签的文案，顺序与下标一致。 */
+        val TAB_LABELS: List<String> = listOf("初始化", "自定义", "锁屏密码")
 
         /** 成就目标档位文字。 */
         val KIND_LABELS: List<String> = listOf("关", "完美", "狂暴", "自定义")

@@ -164,11 +164,6 @@ class BookshelfScreen : ContentScreen("书架") {
                 navigate(Destination.WereadTab(WereadSection.NOTES))
             },
         )
-        row.addView(
-            ContentUi.actionText(context, "统计") {
-                navigate(Destination.WereadTab(WereadSection.STATS))
-            },
-        )
         row.addView(ContentUi.actionText(context, "刷新") { reloadShelf() })
         row.addView(
             ContentUi.actionText(context, "书架设置") {

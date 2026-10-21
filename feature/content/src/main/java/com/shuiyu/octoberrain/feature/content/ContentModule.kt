@@ -14,7 +14,6 @@ import com.shuiyu.octoberrain.feature.content.ui.KoreaderScreen
 import com.shuiyu.octoberrain.feature.content.ui.NoteScreen
 import com.shuiyu.octoberrain.feature.content.ui.SearchScreen
 import com.shuiyu.octoberrain.feature.content.ui.TodoScreen
-import com.shuiyu.octoberrain.feature.content.ui.WereadCalendarScreen
 import com.shuiyu.octoberrain.feature.content.ui.WereadScreen
 import com.shuiyu.octoberrain.feature.content.ui.negative.DeskNegativeModule
 
@@ -51,7 +50,6 @@ class ContentModule : LauncherModule {
                 Destination.Todo -> TodoScreen()
                 Destination.Weread -> WereadScreen()
                 is Destination.WereadTab -> WereadScreen(destination.section)
-                Destination.WereadCalendar -> WereadCalendarScreen()
                 Destination.Koreader -> KoreaderScreen()
                 Destination.Search -> SearchScreen()
                 // 最近任务与使用统计页面位于 feature/content 根包，与提供者同包

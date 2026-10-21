@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.design.InkDialogs
@@ -92,14 +91,8 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
     ) {
         Thread(
             {
-                val enteredAt = System.nanoTime()
-                InkLog.d("LockTiming", "TEMP savePin thread-enter")
                 val saved = runCatching { AppServices.lock.setPin(pin) }.isSuccess
-                val setPinMs = (System.nanoTime() - enteredAt) / 1_000_000L
-                InkLog.d("LockTiming", "TEMP savePin setPin=${setPinMs}ms")
                 mainHandler.post {
-                    val mainMs = (System.nanoTime() - enteredAt) / 1_000_000L
-                    InkLog.d("LockTiming", "TEMP savePin main-callback=${mainMs}ms")
                     if (saved) {
                         updateLock { it.copy(enabled = true) }
                         SettingsUi.toast(context, "PIN 已设置")

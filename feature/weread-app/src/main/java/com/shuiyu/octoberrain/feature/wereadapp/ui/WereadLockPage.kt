@@ -3,33 +3,50 @@ package com.shuiyu.octoberrain.feature.wereadapp.ui
 import android.content.Context
 import android.net.Uri
 import android.text.InputType
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.data.AppearanceRepositoryImpl
 import com.shuiyu.octoberrain.core.data.LockWallpaperResult
+import com.shuiyu.octoberrain.core.design.DesignRuntime
+import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * 锁屏密码段。
+ * 锁屏密码页。
  *
- * 直接使用启动器唯一的锁屏服务与壁纸仓库，与「锁屏与安全」共享状态。
- * 不读写实验室旧 lock_* 偏好，避免覆盖用户已经设置的宿主密码。
+ * 直接使用启动器唯一的锁屏服务与壁纸仓库，与十雨桌面「锁屏与安全」共享同一份配置。
+ * 开关与状态行直接读取 AppServices.config.state 的 lock 节，配置变化时自动重绘。
+ * 不读写旧 lock_* 偏好，避免覆盖用户已经设置的宿主密码。
  *
  * @param context 创建视图的上下文
  */
 @Suppress("TooManyFunctions")
-internal class WereadLabLockPage(
+internal class WereadLockPage(
     context: Context,
-) : LabPageView(context) {
+) : LockPageView(context) {
     private var scope: CoroutineScope? = null
+
+    /** 最近一次渲染使用的锁屏配置，用于识别外部改动并触发重绘。 */
+    private var observedLock: LockConfig? = null
 
     /** 本次操作是否刚更新过背景，仅用于状态行标记，不写入配置。 */
     private var backgroundUpdated = false
@@ -39,8 +56,18 @@ internal class WereadLabLockPage(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        val observing = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        scope = observing
+        observedLock = AppServices.config.state.value.lock
         refresh()
+        observing.launch {
+            AppServices.config.state.collect { config ->
+                if (config.lock != observedLock) {
+                    observedLock = config.lock
+                    refresh()
+                }
+            }
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -59,23 +86,29 @@ internal class WereadLabLockPage(
 
     /** 简介文案。 */
     private fun addIntro() {
-        content.addView(labBody(context, "与十雨桌面的「锁屏与安全」共用同一把锁。启用后，按自动锁定设置在熄屏或启动时显示四位 PIN 解锁界面。"))
-        content.addView(labSpacer(context, 0.5f))
-        content.addView(labCaption(context, "忘记密码时可清除应用数据恢复，桌面与阅读数据会一并清除。"))
+        content.addView(
+            lockBody(
+                context,
+                "本页设置的是本机四位 PIN，与十雨桌面「设置-桌面偏好-锁屏与安全」共用同一份配置。" +
+                    "启用后，按自动锁定设置在熄屏或启动时显示四位 PIN 解锁界面。",
+            ),
+        )
+        content.addView(lockSpacer(context, 0.5f))
+        content.addView(lockCaption(context, "忘记密码时，在亮屏的锁屏界面长按删除键十秒即可清除 PIN，无需清除应用数据。"))
     }
 
     /** 启用锁屏复选行。 */
     private fun addEnableRow() {
         val enabled = AppServices.config.state.value.lock.enabled
-        content.addView(labSpacer(context))
+        content.addView(lockSpacer(context))
         content.addView(
-            labCheckRow(context, "启用锁屏（默认关）", enabled) { checked ->
+            lockCheckRow(context, "启用锁屏（默认关）", enabled) { checked ->
                 setLockEnabled(checked)
             },
         )
         val autoLock = AppServices.config.state.value.lock.autoLock
         content.addView(
-            labCheckRow(context, "熄屏后自动锁定", autoLock) { checked ->
+            lockCheckRow(context, "熄屏后自动锁定", autoLock) { checked ->
                 val saved =
                     runCatching {
                         AppServices.config.edit { current ->
@@ -83,23 +116,23 @@ internal class WereadLabLockPage(
                         }
                         AppServices.config.state.value.lock.autoLock == checked
                     }.getOrDefault(false)
-                if (!saved) labToast(context, "自动锁定设置保存失败")
+                if (!saved) lockToast(context, "自动锁定设置保存失败")
                 refresh()
             },
         )
         if (!autoLock) {
-            content.addView(labCaption(context, "自动锁定已关闭：熄屏与重新启动不会自动上锁，可点击下方按钮手动锁定。"))
+            content.addView(lockCaption(context, "自动锁定已关闭：熄屏与重新启动不会自动上锁，可点击下方按钮手动锁定。"))
         }
         content.addView(InkWidgets.button(context, "立即锁定") { lockNow() })
     }
 
     /** 密码分组：输入、保存与状态行。 */
     private fun addPinSection() {
-        val hasPin = AppServices.lock.hasPin()
-        content.addView(labSpacer(context, 2f))
-        content.addView(labSectionTitle(context, "锁屏密码"))
+        val hasPin = hasStoredPin()
+        content.addView(lockSpacer(context, 2f))
+        content.addView(lockSectionTitle(context, "锁屏密码"))
         val (row, field) =
-            labFieldRow(
+            lockFieldRow(
                 context,
                 "四位数字密码",
                 "",
@@ -107,25 +140,25 @@ internal class WereadLabLockPage(
                 InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
             )
         content.addView(row)
-        content.addView(labSpacer(context, 0.5f))
+        content.addView(lockSpacer(context, 0.5f))
         content.addView(
-            labButtonRow(
+            lockButtonRow(
                 context,
                 InkWidgets.button(context, "保存密码") { savePin(field.text.toString()) },
                 InkWidgets.button(context, "清除密码") { clearPin() },
             ),
         )
-        content.addView(labSpacer(context, 0.5f))
+        content.addView(lockSpacer(context, 0.5f))
         content.addView(InkWidgets.labelRow(context, "状态", if (hasPin) "已设置密码" else "未设置密码"))
     }
 
     /** 背景分组：选图、恢复默认与状态行。 */
     private fun addBackgroundSection() {
         val current = AppServices.config.state.value.appearance.lockWallpaperPath
-        content.addView(labSpacer(context, 2f))
-        content.addView(labSectionTitle(context, "锁屏背景"))
+        content.addView(lockSpacer(context, 2f))
+        content.addView(lockSectionTitle(context, "锁屏背景"))
         content.addView(
-            labButtonRow(
+            lockButtonRow(
                 context,
                 InkWidgets.button(context, "选择图片") { pickBackground() },
                 InkWidgets.button(context, "恢复默认") {
@@ -133,11 +166,11 @@ internal class WereadLabLockPage(
                 },
             ),
         )
-        content.addView(labSpacer(context, 0.5f))
+        content.addView(lockSpacer(context, 0.5f))
         content.addView(
             InkWidgets.labelRow(context, "背景状态", backgroundStatusText(current)),
         )
-        content.addView(labCaption(context, backgroundCaption()))
+        content.addView(lockCaption(context, backgroundCaption()))
     }
 
     /**
@@ -162,21 +195,38 @@ internal class WereadLabLockPage(
 
     /** 说明锁定的实际作用范围。 */
     private fun addScopeTip() {
-        content.addView(labSpacer(context, 2f))
-        content.addView(labCaption(context, "此锁只保护十雨桌面内的页面，不替代系统设备锁。自动锁定沿用「锁屏与安全」设置，无需悬浮窗权限。"))
+        content.addView(lockSpacer(context, 2f))
+        content.addView(
+            lockCaption(
+                context,
+                "此锁只保护十雨桌面内的页面，不替代系统设备锁。" +
+                    "自动锁定沿用十雨桌面「锁屏与安全」的设置，无需悬浮窗权限。",
+            ),
+        )
+    }
+
+    /**
+     * 配置中是否已保存密码摘要。
+     *
+     * 与锁屏服务使用同一份配置节，状态行与开关校验都以摘要是否存在为准，
+     * 避免旧偏好或默认值干扰判断。
+     */
+    private fun hasStoredPin(): Boolean {
+        val pinHash = AppServices.config.state.value.lock.pinHash
+        return !pinHash.isNullOrBlank()
     }
 
     /** 开启前必须已有宿主 PIN，关闭时保留密码和自动锁定设置。 */
     private fun setLockEnabled(enabled: Boolean) {
-        if (enabled && !AppServices.lock.hasPin()) {
-            labToast(context, "请先设置四位数字密码")
+        if (enabled && !hasStoredPin()) {
+            lockToast(context, "请先设置四位数字密码")
         } else {
             val saved =
                 runCatching {
                     AppServices.config.edit { current -> current.copy(lock = current.lock.copy(enabled = enabled)) }
                     AppServices.config.state.value.lock.enabled == enabled
                 }.getOrDefault(false)
-            if (!saved) labToast(context, "锁屏设置保存失败")
+            if (!saved) lockToast(context, "锁屏设置保存失败")
         }
         refresh()
     }
@@ -185,7 +235,7 @@ internal class WereadLabLockPage(
     private fun lockNow() {
         val lock = AppServices.config.state.value.lock
         if (!lock.enabled || !AppServices.lock.hasPin()) {
-            labToast(context, "请先设置密码并启用锁屏")
+            lockToast(context, "请先设置密码并启用锁屏")
         } else {
             AppServices.lock.lock()
         }
@@ -194,12 +244,12 @@ internal class WereadLabLockPage(
     /** 两次输入一致后交给宿主生成和保存密码摘要。 */
     private fun savePin(pin: String) {
         if (!PIN_PATTERN.matches(pin)) {
-            labToast(context, "请输入四位数字密码")
+            lockToast(context, "请输入四位数字密码")
             return
         }
         InkDialogs.input(context, "再次输入以确认", hint = "四位数字", numeric = true, password = true) { second ->
             if (second != pin) {
-                labToast(context, "两次输入不一致，请重新设置")
+                lockToast(context, "两次输入不一致，请重新设置")
             } else {
                 saveConfirmedPin(pin)
             }
@@ -209,7 +259,7 @@ internal class WereadLabLockPage(
     /** 使用唯一锁屏服务，摘要计算在后台执行，完成后核对配置确实更新。 */
     private fun saveConfirmedPin(pin: String) {
         val observing = scope ?: return
-        labToast(context, "正在保存密码…")
+        lockToast(context, "正在保存密码…")
         observing.launch {
             val saved =
                 withContext(Dispatchers.Default) {
@@ -220,7 +270,7 @@ internal class WereadLabLockPage(
                         lock.enabled && !lock.pinHash.isNullOrBlank() && lock.pinHash != previous
                     }.getOrDefault(false)
                 }
-            labToast(context, if (saved) "密码已保存并启用锁屏" else "密码保存失败，请重试")
+            lockToast(context, if (saved) "密码已保存并启用锁屏" else "密码保存失败，请重试")
             refresh()
         }
     }
@@ -228,7 +278,7 @@ internal class WereadLabLockPage(
     /** 确认后清除宿主密码并关闭锁屏。 */
     private fun clearPin() {
         if (!AppServices.lock.hasPin()) {
-            labToast(context, "尚未设置密码")
+            lockToast(context, "尚未设置密码")
             return
         }
         InkDialogs.confirm(context, "清除密码", "清除后十雨桌面将不再要求 PIN 解锁。", confirmLabel = "清除", onConfirm = {
@@ -237,7 +287,7 @@ internal class WereadLabLockPage(
                     AppServices.lock.clearPin()
                     !AppServices.lock.hasPin() && !AppServices.config.state.value.lock.enabled
                 }.getOrDefault(false)
-            labToast(context, if (saved) "密码已清除，锁屏已关闭" else "清除失败，请重试")
+            lockToast(context, if (saved) "密码已清除，锁屏已关闭" else "清除失败，请重试")
             refresh()
         })
     }
@@ -245,7 +295,7 @@ internal class WereadLabLockPage(
     /** 拉起系统文件选择器换取锁屏背景，仅允许图片。 */
     private fun pickBackground() {
         if (!AppServices.hasPicker()) {
-            labToast(context, "文件选择器不可用")
+            lockToast(context, "文件选择器不可用")
             return
         }
         val opened =
@@ -254,7 +304,7 @@ internal class WereadLabLockPage(
                     if (uri != null) applyBackground(uri)
                 }
             }.getOrDefault(false)
-        if (!opened) labToast(context, "文件选择器不可用")
+        if (!opened) lockToast(context, "文件选择器不可用")
     }
 
     /** 使用壁纸仓库复制所选图片，成功与失败都写入状态行，并保留提示框。 */
@@ -265,12 +315,12 @@ internal class WereadLabLockPage(
             if (result == LockWallpaperResult.APPLIED) {
                 backgroundUpdated = true
                 backgroundError = null
-                labToast(context, "锁屏背景已更新")
+                lockToast(context, "锁屏背景已更新")
                 AppServices.refresh.requestFullRefresh()
             } else {
                 backgroundUpdated = false
                 backgroundError = failureReason(result)
-                labToast(context, "锁屏背景设置失败：${failureReason(result)}")
+                lockToast(context, "锁屏背景设置失败：${failureReason(result)}")
             }
             refresh()
         }
@@ -313,7 +363,7 @@ internal class WereadLabLockPage(
                 AppServices.config.state.value.appearance.lockWallpaperPath
                     .isBlank()
             }.getOrDefault(false)
-        labToast(context, if (saved) "已恢复默认背景" else "背景恢复失败，请重试")
+        lockToast(context, if (saved) "已恢复默认背景" else "背景恢复失败，请重试")
         if (saved) {
             backgroundUpdated = false
             backgroundError = null
@@ -327,3 +377,169 @@ internal class WereadLabLockPage(
         val PIN_PATTERN: Regex = Regex("^[0-9]{4}$")
     }
 }
+
+/**
+ * 整页容器：纵向滚动，内容容器边距与其他设置页保持一致。
+ *
+ * 子类在 [render] 中组织内容；[refresh] 会清空容器后重新执行 [render]。
+ */
+internal abstract class LockPageView(
+    context: Context,
+) : FrameLayout(context) {
+    /** 内容容器。 */
+    protected val content =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(
+                DesignRuntime.tokens.pageGutter,
+                DesignRuntime.tokens.gap,
+                DesignRuntime.tokens.pageGutter,
+                DesignRuntime.tokens.pageBottom,
+            )
+        }
+
+    init {
+        addView(
+            ScrollView(context).apply {
+                isFillViewport = true
+                addView(content)
+            },
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
+        )
+    }
+
+    /** 清空并重建内容。 */
+    fun refresh() {
+        content.removeAllViews()
+        render()
+    }
+
+    /** 组织本页内容。 */
+    protected abstract fun render()
+}
+
+/** 分段标题文本，上下留少量间距。 */
+private fun lockSectionTitle(
+    context: Context,
+    text: CharSequence,
+): TextView =
+    InkWidgets.heading(context, text).apply {
+        setPadding(0, DesignRuntime.tokens.gapLarge, 0, DesignRuntime.tokens.gap)
+    }
+
+/** 说明文本。 */
+private fun lockCaption(
+    context: Context,
+    text: CharSequence,
+): TextView = InkWidgets.caption(context, text)
+
+/** 正文文本。 */
+private fun lockBody(
+    context: Context,
+    text: CharSequence,
+): TextView = InkWidgets.body(context, text)
+
+/** 纵向占位。 */
+private fun lockSpacer(
+    context: Context,
+    multiple: Float = 1f,
+): View = InkWidgets.spacer(context, (DesignRuntime.tokens.gap * multiple).toInt())
+
+/** 提示轻提示。 */
+private fun lockToast(
+    context: Context,
+    text: CharSequence,
+) {
+    InkDialogs.toast(context, text.toString())
+}
+
+/**
+ * 复选行。
+ *
+ * @param label 复选文案
+ * @param checked 初始勾选状态
+ * @param onChange 勾选状态变化回调，参数为最新状态
+ */
+private fun lockCheckRow(
+    context: Context,
+    label: CharSequence,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+): CheckBox =
+    CheckBox(context).apply {
+        text = label
+        isChecked = checked
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, DesignRuntime.tokens.textBody)
+        setTextColor(InkColors.INK)
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = DesignRuntime.tokens.listRowHeight
+        layoutParams =
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        setOnCheckedChangeListener { _, value -> onChange(value) }
+    }
+
+/**
+ * 输入行：左侧标签，右侧单行输入框。
+ *
+ * @param label 标签文案
+ * @param initial 初始文本
+ * @param hint 输入提示
+ * @param inputType 输入类型，取 android.text.InputType 常量
+ */
+private fun lockFieldRow(
+    context: Context,
+    label: CharSequence,
+    initial: CharSequence,
+    hint: CharSequence,
+    inputType: Int,
+): Pair<LinearLayout, EditText> {
+    val tokens = DesignRuntime.tokens
+    val field =
+        EditText(context).apply {
+            setText(initial)
+            this.hint = hint.toString()
+            this.inputType = inputType
+            isSingleLine = true
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, tokens.textBody)
+            setTextColor(InkColors.INK)
+            setHintTextColor(InkColors.INK_3)
+            setPadding(tokens.gap, tokens.gap, tokens.gap, tokens.gap)
+            background = InkWidgets.background(tokens.radius, InkColors.PAPER, tokens.stroke, InkColors.INK)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+    val row =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(tokens.gap, tokens.gap, tokens.gap, tokens.gap)
+            addView(
+                InkWidgets.textView(context, label, tokens.textBody, InkColors.INK).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                },
+            )
+            addView(field)
+        }
+    return row to field
+}
+
+/** 横向按钮行，按钮间留标准间距。 */
+private fun lockButtonRow(
+    context: Context,
+    vararg buttons: TextView,
+): LinearLayout =
+    LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        buttons.forEachIndexed { index, button ->
+            if (index > 0) {
+                addView(
+                    View(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(DesignRuntime.tokens.gap, 1)
+                    },
+                )
+            }
+            addView(button)
+        }
+    }

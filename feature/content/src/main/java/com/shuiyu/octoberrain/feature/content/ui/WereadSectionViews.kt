@@ -6,9 +6,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.WereadBillSnapshot
-import com.shuiyu.octoberrain.core.common.WereadFingerprintSnapshot
 import com.shuiyu.octoberrain.core.common.WereadHighlight
 import com.shuiyu.octoberrain.core.common.WereadMonth
 import com.shuiyu.octoberrain.core.common.WereadNoteSnapshot
@@ -16,8 +14,6 @@ import com.shuiyu.octoberrain.core.common.WereadNotesSnapshot
 import com.shuiyu.octoberrain.core.common.WereadRankEntry
 import com.shuiyu.octoberrain.core.common.WereadSection
 import com.shuiyu.octoberrain.core.common.WereadShelfItem
-import com.shuiyu.octoberrain.core.common.WereadStatsPeriod
-import com.shuiyu.octoberrain.core.common.WereadStatsSnapshot
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkTokens
 import com.shuiyu.octoberrain.core.design.InkWidgets
@@ -35,20 +31,15 @@ internal data class WereadOverviewData(
 /**
  * 微信读书各分段的内容绘制。
  *
- * 视图全部由 [ContentUi] 与 [InkWidgets] 组成，不读取数据、不发起请求；周期切换
- * 与月历入口通过构造参数回调给页面处理。
+ * 视图全部由 [ContentUi] 与 [InkWidgets] 组成，不读取数据、不发起请求。
  *
  * @param context 宿主上下文
  * @param tokens 设计令牌
- * @param onPeriodSelected 统计分段切换周期时的回调
- * @param onCalendar 打开月历页的回调
  */
 @Suppress("TooManyFunctions")
 internal class WereadSectionViews(
     private val context: Context,
     private val tokens: InkTokens,
-    private val onPeriodSelected: (WereadStatsPeriod) -> Unit,
-    private val onCalendar: () -> Unit,
 ) {
     private companion object {
         private const val GRID_COLUMNS = 3
@@ -64,53 +55,6 @@ internal class WereadSectionViews(
         renderMonth(container, data.month)
         renderShelf(container, data.shelf)
         renderHighlights(container, data.highlights)
-    }
-
-    /** 绘制统计：周期切换、周期汇总、分桶图与阅读指纹。 */
-    fun renderStats(
-        container: LinearLayout,
-        period: WereadStatsPeriod,
-        snapshot: WereadStatsSnapshot?,
-        fingerprint: WereadFingerprintSnapshot?,
-    ) {
-        container.addView(periodChips(period))
-        if (snapshot == null) {
-            container.addView(
-                ContentUi.emptyCard(
-                    context = context,
-                    title = "${WereadSectionLogic.periodLabel(period)}暂无统计",
-                    message = WereadSectionLogic.emptyMessage(WereadSection.STATS, period),
-                    actionLabel = "查看月历",
-                    onAction = onCalendar,
-                ),
-            )
-        } else {
-            val card = ContentUi.card(context)
-            card.addView(ContentUi.cardTitle(context, "${WereadSectionLogic.periodLabel(period)}阅读"))
-            card.addView(
-                InkWidgets.textView(
-                    context,
-                    ContentUi.formatMinutes(snapshot.totalMinutes),
-                    tokens.textHeading,
-                    InkColors.INK,
-                ),
-            )
-            card.addView(ContentUi.keyValue(context, "阅读天数", "${snapshot.readDays} 天"))
-            card.addView(ContentUi.keyValue(context, "自然日均", ContentUi.formatMinutes(snapshot.dayAverageMinutes)))
-            if (snapshot.buckets.isNotEmpty()) {
-                card.addView(barChart(snapshot.buckets.map { it.minutes }))
-            }
-            container.addView(card)
-            container.addView(
-                InkWidgets.button(context, "月历", onClick = onCalendar).apply {
-                    layoutParams =
-                        LinearLayout.LayoutParams(MATCH_PARENT, tokens.buttonHeight).apply {
-                            topMargin = tokens.gap
-                        }
-                },
-            )
-        }
-        renderFingerprint(container, fingerprint)
     }
 
     /** 绘制笔记：按书分组展示划线。 */
@@ -369,91 +313,6 @@ internal class WereadSectionViews(
             )
         }
         container.addView(card)
-    }
-
-    /** 阅读指纹：取最近 28 天绘制 7 列 4 行热力格。 */
-    private fun renderFingerprint(
-        container: LinearLayout,
-        fingerprint: WereadFingerprintSnapshot?,
-    ) {
-        if (fingerprint == null) return
-        val days = fingerprint.days.takeLast(28)
-        if (days.isEmpty()) return
-        ContentUi.sectionTitle(container, "阅读指纹")
-        val card = ContentUi.card(context)
-        card.addView(
-            InkWidgets
-                .caption(
-                    context,
-                    "累计 ${ContentUi.formatMinutes(fingerprint.totalMinutes)} · 阅读 ${fingerprint.readDays} 天 · 日均 ${
-                        ContentUi.formatMinutes(fingerprint.dayAverageMinutes)
-                    }",
-                ).apply { setPadding(0, 0, 0, tokens.gap) },
-        )
-        val peak = days.maxOrNull() ?: 0
-        for (row in 0 until 4) {
-            val line =
-                LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
-                }
-            for (column in 0 until 7) {
-                val index = row * 7 + column
-                val minutes = days.getOrElse(index) { 0 }
-                line.addView(fingerprintCell(WereadSectionLogic.heatLevel(minutes, peak)))
-            }
-            card.addView(line)
-        }
-        container.addView(card)
-    }
-
-    /** 单个指纹格，按热力等级映射四级灰。 */
-    private fun fingerprintCell(level: Int): View {
-        val side = tokens.dp(18f)
-        return View(context).apply {
-            layoutParams =
-                LinearLayout.LayoutParams(0, side, 1f).apply {
-                    marginEnd = 2
-                    bottomMargin = 2
-                }
-            setBackgroundColor(
-                when (level) {
-                    4 -> InkColors.INK
-                    3 -> InkColors.INK_2
-                    2 -> InkColors.INK_3
-                    1 -> InkColors.INK_4
-                    else -> InkColors.PAPER
-                },
-            )
-        }
-    }
-
-    /** 周期选择行，当前周期反白。 */
-    private fun periodChips(period: WereadStatsPeriod): View {
-        val row =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams =
-                    LinearLayout.LayoutParams(MATCH_PARENT, tokens.buttonHeight).apply {
-                        bottomMargin = tokens.gap
-                    }
-            }
-        WereadSectionLogic.PERIODS.forEach { option ->
-            val chip =
-                TextView(context).apply {
-                    text = WereadSectionLogic.periodLabel(option)
-                    gravity = Gravity.CENTER
-                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, tokens.textBody)
-                    setTextColor(if (option == period) InkColors.PAPER else InkColors.INK)
-                    setBackgroundColor(if (option == period) InkColors.INK else InkColors.PAPER)
-                    isClickable = true
-                    isFocusable = true
-                    layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 1f)
-                    setOnClickListener { onPeriodSelected(option) }
-                }
-            row.addView(chip)
-        }
-        return row
     }
 
     /** 逐项柱状图，横向铺满、底部对齐。 */

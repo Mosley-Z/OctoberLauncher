@@ -54,9 +54,6 @@ enum class WereadSection {
     /** 总览：本月统计、书架与最近划线。 */
     OVERVIEW,
 
-    /** 统计：周、月、年与累计周期统计及阅读指纹。 */
-    STATS,
-
     /** 笔记：按书分组的划线。 */
     NOTES,
 
@@ -484,9 +481,6 @@ sealed interface Destination {
         val section: WereadSection = WereadSection.OVERVIEW,
     ) : Destination
 
-    /** 阅读月历页：按日展示阅读时长热力图，点击日期查看当日统计。 */
-    data object WereadCalendar : Destination
-
     data object Koreader : Destination
 
     data object Search : Destination
@@ -551,7 +545,6 @@ private val destinationLabels: Map<Destination, String> =
         Destination.Bookshelf to "书架",
         Destination.BookshelfSettings to "书架设置",
         Destination.Weread to "微信读书",
-        Destination.WereadCalendar to "阅读月历",
         Destination.Koreader to "KOReader",
         Destination.Search to "搜索",
         Destination.Negative to "负一屏",

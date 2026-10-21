@@ -20,9 +20,9 @@ android {
             libs.versions.targetSdk
                 .get()
                 .toInt()
-        // 1.0.27：轮播笔记限两行、封面细边框、刷新按形态映射，并修复校验代次、旧摘要迁移与壁纸解码预算。
-        versionCode = 47
-        versionName = "1.0.27"
+        // 1.0.28：微读墨记合并为三个大标签、锁屏密码并入设置页签，并删除统计页与阅读月历。
+        versionCode = 48
+        versionName = "1.0.28"
     }
 
     buildTypes {

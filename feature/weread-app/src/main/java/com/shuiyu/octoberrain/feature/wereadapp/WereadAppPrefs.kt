@@ -15,21 +15,6 @@ internal object WereadAppPrefs {
     /** 微读数据目录名，与内核宿主保持一致。 */
     const val DATA_DIRECTORY: String = "weread"
 
-    /** 实验室页开关的偏好键。 */
-    const val KEY_LAB_ENABLED: String = "app_lab_enabled"
-
-    /** 版本号连击计数的偏好键。 */
-    const val KEY_VERSION_TAP_COUNT: String = "app_version_tap_count"
-
-    /** 上一次点击版本号的时间戳偏好键。 */
-    const val KEY_VERSION_TAP_TIME: String = "app_version_tap_time"
-
-    /** 连续点击的有效间隔，超过该间隔从零开始计数；墨水屏刷新慢，留出较长窗口。 */
-    const val VERSION_TAP_WINDOW_MS: Long = 8000L
-
-    /** 展开实验室页所需的点击次数。 */
-    const val VERSION_TAP_COUNT: Int = 5
-
     /** 纸色档位偏好键，取值 0 白、1 米、2 灰。 */
     const val KEY_PAPER_COLOR: String = "paper"
 
@@ -110,41 +95,6 @@ internal object WereadAppPrefs {
 
     /** 创建偏好存储，构造时读取磁盘内容。 */
     fun store(context: Context): KernelStore = KernelStore(dataDir(context))
-
-    /** 判断实验室页是否已展开。 */
-    fun labEnabled(context: Context): Boolean = store(context).getBool(KEY_LAB_ENABLED, false)
-
-    /** 写入实验室页开关。 */
-    fun setLabEnabled(
-        context: Context,
-        enabled: Boolean,
-    ) {
-        store(context)
-            .apply {
-                putBool(KEY_LAB_ENABLED, enabled)
-                flush()
-            }
-    }
-
-    /**
-     * 记录一次版本号点击并返回累计次数。
-     *
-     * 参数 nowMillis 为本次点击时间；与上次点击间隔超过 [VERSION_TAP_WINDOW_MS] 时从 1 重新计数。
-     * 累计次数达到 [VERSION_TAP_COUNT] 时清零，供调用方切换实验室页开关。
-     */
-    fun recordVersionTap(
-        context: Context,
-        nowMillis: Long,
-    ): Int {
-        val store = store(context)
-        val last = store.getLong(KEY_VERSION_TAP_TIME, 0L)
-        val previous = store.getInt(KEY_VERSION_TAP_COUNT, 0)
-        val count = if (nowMillis - last > VERSION_TAP_WINDOW_MS) 1 else previous + 1
-        store.putInt(KEY_VERSION_TAP_COUNT, if (count >= VERSION_TAP_COUNT) 0 else count)
-        store.putLong(KEY_VERSION_TAP_TIME, nowMillis)
-        store.flush()
-        return count
-    }
 
     /** 读取本应用版本名，读取失败时返回空串。 */
     fun versionName(context: Context): String =

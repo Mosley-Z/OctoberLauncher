@@ -11,7 +11,6 @@ import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkWidgets
-import com.shuiyu.octoberrain.feature.wereadapp.ui.WereadLabPage
 import com.shuiyu.octoberrain.feature.wereadapp.ui.WereadReadingPage
 import com.shuiyu.octoberrain.feature.wereadapp.ui.WereadSettingsPage
 import com.shuiyu.octoberrain.feature.wereadapp.ui.WereadTodoPage
@@ -21,11 +20,8 @@ internal enum class WereadAppTab {
     /** 阅读页：内部再分本周、本月、本书、洞察四段。 */
     READING,
 
-    /** 页面内设置页：显示、卡片、成就与联动三组表单。 */
+    /** 页面内设置页：显示、卡片、锁屏密码、成就与联动等表单。 */
     SETTINGS,
-
-    /** 实验室页：锁屏与续航优化。 */
-    LAB,
 
     /** 待办页：清单增删改查。 */
     TODO,
@@ -34,8 +30,8 @@ internal enum class WereadAppTab {
 /**
  * 设置内微读墨记页面。
  *
- * 页面为全屏结构，顶部四段页签（阅读、设置、实验室、待办）常显；
- * 实验室包括锁屏与续航优化。页面状态由 [WereadAppView] 持有，退出时释放。
+ * 页面为全屏结构，顶部三段页签（阅读、设置、待办）常显；阅读页内部再分形态。
+ * 页面状态由 [WereadAppView] 持有，退出时释放。
  */
 class WereadAppScreen : Screen {
     /** 页面视图，未创建或已销毁时为空。 */
@@ -62,7 +58,7 @@ class WereadAppScreen : Screen {
 /**
  * 页面根视图。
  *
- * 纵向排列页签栏与内容容器，按实验室页开关决定页签数量；
+ * 纵向排列页签栏与内容容器，三个页签常显；
  * 各分段内容按需创建并缓存，切换时只替换内容容器的子视图。
  */
 @Suppress("TooManyFunctions")
@@ -78,7 +74,7 @@ internal class WereadAppView(
     /** 当前形态文案，显示在主导航首项。 */
     private var formLabel = "本周"
 
-    /** 当前可见的页签顺序，四段常显。 */
+    /** 当前可见的页签顺序，三段常显。 */
     private val tabs = mutableListOf<WereadAppTab>()
 
     /** 已创建的分段视图，按分段缓存。 */
@@ -106,7 +102,6 @@ internal class WereadAppView(
         when (current) {
             WereadAppTab.READING -> readingPage()?.refresh()
             WereadAppTab.SETTINGS -> settingsPage()?.refresh()
-            WereadAppTab.LAB -> labPage()?.refresh()
 
             WereadAppTab.TODO -> todoPage()?.refresh()
         }
@@ -129,18 +124,16 @@ internal class WereadAppView(
     /** 读取当前分段。 */
     fun tab(): WereadAppTab = current
 
-    /** 重建页签列表；四个页签常显，实验内容是否展开不影响页签数量。 */
+    /** 重建页签列表；三个页签常显。 */
     private fun rebuildTabs() {
         tabs.clear()
         tabs.add(WereadAppTab.READING)
         tabs.add(WereadAppTab.SETTINGS)
-        tabs.add(WereadAppTab.LAB)
         tabs.add(WereadAppTab.TODO)
         val labels =
             arrayOf(
                 "$formLabel▽",
                 "设置",
-                "实验室",
                 "待办",
             )
         tabBar.setLabels(labels)
@@ -169,7 +162,7 @@ internal class WereadAppView(
     /**
      * 切换到指定分段并刷新内容。
      *
-     * 参数 tab 为目标分段，四个分段都可直接切换。
+     * 参数 tab 为目标分段，三个分段都可直接切换。
      */
     fun showTab(tab: WereadAppTab) {
         if (tab !in tabs) return
@@ -202,8 +195,6 @@ internal class WereadAppView(
                             }
                         }
                 }
-
-            WereadAppTab.LAB -> WereadLabPage(context)
 
             WereadAppTab.TODO -> WereadTodoPage(context)
         }
@@ -249,9 +240,6 @@ internal class WereadAppView(
 
     /** 读取已创建设置页，未创建时返回 null。 */
     private fun settingsPage(): WereadSettingsPage? = pages[WereadAppTab.SETTINGS] as? WereadSettingsPage
-
-    /** 读取已创建实验室页，未创建时返回 null。 */
-    private fun labPage(): WereadLabPage? = pages[WereadAppTab.LAB] as? WereadLabPage
 
     /** 读取已创建待办页，未创建时返回 null。 */
     private fun todoPage(): WereadTodoPage? = pages[WereadAppTab.TODO] as? WereadTodoPage

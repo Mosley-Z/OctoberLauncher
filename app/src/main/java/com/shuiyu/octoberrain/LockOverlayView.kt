@@ -42,7 +42,7 @@ enum class LockVerifyResult {
  * 应急清除：按住删除键满十秒期间仅在删除键外圈绘制进度圆弧，达到阈值后通过
  * [onEmergencyReset] 请求宿主弹出确认框，确认框与清除逻辑均由宿主实现。
  *
- * 锁屏背景由锁屏壁纸层提供，面板不绘制选图入口；选图入口位于实验室锁屏页。
+ * 锁屏背景由锁屏壁纸层提供，面板不绘制选图入口；选图入口位于微读墨记设置页的「锁屏密码」页签。
  */
 class LockOverlayView(
     context: Context,

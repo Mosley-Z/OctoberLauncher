@@ -5,7 +5,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import com.shuiyu.octoberrain.core.common.ConfigStore
-import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.common.LockGate
 import com.shuiyu.octoberrain.core.common.LockGeneration
@@ -97,11 +96,7 @@ class LockGateImpl(
             LockVerifyResult.FAILED
         } else {
             val mark = generation.current()
-            // 临时测量：PBKDF2 耗时与轮数，用于判断解锁时延的分布。
-            val verifyStartedAt = System.nanoTime()
             val ok = runCatching { PinHasher.verify(pin, salt, stored) }.getOrDefault(false)
-            val verifyMs = (System.nanoTime() - verifyStartedAt) / 1_000_000L
-            InkLog.d("LockTiming", "TEMP unlock verify=${verifyMs}ms rounds=${PinHasher.iterationsOf(stored)}")
             val committed =
                 generation.commitIfCurrent(mark) {
                     if (ok) {
@@ -122,10 +117,7 @@ class LockGateImpl(
                     }
                 }
             when {
-                !committed -> {
-                    InkLog.d("LockTiming", "TEMP unlock stale mark=$mark")
-                    LockVerifyResult.CANCELLED
-                }
+                !committed -> LockVerifyResult.CANCELLED
                 ok -> LockVerifyResult.PASSED
                 else -> LockVerifyResult.FAILED
             }
@@ -136,12 +128,7 @@ class LockGateImpl(
         generation.bump()
         val salt = PinHasher.newSalt()
         val iterations = PinHasher.effectiveIterations(config.state.value.lock.iterations)
-        // 临时测量：摘要计算与配置写入的耗时。
-        val hashStartedAt = System.nanoTime()
         val hash = PinHasher.hash(pin, salt, iterations)
-        val hashMs = (System.nanoTime() - hashStartedAt) / 1_000_000L
-        InkLog.d("LockTiming", "TEMP setPin hash=${hashMs}ms rounds=$iterations")
-        val editStartedAt = System.nanoTime()
         config.edit { current ->
             current.copy(
                 lock =
@@ -155,8 +142,6 @@ class LockGateImpl(
                     ),
             )
         }
-        val editMs = (System.nanoTime() - editStartedAt) / 1_000_000L
-        InkLog.d("LockTiming", "TEMP setPin edit=${editMs}ms")
         _state.value = false
         generation.bump()
     }
@@ -191,17 +176,11 @@ class LockGateImpl(
                 // PBKDF2 迭代耗时在低端设备上可达数秒，必须在后台线程执行，
                 // 校验结果回到主线程再驱动界面状态。
                 verifyScope.launch {
-                    val enteredAt = System.nanoTime()
-                    InkLog.d("LockTiming", "TEMP unlock coroutine-enter")
                     val result = runCatching { verifyPin(pin) }.getOrDefault(LockVerifyResult.FAILED)
-                    mainHandler.post {
-                        val mainMs = (System.nanoTime() - enteredAt) / 1_000_000L
-                        InkLog.d("LockTiming", "TEMP unlock main-callback=${mainMs}ms")
-                        onResult(result)
-                    }
+                    mainHandler.post { onResult(result) }
                 }
             },
-            onUnlocked = { InkLog.d("LockTiming", "TEMP unlock onUnlocked") },
+            onUnlocked = {},
             remainingAttempts = {
                 PinLockPolicy.remainingAttempts(config.state.value.lock.failedAttempts)
             },
@@ -244,11 +223,7 @@ class LockGateImpl(
         lockConfig: LockConfig,
     ) {
         val target = PinHasher.effectiveIterations(lockConfig.iterations)
-        // 临时测量：摘要迁移与配置写入的耗时。
-        val commitStartedAt = System.nanoTime()
         pinMigration.onVerified(pin, salt, lockConfig.pinHash.orEmpty(), target)
-        val commitMs = (System.nanoTime() - commitStartedAt) / 1_000_000L
-        InkLog.d("LockTiming", "TEMP unlock commit=${commitMs}ms target=$target")
         generation.bump()
         _state.value = false
         observer?.invoke(false)

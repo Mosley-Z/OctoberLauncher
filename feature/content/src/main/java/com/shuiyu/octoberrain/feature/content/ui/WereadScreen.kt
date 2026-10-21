@@ -10,12 +10,9 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.WereadBillSnapshot
-import com.shuiyu.octoberrain.core.common.WereadFingerprintSnapshot
 import com.shuiyu.octoberrain.core.common.WereadNotesSnapshot
 import com.shuiyu.octoberrain.core.common.WereadRankEntry
 import com.shuiyu.octoberrain.core.common.WereadSection
-import com.shuiyu.octoberrain.core.common.WereadStatsPeriod
-import com.shuiyu.octoberrain.core.common.WereadStatsSnapshot
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkPage
@@ -37,7 +34,7 @@ private val WRAP_CONTENT = ViewGroup.LayoutParams.WRAP_CONTENT
 /**
  * 微信读书页面。
  *
- * 顶部按总览、统计、笔记、账单、排行分段，切换时只读取当前分段的数据并缓存到
+ * 顶部按总览、笔记、账单、排行分段，切换时只读取当前分段的数据并缓存到
  * 本次页面生命周期；未配置密钥或来源关闭时隐藏页签，仅显示配置或启用入口。
  *
  * @param initialSection 进入页面时选中的分段，默认总览
@@ -57,13 +54,10 @@ class WereadScreen(
     private var body: LinearLayout? = null
     private var sectionViews: WereadSectionViews? = null
     private var section: WereadSection = initialSection
-    private var statsPeriod: WereadStatsPeriod = WereadStatsPeriod.WEEKLY
     private var configured = false
     private var enabled = false
 
     private var overview: WereadOverviewData? = null
-    private val statsCache = LinkedHashMap<WereadStatsPeriod, WereadStatsSnapshot?>()
-    private var fingerprint: WereadFingerprintSnapshot? = null
     private var notes: WereadNotesSnapshot? = null
     private var bill: WereadBillSnapshot? = null
     private var rank: List<WereadRankEntry>? = null
@@ -102,8 +96,6 @@ class WereadScreen(
             WereadSectionViews(
                 context = context,
                 tokens = DesignRuntime.tokens,
-                onPeriodSelected = ::selectPeriod,
-                onCalendar = { navigate(Destination.WereadCalendar) },
             )
         return created
     }
@@ -176,15 +168,6 @@ class WereadScreen(
         loadSection(target, force = false)
     }
 
-    /** 切换统计周期，仅读取尚未缓存的周期。 */
-    private fun selectPeriod(period: WereadStatsPeriod) {
-        if (period == statsPeriod && statsCache.containsKey(period)) return
-        statsPeriod = period
-        section = WereadSection.STATS
-        rebuildTabs()
-        loadStats(period)
-    }
-
     /** 读取并绘制指定分段。 */
     @Suppress("TooGenericExceptionCaught")
     private fun loadSection(
@@ -211,7 +194,6 @@ class WereadScreen(
                 try {
                     when (target) {
                         WereadSection.OVERVIEW -> loadOverview(content)
-                        WereadSection.STATS -> loadStatsData(content, statsPeriod)
                         WereadSection.NOTES -> notes = content.wereadNotes(NOTES_LIMIT)
                         WereadSection.BILL -> bill = content.wereadBill()
                         WereadSection.RANK -> rank = content.wereadRank(RANK_LIMIT)
@@ -227,47 +209,12 @@ class WereadScreen(
             }
     }
 
-    /** 统计分段只读取指定周期，指纹只在首次进入时读取。 */
-    @Suppress("TooGenericExceptionCaught")
-    private fun loadStats(period: WereadStatsPeriod) {
-        val container = prepareBody()
-        val content = source() ?: return
-        val loading = ContentUi.loading(container)
-        loadJob?.cancel()
-        loadJob =
-            scope.launch {
-                try {
-                    loadStatsData(content, period)
-                    ContentUi.removeLoading(loading)
-                    renderSection(WereadSection.STATS, container)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Throwable) {
-                    ContentUi.removeLoading(loading)
-                    ContentUi.errorCard(container, "读取失败：${error.message ?: "未知错误"}")
-                }
-            }
-    }
-
     /** 读取总览三段数据：月度统计、书架与最近划线。 */
     private suspend fun loadOverview(content: ContentSourceImpl) {
         val month = content.wereadMonth()
         val shelf = content.wereadShelf(20)
         val highlights = content.wereadHighlights(5)
         overview = WereadOverviewData(month, shelf, highlights)
-    }
-
-    /** 读取周期统计与阅读指纹。 */
-    private suspend fun loadStatsData(
-        content: ContentSourceImpl,
-        period: WereadStatsPeriod,
-    ) {
-        if (!statsCache.containsKey(period)) {
-            statsCache[period] = content.wereadPeriod(period)
-        }
-        if (fingerprint == null) {
-            fingerprint = content.wereadFingerprint()
-        }
     }
 
     /** 清空正文并加入顶部操作行，返回正文容器。 */
@@ -307,13 +254,6 @@ class WereadScreen(
                     container,
                     overview ?: WereadOverviewData(null, emptyList(), emptyList()),
                 )
-            WereadSection.STATS ->
-                views.renderStats(
-                    container,
-                    statsPeriod,
-                    statsCache[statsPeriod],
-                    fingerprint,
-                )
             WereadSection.NOTES ->
                 views.renderNotes(container, notes ?: WereadNotesSnapshot())
             WereadSection.BILL -> views.renderBill(container, bill)
@@ -325,10 +265,6 @@ class WereadScreen(
     private fun invalidateSection(target: WereadSection) {
         when (target) {
             WereadSection.OVERVIEW -> overview = null
-            WereadSection.STATS -> {
-                statsCache.clear()
-                fingerprint = null
-            }
             WereadSection.NOTES -> notes = null
             WereadSection.BILL -> bill = null
             WereadSection.RANK -> rank = null
