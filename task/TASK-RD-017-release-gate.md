@@ -1,9 +1,9 @@
 # TASK-RD-017 完整集成、审查与交付验收
 
-- 状态：IN_PROGRESS（Office/RD014整包门禁已过，双机最终矩阵中）
+- 状态：IN_PROGRESS（本轮Office/搜索/入口修复交付；完整状态矩阵等余项待验）
 - 优先级/阶段：P0 / R5
 - 执行者/集成者：Codex；S4/P4由各测试子智能体独占
-- 分支/工作树/源码基线：master/0a1534c + Office/RD014工作区；保留无关修改
+- 分支/工作树/源码基线：master/2da644b + 后续验收文档；保留无关修改
 - 依赖：[011](TASK-RD-011-docx.md)、[012](TASK-RD-012-sheets.md)、[013](TASK-RD-013-slides.md)、[014](TASK-RD-014-search.md)、[015](TASK-RD-015-integration.md)、[016](TASK-RD-016-resources.md)、[FIX001](TASK-FIX-001-reader-review.md)、[FIX002](TASK-FIX-002-single-bookshelf.md)、[FIX003](TASK-FIX-003-special-icons.md)、[FIX004](TASK-FIX-004-shelf-controls-refresh.md)（最新书架行为交付）、[FIX006](TASK-FIX-006-shared-shelf-refresh.md)（覆盖独立自动模式）
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -34,14 +34,14 @@
 
 ## 执行与接力记录
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
-- 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
-- 提交/合并/发布：未执行
+- 开始/最近更新：2026-10-23，Office/RD014最终同包集成验证
+- 已改文件/接口决定：7d8a680集成Office/统一搜索/CSV迁移与实际MIME；2da644b仅Entry任务affinity修复，详见集成交付
+- 验证命令及结果/证据：最终check/debug/release退出0，reader debug/release各132例0失败；office-next/entry-affinity-confirm-gate.log，原477门禁final-gate-4.log单列
+- 未覆盖/阻塞/解除条件：477双机核心及各200有效翻页、fbd4双机各30真实隐式开关与必要smoke已过；真实SAF/物理EPD/P95及完整桌面/复杂Office矩阵仍待
+- 构建进程/设备占用/恢复：根唯一构建已退出；两机全刷6/原生尺寸/HOME已恢复并释放，P4新增probe卸载，保持fbd4安装
+- 下一步：本轮交付见集成及S4/P4验收；后续按未覆盖矩阵与外部条件推进，不重复已有效验证，不自动发布
+- 接收方/集成点：Codex根集成者
+- 提交/合并/发布：0a1534c、7d8a680与2da644b已提交；未推送/升版/发布
 
 ## 2026-10-22 审查整改关联（最新排期）
 
@@ -75,3 +75,13 @@
 - 迁移/保留：同源身份别名与既有进度书签延续；复制/移动保持独立，取消/退出沿唯一动作队列；界面成功后落盘。
 - 验收：全仓门禁/debug/release、同最终APK双机计数/高亮/取消/入口与200/30压力；物理刷新/真实SAF等未覆盖独立保留。
 - 自动结果与APK详见[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)，根独占Gradle；本批未推送/升版/发布。
+
+## S4重复外部入口整改（2026-10-23）
+
+- 最终入口：继续DocumentEntryActivity接真实VIEW/SEND并转发Main；修复同URI携NEW_TASK重复打开只回HOME。
+- 控件位置：不增加控件，保留系统“打开/分享”及既有阅读工具栏。
+- 显示归属：入口只作转交，正文由Main的Reader宿主显示；关闭后HOME，再打开恢复原位置。
+- 字段与消费者：仅入口Activity任务affinity；避免临时Entry成为长期Main任务baseIntent，不改Locator/数据库/搜索状态。
+- 迁移：覆盖安装保留数据；旧任务先安全结束后重开验证，新Entry任务在finish后结束，Main保留唯一宿主。
+- 验收触发：同URI/真实MIME/读授权的隐式NEW_TASK重复打开、HOME闭合和位置恢复，跨格式/真实SEND；最终重新门禁。477包200翻页为未改引擎的历史包压力，修复包路由/30开关单独摘要，不冒充同包。
+- 反例：search-014/s4/repeated-entry-task.txt中baseIntent为Entry但Activities仅Main；重复start无forward/MainIncoming日志。根串行修改Manifest并构建，设备测试者继续独占。

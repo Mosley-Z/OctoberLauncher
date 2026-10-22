@@ -4,6 +4,8 @@
 
 | 文件 | 主题 | 使用边界 |
 | --- | --- | --- |
+| [2026-10-23-reader-search-s4.md](2026-10-23-reader-search-s4.md) | 最终统一搜索版S4回归与PPTX压力 | 最终477包；执行计数、恢复及未覆盖见报告 |
+| [2026-10-23-reader-search-p4.md](2026-10-23-reader-search-p4.md) | P4搜索、CSV升级与工作簿压力 | 逐项区分中间包与最终477包 |
 | [2026-10-23-reader-office-search-integration.md](2026-10-23-reader-office-search-integration.md) | Office、统一搜索、旧CSV迁移与系统入口集成 | 最终门禁132例及双机报告汇总；物理刷新/真实SAF等边界单列 |
 | [2026-10-23-reader-office-s4.md](2026-10-23-reader-office-s4.md) | S4 PPTX原版式/提纲/200页与短压 | Office首包，非最终统一搜索包 |
 | [2026-10-23-reader-office-p4.md](2026-10-23-reader-office-p4.md) | P4工作簿/CSV/PPTX首轮 | Office首包，非最终统一搜索包 |

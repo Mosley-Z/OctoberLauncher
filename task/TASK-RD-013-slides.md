@@ -1,6 +1,6 @@
 # TASK-RD-013 PPTX单页预览与提纲
 
-- 状态：IN_PROGRESS（引擎/资源/测试已交，集成与设备验收中）
+- 状态：READY_FOR_REVIEW（7d8a680已集成，最终核心与477包200有效翻页通过）
 - 优先级/阶段：P1 / R4
 - 执行者/集成者：slides子智能体 / Codex根集成者
 - 分支/工作树/源码基线：master / D:/DSHStation/OctoberLauncher / 0a1534c；保留已有修改
@@ -51,3 +51,7 @@ PPTX按幻灯片阅读，并能查看提纲及搜索文字。
 - 下一步：已按根RD014契约适配SearchProvider.scan/showHit、页内matchOrdinal和cancel；3项JVM检索测试交根执行，host6项ordinal测试与node语法通过。新统一搜索版需再门禁/设备复验；现Office APK验证不能冒充新统一搜索版。
 - 接收方/集成点：Codex根；许可入口建议登记reader/web/slides/LICENSES.txt；vendor-manifest.json携带精确来源摘要。
 - 提交/合并/发布：子智能体未提交/升版/发布；根统一管理。
+
+### 最终集成补验（2026-10-23）
+
+7d8a680全仓check/debug/release通过，reader各132例0失败；S4最终477包完成PPTX跨run完整词、页内ordinal、200条精确统计及64/65双向窗口，200有效翻页逐次页号+标题断言通过（1→200再回199）。见[最终S4报告](../docs/acceptance/2026-10-23-reader-search-s4.md)。随后发现外部Entry任务复用，2da644b仅Manifest修affinity，阅读引擎/资源不变；fbd4包30次真实隐式开关与必要smoke单列，不冒充477历史压力。复杂真实图表/字体与物理EPD等留RD017。

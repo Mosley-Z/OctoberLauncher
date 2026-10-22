@@ -58,3 +58,7 @@
 ## 2026-10-22 审查整改关联（最新排期）
 
 最新产品目标由 [FIX002](TASK-FIX-002-single-bookshelf.md) 取代旧独立书架接入目标：唯一书架是负一屏，最近阅读和本地书打开迁往负一屏；旧 Destination.Bookshelf 兼容跳转，设置不保留第二套展示。原验收保留历史语境，不能作为新入口验收。本卡余项（文件页入口、复制/移动、真实授权重选、能力文案）仍需完成，不因搬迁自动关闭。验收按格式能力执行，图片/PDF 等未声明书签或搜索能力不能强行要求；不支持能力核对菜单准确。下一步先完成 FIX001 → FIX002 → FIX003，再回 RD016。
+
+### 2026-10-23 Office入口增量
+
+已随7d8a680集成真实Office精确VIEW/SEND MIME，README/许可与能力菜单同步；S4/P4真实Parcelable.EXTRA_STREAM+ClipData SEND及隐式VIEW证据逐包列于[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)。先前“Office未集成”已被本轮取代；真实SAF持久授权/撤销重选和通用第三方URI身份仍待，不以自有FileProvider证据代替。

@@ -77,3 +77,7 @@ PDF视口、Markdown字符、ZIP目录/页码/编码和EPUB章节/字符/比例�
 ## 2026-10-22 审查整改关联（最新排期）
 
 最近阅读显示独立性由 [FIX001](TASK-FIX-001-reader-review.md) 修复，入口搬迁由 [FIX002](TASK-FIX-002-single-bookshelf.md) 完成；数据库与 RecentGateway 继续复用，不新建第二份阅读记录。后续验证同一本地路径从文件页/负一屏打开共享记录；ContentUri 与路径不承诺跨来源身份自动合并。
+
+### 2026-10-23 Office定位兼容增量
+
+7d8a680仅增加Sheet/Slide Locator，不重建数据库；旧CSV Text字节锚点与编码按逻辑记录迁移，旧书签走同一路径。P4真实旧基线覆盖升级，UTF8 BOM/GB18030两份旧进度及书签均恢复142行1列，quoted换行无偏移；证据见[最终P4报告](../docs/acceptance/2026-10-23-reader-search-p4.md)。搜索扫描不写进度，命中显示后才保存；完整第三方URI身份关联仍待，不按本轮兼容用例关闭整卡。

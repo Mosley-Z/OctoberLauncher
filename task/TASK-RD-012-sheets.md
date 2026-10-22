@@ -1,6 +1,6 @@
 # TASK-RD-012 Excel与CSV窗口化阅读
 
-- 状态：READY_FOR_REVIEW（引擎/窗口/统一搜索源码已交集成，最终门禁与设备待验）
+- 状态：READY_FOR_REVIEW（已集成7d8a680，最终门禁及P4工作簿200翻页/30开关通过）
 - 优先级/阶段：P1 / R4
 - 执行者/集成者：sheets 子智能体 / Codex 根集成者
 - 分支/工作树/源码基线：master / D:/DSHStation/OctoberLauncher / 0a1534c；保留已有修改
@@ -50,4 +50,8 @@
 - 构建进程/设备占用/恢复：本子智能体不运行Gradle、不占用ADB；共享构建与设备由根/独立设备子智能体租用。
 - 下一步：根集成与模块检查；据实际失败修复，再以最终同一APK补设备验收。
 - 接收方/集成点：根集成者接ReaderRegistry/ReaderScreen/隐藏WebView宿主/资源白名单/许可入口；两引擎实现TableEngine，SheetTableView(context,table)。
-- 提交/合并/发布：本卡改动未提交；无升版、推送、发布。
+- 提交/合并/发布：本卡已随7d8a680提交；无升版、推送、发布。
+
+### 最终集成补验（2026-10-23）
+
+最终477包全仓check/debug/release通过，reader debug/release各132例0失败；P4工作簿200有效翻页/30开关通过，主进程与绑定renderer按实际PID取样。旧UTF8 BOM/GB18030 CSV进度与书签自然覆盖升级均恢复逻辑142行1列，最终包保持。见[最终P4报告](../docs/acceptance/2026-10-23-reader-search-p4.md)及[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)，本节取代上方旧“门禁/设备待验”。P4已恢复全刷6、原生尺寸及HOME，临时probe已卸载，serial释放。复杂真实Office、真实SAF及完整状态矩阵继续留待RD017，不把本轮代表样本写成全面兼容。

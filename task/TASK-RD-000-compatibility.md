@@ -53,3 +53,7 @@ S4/P4均API30、armeabi-v7a、128MiB memoryClass、lowRam=true、WebView83。原
 ### Office基础增量
 
 S4/P4的DOCX中文80段、SheetJS中文1001行及显式21行窗口、PPTX3页基础DOM通过。候选资源版本/摘要/来源/完整许可已固定，仅独立探针使用。限制与初次宿主错误修正见reader-native-probe验收增量；图片、图表、大文件、renderer总PSS等仍待验，不完成本卡。
+
+### 2026-10-23 产品通路补验
+
+Office及统一搜索已随7d8a680进入产品，非仅探针；最终477整包check/debug/release通过，reader各132例0失败。固定资源链、两机实际格式/系统入口、P4工作簿200/30及S4 PPTX最终压力由[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)逐项汇总。真实复杂Office、首屏/翻页P95与面板物理刷新尚未有完整样本证据，不将本轮代表用例升级为整卡DONE。

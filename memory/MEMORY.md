@@ -4,6 +4,7 @@
 
 | 结论/经验 | 来源与边界 |
 | --- | --- |
+| 外部转交Activity与长期Main不能共用任务affinity：NEW_TASK首次打开后task可能保留Entry baseIntent，重复同URI仅前置HOME、无任何回调。Entry空affinity后两机自然覆盖重复隐式VIEW恢复正常 | 2da644b、reader-office-search-integration及search-s4/p4；保留原flags/读授权，仅隔开临时任务，不把显式Main旁路当修复 |
 | Office用SheetJS0.20.3与PPTXjs1.21.1固定完整资源链，工作簿原生20×10窗口，PPTX只传当前页关系闭包；8MiB/32MiB及结构预算在JS前检查 | 2026-10-23-reader-office-search-integration、专属许可/manifest；小样本兼容不等于完整Office |
 | 统一搜索扫描不变更位置，完整计数仅缓存64命中，跨窗口重扫；表格按匹配单元格计数。受控mark/原生高亮，不依赖WebView83缺失的Custom Highlight API | SearchProvider/ReaderSearchUi；显示命中后remember/flush，取消同时使JS token失效 |
 | CSV从旧纯文本升级时必须迁移Text字节锚点和旧编码到逻辑记录，不能按物理行数（引号可含换行）；先8KiB增量解码计字符，再按CSV记录边界定位 | CsvData.legacyRow/CsvLegacyTest；只保留当前窗口，旧书签共用迁移 |

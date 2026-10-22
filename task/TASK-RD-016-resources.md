@@ -2,8 +2,8 @@
 
 - 状态：IN_PROGRESS（2026-10-22 用户批准接手剩余开发）
 - 优先级/阶段：P1 / R5
-- 执行者/集成者：Codex（本聊天；唯一 Gradle / S4 操作者）
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Codex；根唯一Gradle，S4/P4各设备测试子智能体独占
+- 分支/工作树/源码基线：master / 7d8a680；保留无关修改，最终477包
 - 依赖：[015](TASK-RD-015-integration.md)、[FIX003](TASK-FIX-003-special-icons.md)（顺序包含 FIX001/002）、[FIX004](TASK-FIX-004-shelf-controls-refresh.md)（最新书架行为交付）、[FIX006](TASK-FIX-006-shared-shelf-refresh.md)（覆盖独立自动模式）
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -46,14 +46,14 @@
 - 当前文件范围：reader宿主、独立偏好/刷新计数、引擎缓存释放及测试；共享 RefreshScheduler 的完成版本由本集成者串行修改。
 - 第一批交付：刷新设置/有效翻页计数/低内存PDF缓存释放已实现；完整门禁通过，S4合成PDF200翻页/30开关与内存趋势见[资源第一批验收](../docs/acceptance/2026-10-22-reader-resource-first.md)。全格式/最终APK/P4仍待，保持IN_PROGRESS；构建与S4继续由Codex持有，用于后续DOCX接入。
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
-- 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
-- 提交/合并/发布：未执行
+- 开始/最近更新：2026-10-23；Office就绪后补最终包压力
+- 已改文件/接口决定：刷新计数/低内存缓存及Office容器预算、原生表格窗口、幻灯片单页关系闭包，随7d8a680集成
+- 验证命令及结果/证据：最终check/debug/release通过，reader各132例0失败；[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)关联最终S4/P4报告
+- 未覆盖/阻塞/解除条件：物理EPD、首屏/翻页P95、release私有缓存尺寸、其他全格式压力及完整桌面状态矩阵仍待；不从合成样本推断全面通过
+- 构建进程/设备占用/恢复：构建已结束；477包双机200有效翻页、fbd4双机各30真实隐式开关已完成，设备恢复/释放见报告
+- 下一步：本轮P4工作簿/S4 PPTX压力与主/绑定renderer PSS已汇总；首屏P95/物理EPD/其余完整矩阵保持待验
+- 接收方/集成点：Codex集成者及RD017
+- 提交/合并/发布：0a1534c、7d8a680已提交；未推送/升版/发布
 
 ## 2026-10-22 审查整改关联（最新排期）
 
