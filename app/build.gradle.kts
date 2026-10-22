@@ -21,8 +21,8 @@ android {
                 .get()
                 .toInt()
         // 1.0.29：文件阅读器、Office全文搜索与来源身份/验收收口，沿用内部测试签名。
-        versionCode = 50
-        versionName = "1.0.30"
+        versionCode = 51
+        versionName = "1.0.31"
     }
 
     buildTypes {

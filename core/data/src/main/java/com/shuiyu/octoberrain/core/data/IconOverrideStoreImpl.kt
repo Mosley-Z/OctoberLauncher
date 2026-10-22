@@ -44,8 +44,8 @@ class IconOverrideStoreImpl(
     /**
      * 为指定目标设置图标。
      *
-     * 从 Uri 读取图片并复制到私有目录，校验可解码后写入配置；同名旧副本与
-     * 历史键的文件一并删除，避免残留。
+     * 从 Uri 读取图片到独立副本，校验可解码且配置确认保存后才删除旧副本；
+     * 失败不改变旧图、配置与版本，历史键在成功保存时归一。
      */
     override suspend fun setOverride(
         targetId: String,
@@ -53,36 +53,35 @@ class IconOverrideStoreImpl(
     ): Boolean =
         withContext(Dispatchers.IO) {
             runCatching {
-                val target = File(dir, IconFileNames.fileName(targetId))
-                val copied =
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        target.outputStream().use { output -> input.copyTo(output) }
-                        true
-                    } ?: false
-                if (!copied || ImageDecoder.size(target.absolutePath) == null) {
-                    if (copied) target.delete()
-                    false
-                } else {
-                    val previous = pathOf(targetId)
-                    config.edit { current ->
-                        val overrides = current.appearance.iconOverrides
-                        val stale =
-                            overrides.keys.filter { key ->
-                                key != targetId && IconTargets.normalizeStoredKey(key) == targetId
-                            }
-                        current.copy(
-                            appearance =
-                                current.appearance.copy(
-                                    iconOverrides = overrides - stale + (targetId to target.absolutePath),
-                                ),
-                        )
-                    }
-                    if (previous != null && previous != target.absolutePath) File(previous).delete()
-                    versionState.value += 1
-                    true
-                }
+                val applied =
+                    IconOverrideSwap(
+                        directory = dir,
+                        openSource = { context.contentResolver.openInputStream(uri) },
+                        isValidImage = { ImageDecoder.size(it.absolutePath) != null },
+                        updateConfig = { saveOverride(targetId, it) },
+                    ).execute(IconFileNames.fileName(targetId), pathOf(targetId))
+                if (applied) versionState.value += 1
+                applied
             }.getOrDefault(false)
         }
+
+    /** 配置持久化可能被拒绝；必须读回新路径，不能只以 edit 返回判断成功。 */
+    private fun saveOverride(
+        targetId: String,
+        path: String,
+    ): Boolean {
+        config.edit { current ->
+            val overrides = current.appearance.iconOverrides
+            val stale =
+                overrides.keys.filter { key ->
+                    key != targetId && IconTargets.normalizeStoredKey(key) == targetId
+                }
+            current.copy(
+                appearance = current.appearance.copy(iconOverrides = overrides - stale + (targetId to path)),
+            )
+        }
+        return pathOf(targetId) == path
+    }
 
     /** 清除单个目标的覆盖图标，同时清理历史键与对应文件。 */
     override fun clearOverride(targetId: String) {
