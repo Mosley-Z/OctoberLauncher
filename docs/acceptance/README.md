@@ -16,3 +16,8 @@
 | [29-weread-batch2-remediation.md](<29-weread-batch2-remediation.md>) | 微读墨记迁移保真：第二批修复记录 | 历史版本记录，不代表当前源码已验收 |
 | [30-weread-batch3-remediation.md](<30-weread-batch3-remediation.md>) | 微读墨记功能集成：第三批修复记录 | 历史版本记录，不代表当前源码已验收 |
 | [31-weread-batch4-remediation.md](<31-weread-batch4-remediation.md>) | 微读墨记功能集成：第四批修复记录 | 历史版本记录，不代表当前源码已验收 |
+| [2026-10-22-reader-native-first.md](2026-10-22-reader-native-first.md) | 阅读器原生文本首轮 | 首轮设备证据，不覆盖后续增量 |
+| [2026-10-22-reader-epub.md](2026-10-22-reader-epub.md) | 阅读器 EPUB 渲染 | 设备证据以记录时的驱动为准 |
+| [2026-10-22-reader-pdf.md](2026-10-22-reader-pdf.md) | 阅读器 PDF 隔离渲染 | 不构成整包发布验收 |
+| [2026-10-22-reader-zip.md](2026-10-22-reader-zip.md) | 阅读器 ZIP 归档 | 归档来源，不覆盖 Office 渲染 |
+| [2026-10-22-reader-sources-002.md](2026-10-22-reader-sources-002.md) | RD-002 增量：ZIP 内部标记、ACTION_SEND、授权与缺失矩阵 | 设备用例以 S4 与合成探针为准，SAF 系统撤销后重选未覆盖 |

@@ -61,3 +61,6 @@
 # 整体保留以避免发布构建裁剪后运行期找不到实现。
 -keep class com.inkread.weekread.kernel.** { *; }
 
+
+# ReaderModule由OctoberRainApp反射装配。
+-keep class com.shuiyu.octoberrain.feature.reader.ReaderModule { public <init>(); }

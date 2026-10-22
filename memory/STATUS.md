@@ -1,5 +1,44 @@
 # 当前状态与接力
 
+## DSH 接手：RD-002 增量审查修复完成，等待确认（2026-10-22 09:55）
+
+- 用户指令：读交接文档后按项目规范接手，启用智能体团队完成后续 TASK，首个 TASK 完成后停下等待审查。
+- 首轮完成 RD-002 未完成项：ZIP 内部标记鉴别、ACTION_SEND 单文件入口、授权与缺失及撤销设备矩阵。团队按 zip-signature、external-entry、device-driver 三卡分工，集成、构建与设备执行由 Lead 串行完成。
+- 审查意见三项已修复：`streamUri()` 按动作读取并安全判断 `Uri`，非 Uri 的 `EXTRA_STREAM` 不再提前抛出类型转换异常；外部入口以 data 或 `EXTRA_STREAM` 为主文档，主文档存在时 ClipData 视为附带授权，恢复 Markdown 正文引用同目录图片的打开场景；转发日志只保留 scheme、MIME 前 64 字符与授权状态。
+- 门禁：reader 53 用例 0 失败，detekt 与 ktlint 通过；`check :app:assembleDebug :app:assembleRelease` 退出 0（52s）。debug 5,846,784 字节，SHA-256 `77bd08bfae2d604edc0a15476c4f7074ef4665ee87f542f031d1dad4d327b03d`；release 1,434,377 字节，SHA-256 `308fc6eb0c6648c30a2145f8f005d03b326b2c2beffce4562d34455ffd8b6a35`，apksigner 通过（沿用项目既有 debug 签名配置）。
+- 设备复核：非 Uri 的 `EXTRA_STREAM` 得到 `reject=MISSING` 且产品进程存活；sample.md 加父目录 ClipData 打开为 `reader_title=sample.md`、`reader_status=42/47`，未按多文件拒绝。
+- 证据与边界：[RD-002 验收](../docs/acceptance/2026-10-22-reader-sources-002.md)；[本轮交接](sessions/2026-10-22-reader-sources-dsh.md)。
+- 未覆盖：真实 SAF 系统撤销后的重选流程、Office 内容渲染、release 签名配置仍为 debug；不把设备复核当整包发布验收。
+- 本轮已提交并推送 `origin/master`；下一步等待用户确认，通过后按 task/README 依赖继续下一张卡。
+
+## 已交DSH：RD010完成，停止开启新任务（2026-10-22）
+
+- 最新指令完成当前TASK后交接：[Codex→DSH入口](sessions/2026-10-22-reader-to-dsh-handoff.md)。HEAD1379e8b，差异全部未提交；未升版/推送/发布。
+- PERF001及RD001/006/007/008/009/010首轮完成；其余以卡片为准。Office未产品接入，不宣称整个计划完成。
+- 最终check/debug/release退出0（1564tasks）；reader30通过，common81通过+1历史跳过。[EPUB验收](../docs/acceptance/2026-10-22-reader-epub.md)记录旧驱动问题及最终补验。
+- S4/P4最终release、HOME；P4仅安装启动。S4无线恢复、合成probe卸载；无运行构建或ADB脚本。
+- 一次性04-30安排已删除，后续不再自动续工。下方历史暂停/自动续工状态由本节取代。
+
+## Codex 本窗口收尾：八项优化完成，原生文本首轮落地（2026-10-22 04:23）
+
+- 用户授权全面接管；master基线1379e8b，保留本轮全部未提交差异，未升版本/推送/发布。唯一构建与ADB操作者Codex。
+- PERF-001 DONE；阅读器000–005部分实现，均保持IN_PROGRESS；其余RD卡仍待实施。详见[接力记录](sessions/2026-10-22-performance-reader-handoff.md)。
+- 最终`check :app:assembleDebug :app:assembleRelease`退出0（1556 tasks）；reader 9个测试通过，reader Lint无告警。S4最终debug/P4最终release已覆盖安装启动；探针均卸载，无后台构建占用。
+- S4文本翻页/强停恢复、50MiB首屏、GB18030、管道缓存退出清理、搜索定位4001与书签回跳通过；边界及APK摘要见[原生首轮验收](../docs/acceptance/2026-10-22-reader-native-first.md)。
+- 两机WebView83的DOCX/SheetJS/PPTX基础探针通过；Office仍未接入产品，图片图表/大文件/renderer完整PSS待验。不能把探针当产品引擎通过。
+- 当前窗口最后一次额度查询已用84%，保留收尾余量后暂停；04:30本聊天续工automation `04-30`已确认ACTIVE。续工先检查额度、读本交接，再关闭该一次性安排，继续RD卡，无需再问用户是否开工。
+- 下一步优先读TASK-RD-006，实现原生PDF隔离渲染；002–005未完项见对应卡。凭据及用户正文不进日志/文档，不恢复已删除的统计/月历/实验室功能。
+
+## Codex 接管：性能优化完成，开始阅读器（2026-10-22 03:15）
+
+- 用户已明确 DSH 开发结束，由本聊天全面接管；唯一构建/ADB操作者 Codex，master 基线1379e8b，开始时干净。
+- 八项性能优化代码与整包门禁完成，新增7个JVM用例通过；设备验证与限制见 [性能验收](../docs/acceptance/2026-10-22-s4-performance.md)，任务 [PERF-001](../task/TASK-PERF-001-s4-performance.md)。未升版本/提交/推送。
+- S4单次本记滚动辅助采样P95 48→29ms，非稳定提升承诺；内存前后Activity数不同，不作节省内存结论。
+- 后续按阅读器RD卡依赖推进。000的Office资源探针仍需独立完成，先冻结无需外部依赖的原生接口，不能将Office规划写成实现。
+- 04:30 本聊天续工 automation `04-30` 已创建；当前继续工作，额度接近耗尽前交接，续工后关闭该安排。
+- 不记录PIN/用户正文，不修改凭据；截图在系统临时目录。S4恢复原本记进度，P4仅安装release与启动检查，不绕过锁屏。
+
+
 更新时间：2026-10-22 02:45；维护者：1.0.28 发布集成者。此处只代表本轮结束时的检查范围。
 
 ## 1.0.28 状态（本轮发布）

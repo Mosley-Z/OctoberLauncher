@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.MinuteTicker
 import com.shuiyu.octoberrain.core.common.RefreshReason
@@ -124,6 +125,7 @@ class MainActivity : Activity() {
             }
         minuteTicker.start()
         startInitialScreen()
+        openIncomingDocument(intent)
     }
 
     /** 配置窗口：全屏、白底、无窗口动画。 */
@@ -427,8 +429,19 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (openIncomingDocument(intent)) return
         val homeIndex = stack.indexOfLast { it.destination == Destination.Home }
         if (homeIndex >= 0) popTo(homeIndex)
+    }
+
+    /** 外部授权文档复用同一宿主，锁屏覆盖层仍由原锁契约控制。 */
+    private fun openIncomingDocument(incoming: Intent?): Boolean {
+        val uri = incoming?.data
+        val valid =
+            incoming?.action == Intent.ACTION_VIEW &&
+                uri?.scheme == "content" &&
+                incoming.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+        return valid && AppServices.reader?.open(DocumentRef.ContentUri(uri.toString())) == true
     }
 
     /**

@@ -1,0 +1,7 @@
+<resources>
+    <item name="reader_status" type="id" />
+    <item name="reader_title" type="id" />
+    <item name="reader_next" type="id" />
+    <item name="reader_previous" type="id" />
+    <item name="reader_settings" type="id" />
+</resources>

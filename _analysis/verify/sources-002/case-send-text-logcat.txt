@@ -1,0 +1,6 @@
+--------- beginning of main
+--------- beginning of system
+10-22 08:30:29.727 20225 20225 I ReaderProbe: send={"fixture":"plain","action":"SEND","mime":"text/plain","authority":"com.shuiyu.octoberrain.readerprobe.fixture","readGrant":true,"persistable":false,"revokeAfter":false,"launched":true,"revoke":"skipped","revokeCheck":-2,"revokeError":""}
+10-22 08:30:34.586 20225 20335 I ReaderFixture: open type=plain
+10-22 08:30:34.760 20225 20335 I ReaderFixture: open type=plain
+10-22 08:30:35.775 20253 20253 D ReaderTiming: prepareMs=1553

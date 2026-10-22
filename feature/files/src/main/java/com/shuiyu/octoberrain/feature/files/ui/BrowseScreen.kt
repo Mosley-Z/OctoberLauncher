@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.VolumeKeySink
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -147,7 +148,8 @@ internal class BrowseScreen(
 
                 override fun onOpenItem(item: FileItem) {
                     if (!item.isImage) {
-                        AppServices.router.toast(BrowseStrings.OPEN_PENDING)
+                        val opened = AppServices.reader?.open(DocumentRef.LocalPath(item.path)) == true
+                        if (!opened) AppServices.router.toast("文件阅读器尚未就绪")
                         return
                     }
                     val images = pane?.itemSnapshot().orEmpty().filter { it.isImage }

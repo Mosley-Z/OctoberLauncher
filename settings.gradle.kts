@@ -33,3 +33,5 @@ include(":feature:content")
 include(":feature:files")
 include(":feature:weread-app")
 include(":service")
+
+include(":feature:reader")

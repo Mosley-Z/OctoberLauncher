@@ -1,0 +1,6 @@
+--------- beginning of main
+--------- beginning of system
+10-22 08:30:49.910 20425 20425 I ReaderProbe: send={"fixture":"epubbin","action":"VIEW","mime":"application/epub+zip","authority":"com.shuiyu.octoberrain.readerprobe.fixture","readGrant":true,"persistable":false,"revokeAfter":false,"launched":true,"revoke":"skipped","revokeCheck":-2,"revokeError":""}
+10-22 08:30:54.505 20425 20447 I ReaderFixture: open type=epubbin
+10-22 08:30:54.543 20425 20447 I ReaderFixture: open type=epubbin
+10-22 08:30:57.564 20454 20454 D ReaderTiming: prepareMs=3349

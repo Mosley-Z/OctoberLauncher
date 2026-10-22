@@ -20,6 +20,8 @@ object ThumbCacheRegistry {
     private const val DIRECTORY_NAME = "thumbs"
 
     /** 已创建的缓存实例，键为目标长边与抖动开关的组合。 */
+    private val memory = ThumbMemory(ThumbProfile.memoryBytes(ThumbProfile.DEFAULT_QUALITY))
+
     private val caches = ConcurrentHashMap<CacheKey, ThumbCache>()
 
     /** 当前质量档位。 */
@@ -45,7 +47,7 @@ object ThumbCacheRegistry {
      * 应用缩略图设置。
      *
      * 参数 quality 为质量档位，越界值按默认档处理；dither 为抖动开关。
-     * 质量变化会重建后续实例的预算参数，已创建的实例保留原预算直到被清空。
+     * 质量变化立即调整所有尺寸共用的内存预算。
      */
     fun configure(
         quality: Int,
@@ -53,7 +55,16 @@ object ThumbCacheRegistry {
     ) {
         this.quality = ThumbProfile.normalize(quality)
         this.ditherEnabled = dither
+        memory.resize(ThumbProfile.memoryBytes(this.quality))
     }
+
+    /** 系统内存压力时仅逐出内存，不删除磁盘或回收视图引用的位图。 */
+    fun trimMemory() {
+        memory.clear()
+    }
+
+    /** 所有尺寸合计的当前内存字节数。 */
+    fun memoryBytes(): Int = memory.size()
 
     /** 返回当前质量档位。 */
     fun currentQuality(): Int = quality
@@ -84,6 +95,7 @@ object ThumbCacheRegistry {
                 memoryBytes = ThumbProfile.memoryBytes(quality),
                 targetEdge = edge,
                 ditherEnabled = useDither,
+                memory = memory,
             )
         }
     }

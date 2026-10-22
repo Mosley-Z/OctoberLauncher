@@ -1,0 +1,126 @@
+package com.shuiyu.octoberrain.feature.reader
+
+import android.content.Context
+import android.os.Build
+import com.shuiyu.octoberrain.core.common.DocumentRef
+import com.shuiyu.octoberrain.core.common.ReaderFormat
+import com.shuiyu.octoberrain.core.common.ReaderLocator
+import com.shuiyu.octoberrain.feature.reader.pdf.PdfAdjustment
+import com.shuiyu.octoberrain.feature.reader.pdf.PdfEngine
+import com.shuiyu.octoberrain.feature.reader.session.ReadingRepository
+import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
+import com.shuiyu.octoberrain.feature.reader.source.DocumentKinds
+import com.shuiyu.octoberrain.feature.reader.source.SourceResolver
+import com.shuiyu.octoberrain.feature.reader.source.ZipContainerProbe
+import com.shuiyu.octoberrain.feature.reader.web.ReflowEngine
+import com.shuiyu.octoberrain.feature.reader.web.WebPosition
+import java.io.Closeable
+
+/** 会话的文件、引擎与记录由同一个后台任务串行操作，退出关闭自己的资源。 */
+@Suppress("TooManyFunctions") // 同一会话集中转发各引擎动作，UI不拥有解析器/文件/数据库。
+internal class ReaderSession(
+    private val context: Context,
+    private val ref: DocumentRef,
+    private val width: Int,
+    private val height: Int,
+    private val fontOverride: Int?,
+    private val charset: String?,
+) : Closeable {
+    private val store = ReadingRepository(context)
+    private var handle: DocumentHandle? = null
+    private var engine: ReaderEngine? = null
+
+    @Volatile private var frame: ReaderFrame? = null
+    var fontSp = 20
+        private set
+    val name: String get() = handle?.metadata?.name ?: "文件阅读"
+    val capabilities get() = engine?.capabilities
+    var format: ReaderFormat = ReaderFormat.UNKNOWN
+        private set
+
+    suspend fun open(anchor: ReaderLocator?): ReaderFrame {
+        val opened = SourceResolver(context).open(ref)
+        handle = opened
+        val header =
+            opened.openStream().use { input ->
+                val buffer = ByteArray(1024)
+                buffer.copyOf(input.read(buffer).coerceAtLeast(0))
+            }
+        // ZIP 容器内部标记优先于扩展名判定；预检失败或非 ZIP 文件返回 null 时回退原判定。
+        val container =
+            if (DocumentKinds.isZipHeader(header)) {
+                ZipContainerProbe.probe(opened.archiveFile())
+            } else {
+                null
+            }
+        format = DocumentKinds.detect(opened.metadata.name, opened.metadata.mime, header, container)
+        val saved = store.load(opened.metadata)
+        fontSp = fontOverride ?: saved.fontSp
+        val created =
+            ReaderRegistry.create(
+                context,
+                ref,
+                anchor ?: saved.locator,
+                format,
+                opened,
+                width,
+                height,
+                fontSp,
+                charset,
+            )
+        engine = created
+        return created.page(anchor ?: saved.locator)
+    }
+
+    suspend fun followWebLink(url: String): ReaderFrame? = (engine as? ReflowEngine)?.followLink(url)
+
+    fun locateWeb(anchor: Int): ReaderFrame = (checkNotNull(engine) as ReflowEngine).atAnchor(anchor)
+
+    fun acceptWeb(position: WebPosition): ReaderFrame = (checkNotNull(engine) as ReflowEngine).accept(position)
+
+    fun epubToc(): List<com.shuiyu.octoberrain.feature.reader.epub.EpubToc> =
+        (engine as? com.shuiyu.octoberrain.feature.reader.epub.EpubEngine)?.toc.orEmpty()
+
+    suspend fun locateEpub(target: com.shuiyu.octoberrain.feature.reader.epub.EpubToc): ReaderFrame? =
+        (engine as? com.shuiyu.octoberrain.feature.reader.epub.EpubEngine)?.chapter(target)
+
+    suspend fun locateArchive(directory: String): ReaderFrame =
+        checkNotNull(engine).page(ReaderLocator.Archive(directory))
+
+    suspend fun turn(delta: Int): ReaderFrame = checkNotNull(engine).turn(delta)
+
+    suspend fun locatePdf(page: Int): ReaderFrame = checkNotNull(engine).page(ReaderLocator.Pdf(page))
+
+    suspend fun adjustPdf(mode: PdfAdjustment): ReaderFrame? =
+        if (Build.VERSION.SDK_INT >= 27) (engine as? PdfEngine)?.adjust(mode) else null
+
+    suspend fun findNext(query: String): ReaderFrame? = checkNotNull(engine).findNext(query)
+
+    /** 主线程确认显示后才接受定位，后台取消的未显示帧不覆盖进度。 */
+    fun remember(next: ReaderFrame) {
+        frame = next
+    }
+
+    fun flush() {
+        val shown = frame ?: return
+        store.save(checkNotNull(handle).metadata, ref, shown.locator, fontSp)
+    }
+
+    fun bookmarks(): List<Pair<String, ReaderLocator>> = store.bookmarks(checkNotNull(handle).metadata.id)
+
+    fun bookmark() {
+        store.bookmark(checkNotNull(handle).metadata.id, checkNotNull(frame).locator, checkNotNull(frame).status)
+    }
+
+    override fun close() {
+        try {
+            engine?.close()
+        } finally {
+            handle?.close()
+            store.close()
+            engine = null
+            handle = null
+            frame = null
+        }
+    }
+}

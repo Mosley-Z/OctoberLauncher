@@ -2,8 +2,9 @@ package com.shuiyu.octoberrain.core.render
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.LruCache
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * 缩略图两级缓存：内存 LRU 与磁盘 PNG。
@@ -19,24 +20,21 @@ class ThumbCache(
     memoryBytes: Int = DEFAULT_MEMORY_BYTES,
     private val targetEdge: Int = DEFAULT_TARGET_EDGE,
     private val ditherEnabled: Boolean = true,
+    private val memory: ThumbMemory = ThumbMemory(memoryBytes),
 ) {
-    /** 内存缓存，按位图字节数计容量。 */
-    private val memory =
-        object : LruCache<String, Bitmap>(memoryBytes) {
-            override fun sizeOf(
-                key: String,
-                value: Bitmap,
-            ): Int = value.byteCount
-        }
+    /** 已知的来源键由后台读取更新，绘制阶段不调用 lastModified。 */
+    private val knownKeys = ConcurrentHashMap<String, String>()
+    private val namespace = "${diskDir.absolutePath}:$targetEdge:$ditherEnabled:"
+    private var writesSinceTrim = 0
 
     /** 本实例的磁盘索引，按来源摘要记录缓存键。 */
     private val index = ThumbIndex(diskDir, targetEdge, ditherEnabled)
 
     /** 统计计数。 */
-    private var memoryHits = 0
-    private var diskHits = 0
-    private var misses = 0
-    private var writes = 0
+    private val memoryHits = AtomicInteger()
+    private val diskHits = AtomicInteger()
+    private val misses = AtomicInteger()
+    private val writes = AtomicInteger()
 
     /** 缓存统计快照。 */
     data class Stats(
@@ -56,33 +54,36 @@ class ThumbCache(
      * 参数 path 为源图片文件；内存命中直接返回，未命中则按摘要查找磁盘 PNG。
      * 两级均未命中返回 null，由调用方解码后写入 [put]。
      */
-    @Synchronized
     fun get(path: File): Bitmap? {
         val key = ThumbKey.of(path.absolutePath, path.lastModified(), targetEdge)
-        val cached = memory.get(key)
+        knownKeys[path.absolutePath] = key
+        val cached = memory.get(namespace + key)
         if (cached != null) {
-            memoryHits += 1
+            memoryHits.incrementAndGet()
             return cached
         }
-        val file = diskFile(key)
         val bitmap =
-            if (file.isFile) {
-                runCatching {
-                    BitmapFactory.decodeFile(
-                        file.absolutePath,
-                        BitmapFactory.Options().apply {
-                            inPreferredConfig = Bitmap.Config.ARGB_8888
-                        },
-                    )
-                }.getOrNull()
-            } else {
-                null
+            synchronized(DISK_LOCK) {
+                val file = diskFile(key)
+
+                if (file.isFile) {
+                    runCatching {
+                        BitmapFactory.decodeFile(
+                            file.absolutePath,
+                            BitmapFactory.Options().apply {
+                                inPreferredConfig = Bitmap.Config.ARGB_8888
+                            },
+                        )
+                    }.getOrNull()
+                } else {
+                    null
+                }
             }
         if (bitmap != null) {
-            diskHits += 1
-            memory.put(key, bitmap)
+            diskHits.incrementAndGet()
+            memory.put(namespace + key, bitmap)
         } else {
-            misses += 1
+            misses.incrementAndGet()
         }
         return bitmap
     }
@@ -95,12 +96,9 @@ class ThumbCache(
      *
      * 参数 path 为源图片文件。
      */
-    @Synchronized
     fun peekMemory(path: File): Bitmap? {
-        val key = ThumbKey.of(path.absolutePath, path.lastModified(), targetEdge)
-        val cached = memory.get(key) ?: return null
-        memoryHits += 1
-        return cached
+        val key = knownKeys[path.absolutePath] ?: return null
+        return memory.get(namespace + key)?.also { memoryHits.incrementAndGet() }
     }
 
     /**
@@ -110,27 +108,33 @@ class ThumbCache(
      * 同时更新索引与磁盘容量。目录不可写时静默跳过磁盘写入，内存缓存仍然保留；
      * 返回值即缓存内的位图引用，调用方不得回收。
      */
-    @Synchronized
     fun put(
         path: File,
         bitmap: Bitmap,
     ): Bitmap {
         val key = ThumbKey.of(path.absolutePath, path.lastModified(), targetEdge)
+        knownKeys[path.absolutePath] = key
         val quantized = if (ditherEnabled) Ditherer.dither(bitmap, DitherCore.DEFAULT_LEVELS) else bitmap
-        memory.put(key, quantized)
-        val file = diskFile(key)
-        val written =
-            runCatching {
-                if (!diskDir.isDirectory) diskDir.mkdirs()
-                file.outputStream().use { stream ->
-                    quantized.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                }
-            }.getOrDefault(false)
-        if (!written) return quantized
-        writes += 1
-        index.add(ThumbKey.pathDigest(path.absolutePath), key)
-        index.save()
-        trimDisk()
+        memory.put(namespace + key, quantized)
+        synchronized(DISK_LOCK) {
+            val file = diskFile(key)
+            val written =
+                runCatching {
+                    if (!diskDir.isDirectory) diskDir.mkdirs()
+                    file.outputStream().use { stream ->
+                        quantized.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    }
+                }.getOrDefault(false)
+            if (!written) return quantized
+            writes.incrementAndGet()
+            index.add(ThumbKey.pathDigest(path.absolutePath), key)
+            index.save()
+            writesSinceTrim++
+            if (writesSinceTrim >= TRIM_BATCH || writes.get() == 1) {
+                trimDisk()
+                writesSinceTrim = 0
+            }
+        }
         return quantized
     }
 
@@ -139,16 +143,18 @@ class ThumbCache(
      *
      * 参数 path 为源图片文件；内存与磁盘条目一并移除，索引同步更新。
      */
-    @Synchronized
     fun invalidate(path: File) {
-        val digest = ThumbKey.pathDigest(path.absolutePath)
-        val keys = index.remove(digest)
-        if (keys.isEmpty()) return
-        for (key in keys) {
-            memory.remove(key)
-            diskFile(key).delete()
+        knownKeys.remove(path.absolutePath)?.let { memory.remove(namespace + it) }
+        synchronized(DISK_LOCK) {
+            val digest = ThumbKey.pathDigest(path.absolutePath)
+            val keys = index.remove(digest)
+            if (keys.isEmpty()) return
+            for (key in keys) {
+                memory.remove(namespace + key)
+                diskFile(key).delete()
+            }
+            index.save()
         }
-        index.save()
     }
 
     /**
@@ -156,7 +162,6 @@ class ThumbCache(
      *
      * 参数 paths 为待预热文件，decode 为未命中时的解码函数；返回本次实际解码并写入的条目数。
      */
-    @Synchronized
     fun warmUp(
         paths: List<File>,
         decode: (File) -> Bitmap?,
@@ -175,34 +180,35 @@ class ThumbCache(
     }
 
     /** 返回当前统计快照，磁盘字节数按目录内 PNG 文件累计。 */
-    @Synchronized
-    fun stats(): Stats {
-        val files = diskFiles()
-        return Stats(
-            memoryHits = memoryHits,
-            diskHits = diskHits,
-            misses = misses,
-            writes = writes,
-            diskEntries = files.size,
-            diskBytes = files.sumOf { it.length() },
-            memoryBytes = memory.size(),
-            targetEdge = targetEdge,
-        )
-    }
+    fun stats(): Stats =
+        synchronized(DISK_LOCK) {
+            val files = diskFiles()
+            Stats(
+                memoryHits = memoryHits.get(),
+                diskHits = diskHits.get(),
+                misses = misses.get(),
+                writes = writes.get(),
+                diskEntries = files.size,
+                diskBytes = files.sumOf { it.length() },
+                memoryBytes = memory.size(),
+                targetEdge = targetEdge,
+            )
+        }
 
     /**
      * 清空本实例的全部缓存。
      *
      * 内存条目逐出，磁盘 PNG 与索引文件删除；返回清理前的磁盘占用字节数。
      */
-    @Synchronized
-    fun clear(): Long {
-        val bytes = diskFiles().sumOf { it.length() }
-        memory.evictAll()
-        diskFiles().forEach { it.delete() }
-        index.reset()
-        return bytes
-    }
+    fun clear(): Long =
+        synchronized(DISK_LOCK) {
+            val bytes = diskFiles().sumOf { it.length() }
+            knownKeys.values.forEach { memory.remove(namespace + it) }
+            knownKeys.clear()
+            diskFiles().forEach { it.delete() }
+            index.reset()
+            bytes
+        }
 
     /** 缓存文件路径，键本身即文件名。 */
     private fun diskFile(key: String): File = File(diskDir, "$key.png")
@@ -226,6 +232,9 @@ class ThumbCache(
             ?: emptyList()
 
     companion object {
+        private val DISK_LOCK = Any()
+        private const val TRIM_BATCH = 16
+
         /** 默认磁盘上限，32 MB。 */
         const val DEFAULT_MAX_DISK_BYTES = 32L * 1024 * 1024
 

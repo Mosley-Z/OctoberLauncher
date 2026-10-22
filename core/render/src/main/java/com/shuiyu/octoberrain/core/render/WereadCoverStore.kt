@@ -52,7 +52,7 @@ object WereadCoverStore {
     }
 
     /** 正在下载的书目编号，避免同一本书重复排队。 */
-    private val inFlight: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val callbacks = ConcurrentHashMap<String, MutableList<(String) -> Unit>>()
 
     /** 主线程投递器，下载完成后回到主线程回调。 */
     private val mainHandler: Handler by lazy { Handler(Looper.getMainLooper()) }
@@ -93,11 +93,25 @@ object WereadCoverStore {
         bookId: String,
         source: String?,
         onReady: (String) -> Unit,
-    ) {
+    ): () -> Unit {
         val skip = source.isNullOrBlank() || !isRemote(source) || local(context, bookId, source) != null
-        if (skip || !inFlight.add(bookId)) return
-        val appContext = context.applicationContext
-        downloader.execute { fetch(appContext, bookId, source, onReady) }
+        if (skip) return {}
+        val start =
+            synchronized(callbacks) {
+                val waiting = callbacks[bookId]
+                if (waiting == null) {
+                    callbacks[bookId] = mutableListOf(onReady)
+                    true
+                } else {
+                    waiting.add(onReady)
+                    false
+                }
+            }
+        if (start) {
+            val appContext = context.applicationContext
+            downloader.execute { fetch(appContext, bookId, source) }
+        }
+        return { synchronized(callbacks) { callbacks[bookId]?.remove(onReady) } }
     }
 
     /**
@@ -152,15 +166,14 @@ object WereadCoverStore {
         context: Context,
         bookId: String,
         source: String,
-        onReady: (String) -> Unit,
     ) {
         val done =
             runCatching {
                 val target = cacheFile(context, bookId) ?: throw IOException("封面缓存目录不可用")
                 download(source, target)
             }.isSuccess
-        inFlight.remove(bookId)
-        if (done) mainHandler.post { onReady(bookId) }
+        val waiting = synchronized(callbacks) { callbacks.remove(bookId).orEmpty() }
+        if (done) mainHandler.post { waiting.forEach { it(bookId) } }
     }
 
     /**

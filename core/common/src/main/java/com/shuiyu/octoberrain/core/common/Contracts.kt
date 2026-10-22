@@ -263,6 +263,9 @@ interface WereadContent {
  * 自行处理缓存与失败。
  */
 interface ContentSource : WereadContent {
+    /** 数据持久化或显式失效后递增，用于可见页面刷新本地快照。 */
+    val dataVersion: StateFlow<Long>? get() = null
+
     /** 当前阅读快照，无数据返回 null。 */
     suspend fun readingSnapshot(): ReadingSnapshot?
 
@@ -433,6 +436,11 @@ sealed interface Destination {
         val path: String? = null,
     ) : Destination
 
+    /** 文档阅读来源，图片继续由原查看器处理。 */
+    data class DocumentReader(
+        val ref: DocumentRef,
+    ) : Destination
+
     /**
      * 图片查看器。
      *
@@ -569,6 +577,7 @@ fun Destination.displayLabel(): String =
     when (this) {
         is Destination.IconPicker -> "更换图标"
         is Destination.Files -> "文件"
+        is Destination.DocumentReader -> "文件阅读"
         is Destination.PhotoViewer -> "图片查看"
         is Destination.PhotoEditor -> "图片编辑"
         is Destination.Album -> "相册"
@@ -817,6 +826,7 @@ interface WereadPrefsWriter {
  * permissions、appearance、updates、fonts 的顺序装配，模块只依赖接口，不直接依赖实现类型。
  */
 object AppServices {
+    var reader: ReaderGateway? = null
     lateinit var config: ConfigStore
     lateinit var catalog: AppCatalog
     lateinit var content: ContentSource

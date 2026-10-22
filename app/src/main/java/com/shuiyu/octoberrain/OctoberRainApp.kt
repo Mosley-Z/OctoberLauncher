@@ -1,6 +1,7 @@
 package com.shuiyu.octoberrain
 
 import android.app.Application
+import android.os.Build
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.ConfigStore
 import com.shuiyu.octoberrain.core.common.InkLog
@@ -20,6 +21,7 @@ import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.core.device.PermissionCenter
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
+import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,8 +44,22 @@ class OctoberRainApp : Application() {
     /** 系统能力实现，退出时用于注销广播接收器。 */
     private var systemControls: SystemControlsImpl? = null
 
+    private var launcherProcess = true
+
     override fun onCreate() {
         super.onCreate()
+        val processName =
+            if (Build.VERSION.SDK_INT >= 28) {
+                getProcessName()
+            } else {
+                File("/proc/self/cmdline").inputStream().use { input ->
+                    val buffer = ByteArray(256)
+                    String(buffer, 0, input.read(buffer).coerceAtLeast(0)).substringBefore('\u0000')
+                }
+            }
+        launcherProcess = !processName.startsWith("$packageName:reader_pdf")
+        // isolated UID只接收PDF描述符，不能初始化配置、文件仓库、网络与桌面模块。
+        if (!launcherProcess) return
         DeviceRuntime.install(this)
 
         val config = JsonConfigStore(this)
@@ -94,6 +110,16 @@ class OctoberRainApp : Application() {
         InkLog.d("启动", "服务就绪，屏幕 ${DeviceRuntime.profile.widthPx}x${DeviceRuntime.profile.heightPx}")
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (launcherProcess && level >= TRIM_MEMORY_RUNNING_LOW) ThumbCacheRegistry.trimMemory()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        if (launcherProcess) ThumbCacheRegistry.trimMemory()
+    }
+
     /** 按模块类名加载功能模块，模块缺失与安装失败均不阻断启动。 */
     private fun installModules(config: ConfigStore) {
         val names =
@@ -104,6 +130,7 @@ class OctoberRainApp : Application() {
                 "com.shuiyu.octoberrain.feature.settings.SettingsModule",
                 "com.shuiyu.octoberrain.feature.content.ContentModule",
                 "com.shuiyu.octoberrain.feature.files.FilesModule",
+                "com.shuiyu.octoberrain.feature.reader.ReaderModule",
                 "com.shuiyu.octoberrain.feature.wereadapp.WereadAppModule",
             )
         for (name in names) {

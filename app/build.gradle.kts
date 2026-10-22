@@ -40,6 +40,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -50,6 +51,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk)
     implementation(project(":core:common"))
     implementation(project(":core:device"))
     implementation(project(":core:design"))
@@ -63,6 +65,7 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":feature:content"))
     implementation(project(":feature:files"))
+    implementation(project(":feature:reader"))
     implementation(project(":feature:weread-app"))
     implementation(project(":service"))
 }
