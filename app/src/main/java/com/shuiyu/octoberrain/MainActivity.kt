@@ -128,8 +128,9 @@ class MainActivity : Activity() {
                 InkRefreshController.requestPartial()
             }
         minuteTicker.start()
-        startInitialScreen()
-        openIncomingDocument(intent)
+        val deferHome = AppServices.config.state.value.onboarding.completed && isIncomingDocument(intent)
+        startInitialScreen(deferHome)
+        if (!openIncomingDocument(intent) && deferHome) stack.lastOrNull()?.screen?.onResume()
     }
 
     /** 配置窗口：全屏、白底、无窗口动画。 */
@@ -242,7 +243,7 @@ class MainActivity : Activity() {
     }
 
     /** 首次进入：未完成引导时展示引导页，否则进入桌面。 */
-    private fun startInitialScreen() {
+    private fun startInitialScreen(deferHome: Boolean = false) {
         val config = AppServices.config.state.value
         if (!config.onboarding.completed) {
             pushScreen(
@@ -253,6 +254,9 @@ class MainActivity : Activity() {
                 },
                 null,
             )
+        } else if (deferHome) {
+            val home = ScreenRegistry.create(Destination.Home) ?: PlaceholderScreen(Destination.Home.displayLabel())
+            pushScreen(home, Destination.Home, resume = false)
         } else {
             navigate(Destination.Home)
         }
@@ -295,6 +299,7 @@ class MainActivity : Activity() {
     private fun pushScreen(
         screen: Screen,
         destination: Destination?,
+        resume: Boolean = true,
     ) {
         val startedAt = SystemClock.elapsedRealtime()
         val view =
@@ -315,7 +320,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
-        screen.onResume()
+        if (resume) screen.onResume()
         updateStatusBarBackground()
         InkRefreshController.requestPartial()
     }
@@ -441,15 +446,17 @@ class MainActivity : Activity() {
     /** 外部授权文档复用同一宿主，锁屏覆盖层仍由原锁契约控制。 */
     private fun openIncomingDocument(incoming: Intent?): Boolean {
         val uri = incoming?.data
-        val valid =
-            incoming?.action == Intent.ACTION_VIEW &&
-                uri?.scheme == "content" &&
-                incoming.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+        val valid = isIncomingDocument(incoming)
         Log.i(TAG_INCOMING, "incoming action=${incoming?.action} scheme=${uri?.scheme} valid=$valid")
         val opened = valid && AppServices.reader?.open(DocumentRef.ContentUri(uri.toString())) == true
         Log.i(TAG_INCOMING, "incoming opened=$opened")
         return opened
     }
+
+    private fun isIncomingDocument(incoming: Intent?): Boolean =
+        incoming?.action == Intent.ACTION_VIEW &&
+            incoming.data?.scheme == "content" &&
+            incoming.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
 
     /**
      * 返回键处理。

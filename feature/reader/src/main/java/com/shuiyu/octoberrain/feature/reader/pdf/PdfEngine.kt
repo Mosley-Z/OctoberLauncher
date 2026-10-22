@@ -9,6 +9,7 @@ import com.shuiyu.octoberrain.core.common.ReaderCapabilities
 import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.feature.reader.ReaderEngine
 import com.shuiyu.octoberrain.feature.reader.ReaderFrame
+import com.shuiyu.octoberrain.feature.reader.ReaderTiming
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import kotlin.math.abs
 
@@ -39,6 +40,7 @@ internal class PdfEngine private constructor(
             .keys
             .filter { abs(it.page - target.page) > 1 }
             .forEach { cache.remove(it) }
+        ReaderTiming.pdfCache(cache.size(), cache.snapshot().size)
         return ReaderFrame(
             target,
             "${target.page + 1}/$pages · ${(target.zoom * 100).toInt()}%" +

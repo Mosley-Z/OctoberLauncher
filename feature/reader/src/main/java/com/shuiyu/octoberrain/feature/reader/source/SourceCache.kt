@@ -9,6 +9,22 @@ import java.io.File
 internal class SourceCache(
     private val directory: File,
 ) {
+    data class Snapshot(
+        val files: Int,
+        val diskBytes: Long,
+        val reservedBytes: Long,
+    )
+
+    fun snapshot(): Snapshot =
+        synchronized(reservations) {
+            val files = directory.listFiles().orEmpty().filter { it.isFile }
+            Snapshot(
+                files.size,
+                files.sumOf { it.length() },
+                reservations.filterKeys { it.parentFile == directory }.values.sum(),
+            )
+        }
+
     fun allocate(size: Long?): Lease =
         synchronized(reservations) {
             directory.mkdirs()

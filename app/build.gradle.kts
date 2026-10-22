@@ -20,9 +20,9 @@ android {
             libs.versions.targetSdk
                 .get()
                 .toInt()
-        // 1.0.28：微读墨记合并为三个大标签、锁屏密码并入设置页签，并删除统计页与阅读月历。
-        versionCode = 48
-        versionName = "1.0.28"
+        // 1.0.29：文件阅读器、Office全文搜索与来源身份/验收收口，沿用内部测试签名。
+        versionCode = 49
+        versionName = "1.0.29"
     }
 
     buildTypes {

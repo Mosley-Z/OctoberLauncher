@@ -5,6 +5,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action resolve -Labels "#1 #26"
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action tap -Label "#26"
 #   长按：-Action tap -Label "#26" -HoldMs 650（须使用当前页面标注截图）
+#   自绘区滑动：-Action swipe -Label "#26" -EndLabel "#30" -Screenshot <当前标注图>
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action find -FindText "设置"
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action click -FindText "设置"
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action key -Key back
@@ -15,11 +16,14 @@
 #   多设备时必须用 -Serial 指定；同一 ADB serial 同一时间只允许一个操作者。
 
 param(
-    [ValidateSet('layout', 'annotate', 'resolve', 'tap', 'find', 'click', 'key', 'text', 'raw')]
+    [ValidateSet('layout', 'annotate', 'resolve', 'tap', 'swipe', 'find', 'click', 'key', 'text', 'raw')]
     [string]$Action = 'layout',
     [string]$Serial = '',
     [string]$Labels = '',
     [string]$Label = '',
+    [string]$EndLabel = '',
+    [ValidateRange(100, 5000)]
+    [int]$SwipeMs = 350,
     [ValidateRange(0, 5000)]
     [int]$HoldMs = 0,
     [string]$FindText = '',
@@ -342,6 +346,18 @@ function Invoke-TextAction {
     Write-Host "输入文本  $Value"
 }
 
+# 动作：swipe，按当前标注截图解析两端点
+function Invoke-SwipeAction {
+    if (-not $Label -or -not $EndLabel) { throw 'swipe 需要当前截图的 -Label 和 -EndLabel' }
+    $png = Get-AnnotatedScreenshot
+    $startResolved = Invoke-Cli ('screen resolve --screenshot=' + (Quote-Arg $png) + ' --string=' + (Quote-Arg $Label))
+    $endResolved = Invoke-Cli ('screen resolve --screenshot=' + (Quote-Arg $png) + ' --string=' + (Quote-Arg $EndLabel))
+    $startPoint = Get-TapCoordinate $startResolved.Trim()
+    $endPoint = Get-TapCoordinate $endResolved.Trim()
+    Invoke-Adb -CommandArgs @('shell', 'input', 'swipe', "$($startPoint[0])", "$($startPoint[1])", "$($endPoint[0])", "$($endPoint[1])", "$SwipeMs") | Out-Null
+    Write-Host "滑动标号   $Label -> $EndLabel（截图 $png）"
+}
+
 # 动作：raw，原样透传 CLI 参数，便于排查新子命令
 function Invoke-RawAction {
     if (-not $RawArgs) { throw 'raw 需要 -RawArgs' }
@@ -355,6 +371,7 @@ switch ($Action) {
     'annotate' { Invoke-AnnotateAction | Out-Null }
     'resolve' { Invoke-ResolveAction | Out-Null }
     'tap' { Invoke-TapAction }
+    'swipe' { Invoke-SwipeAction }
     'find' { Invoke-FindAction }
     'click' { Invoke-TapAction }
     'key' { Invoke-KeyAction }

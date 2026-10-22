@@ -114,6 +114,7 @@ internal class ReaderPageView(
 
     /** 布局尺寸变化回调，旋转或窗口尺寸改变时供 ReaderScreen 重排。 */
     var sizeListener: ((Int, Int) -> Unit)? = null
+    var contentDrawn: (() -> Unit)? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val destination = Rect()
     val inset = DesignRuntime.tokens.dp(16f)
@@ -135,6 +136,13 @@ internal class ReaderPageView(
         destination.set(0, 0, width - inset * 2, height - inset * 2)
         frame?.bitmap?.let { canvas.drawBitmap(it, null, destination, paint) }
         canvas.restore()
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        val completed = contentDrawn
+        contentDrawn = null
+        completed?.invoke()
     }
 
     override fun onSizeChanged(

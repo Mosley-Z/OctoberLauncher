@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
-import android.os.SystemClock
 import android.text.InputFilter
 import android.text.InputType
 import android.view.View
@@ -195,6 +194,7 @@ internal class ReaderScreen(
     }
 
     override fun onResume() {
+        if (visible) return
         visible = true
         chrome.page.post { if (visible) open(position) }
     }
@@ -214,6 +214,7 @@ internal class ReaderScreen(
         val previous = session
         session = null
         chrome.page.removeAllViews()
+        chrome.page.contentDrawn = null
         chrome.page.frame = null
         frame = null
         val previousCleanup = cleanup
@@ -248,7 +249,7 @@ internal class ReaderScreen(
         targetWidth = wantedWidth
         targetHeight = wantedHeight
         val mark = ++generation
-        val startedAt = SystemClock.elapsedRealtime()
+        val startedAt = ReaderTiming.start()
         chrome.busy(true)
         chrome.status.text = "正在打开…"
         val job =
@@ -279,9 +280,7 @@ internal class ReaderScreen(
                         openedHeight = engineHeight
                         chrome.title.text = reader.name
                         publish(ready)
-                        if (chrome.context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
-                            InkLog.d("ReaderTiming", "prepareMs=${SystemClock.elapsedRealtime() - startedAt}")
-                        }
+                        ReaderTiming.drawn(chrome.page, startedAt, "open", format) { visible && mark == generation }
                         withContext(Dispatchers.IO) { reader.flush() }
                     }
                 } catch (cancelled: CancellationException) {
@@ -369,7 +368,7 @@ internal class ReaderScreen(
     ) {
         val reader = session ?: return
         if (action?.isActive == true || !visible) return
-        val startedAt = SystemClock.elapsedRealtime()
+        val startedAt = ReaderTiming.start()
         chrome.busy(true)
         val mark = generation
         val job =
@@ -377,9 +376,11 @@ internal class ReaderScreen(
                 try {
                     val next = withContext(Dispatchers.IO) { reader.operation() }
                     if (visible && mark == generation && next != null) {
+                        val previous = frame
                         publish(next, pageTurn)
-                        if (chrome.context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
-                            InkLog.d("ReaderTiming", "actionMs=${SystemClock.elapsedRealtime() - startedAt}")
+                        val event = ReaderTiming.event(pageTurn, previous, frame)
+                        ReaderTiming.drawn(chrome.page, startedAt, event, format) {
+                            visible && mark == generation
                         }
                         withContext(Dispatchers.IO) { reader.flush() }
                     }

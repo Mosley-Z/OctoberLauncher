@@ -10,6 +10,7 @@ import androidx.core.content.FileProvider
 import com.shuiyu.octoberrain.core.common.DocumentMetadata
 import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.ReaderFailure
+import com.shuiyu.octoberrain.feature.reader.ReaderTiming
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -104,24 +105,30 @@ internal class SourceResolver(
             )
         val uriId = "uri:${uri.normalizeScheme()}"
         val metadata =
-            if (owned == null) {
-                DocumentMetadata(uriId, name, mime, size, null, persisted)
-            } else {
-                DocumentMetadata(
-                    "path:${owned.path}",
-                    name,
-                    mime,
-                    owned.length(),
-                    owned.lastModified(),
-                    true,
-                    listOf(uriId),
-                )
-            }
+            contentIdentity(uri, DocumentMetadata(uriId, name, mime, size, null, persisted), owned)
         return Handle(
             metadata,
             { readDocument { resolver.openInputStream(uri) } },
             { readDocument { resolver.openFileDescriptor(uri, "r") } },
             owned,
+        )
+    }
+
+    private fun contentIdentity(
+        uri: Uri,
+        metadata: DocumentMetadata,
+        owned: File?,
+    ): DocumentMetadata {
+        val local =
+            owned ?: runCatching {
+                resolver.openFileDescriptor(uri, "r")?.use(DescriptorDocumentIdentity::resolve)
+            }.getOrNull() ?: return metadata
+        return metadata.copy(
+            id = "path:${local.path}",
+            size = local.length(),
+            modified = local.lastModified(),
+            persistentAccess = owned != null || metadata.persistentAccess,
+            aliases = listOf(metadata.id),
         )
     }
 
@@ -213,6 +220,7 @@ internal class SourceResolver(
             closed = true
             temporary?.close()
             temporary = null
+            ReaderTiming.cacheClosed(cache)
         }
     }
 }
