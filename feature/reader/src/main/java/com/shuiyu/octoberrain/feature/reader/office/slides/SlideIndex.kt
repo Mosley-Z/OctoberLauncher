@@ -17,8 +17,10 @@ internal class SlideIndex(
 
     init {
         val rels = relationships("ppt/presentation.xml")
+        val presentation = xml("ppt/presentation.xml").children().single { local(it.tagName()) == "presentation" }
+        val slideList = requireNotNull(presentation.children().firstOrNull { local(it.tagName()) == "sldIdLst" })
         paths =
-            xml("ppt/presentation.xml").getAllElements().filter { local(it.tagName()) == "sldId" }.map {
+            slideList.children().filter { local(it.tagName()) == "sldId" }.map {
                 val id =
                     it
                         .attributes()

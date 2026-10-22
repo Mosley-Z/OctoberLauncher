@@ -36,6 +36,16 @@ class SlideIndexTest {
         }
     }
 
+    @Test fun extensionSlideIdsAreNotPresentationPages() {
+        fixture(2, extensionIds = true).use { fixture ->
+            ZipArchive(fixture.file).use { zip ->
+                val index = SlideIndex(zip)
+                assertEquals(listOf("ppt/slides/slide2.xml", "ppt/slides/slide1.xml"), index.paths)
+                assertSinglePackage(SlidePackage(zip, index).build(1), index.paths[1])
+            }
+        }
+    }
+
     private fun assertSinglePackage(
         bytes: ByteArray,
         selected: String,
@@ -73,7 +83,10 @@ class SlideIndexTest {
         SlideIndex.parse("<x>".repeat(50001))
     }
 
-    private fun fixture(count: Int): Fixture {
+    private fun fixture(
+        count: Int,
+        extensionIds: Boolean = false,
+    ): Fixture {
         val file = File.createTempFile("reader-slides", ".pptx")
         ZipOutputStream(file.outputStream()).use { zip ->
             fun entry(
@@ -97,7 +110,16 @@ class SlideIndexTest {
                 "<p:presentation><p:sldIdLst>" +
                     (count downTo 1).joinToString("") {
                         "<p:sldId id=\"${256 + it}\" r:id=\"r$it\"/>"
-                    } + "</p:sldIdLst></p:presentation>",
+                    } + "</p:sldIdLst>" +
+                    (
+                        if (extensionIds) {
+                            "<p:extLst><p:ext><p14:sectionLst><p14:section><p14:sldIdLst>" +
+                                "<p14:sldId id=\"257\"/></p14:sldIdLst></p14:section>" +
+                                "</p14:sectionLst></p:ext></p:extLst>"
+                        } else {
+                            ""
+                        }
+                    ) + "</p:presentation>",
             )
             entry(
                 "ppt/_rels/presentation.xml.rels",
