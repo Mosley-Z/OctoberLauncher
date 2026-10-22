@@ -11,8 +11,12 @@ import com.shuiyu.octoberrain.feature.reader.epub.EpubEngine
 import com.shuiyu.octoberrain.feature.reader.image.ImageEngine
 import com.shuiyu.octoberrain.feature.reader.markdown.MarkdownEngine
 import com.shuiyu.octoberrain.feature.reader.office.docx.DocxEngine
+import com.shuiyu.octoberrain.feature.reader.office.sheets.CsvEngine
+import com.shuiyu.octoberrain.feature.reader.office.sheets.WorkbookEngine
+import com.shuiyu.octoberrain.feature.reader.office.slides.SlideEngine
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfEngine
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
+import com.shuiyu.octoberrain.feature.reader.source.DocumentKinds
 import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
 import com.shuiyu.octoberrain.feature.reader.text.TextEngine
 
@@ -31,6 +35,19 @@ internal object ReaderRegistry {
         charset: String?,
     ): ReaderEngine =
         when (format) {
+            ReaderFormat.SHEET ->
+                if (DocumentKinds.isCsv(source.metadata.name, source.metadata.mime)) {
+                    CsvEngine.create(
+                        source,
+                        locator,
+                        charset ?: (locator as? ReaderLocator.Sheet)?.charset
+                            ?: (locator as? ReaderLocator.Text)?.charset
+                            ?: "UTF-8",
+                    )
+                } else {
+                    WorkbookEngine.create(source, locator, fontSp)
+                }
+            ReaderFormat.SLIDES -> SlideEngine.create(source, locator, fontSp)
             ReaderFormat.DOCX -> DocxEngine.create(source, locator, fontSp)
             ReaderFormat.EPUB -> EpubEngine.create(source, fontSp)
             ReaderFormat.IMAGE -> ImageEngine(source, width, height)

@@ -22,6 +22,11 @@ function reveal(anchor){
  }offset=end;}
 }
 function command(value){try{
+ window.ReaderSearch.begin();
+ if(value.kind==='cancel')return;
+ if(value.kind==='searchAll'){window.ReaderSearch.scan(value,text,post);return;}
+ if(value.kind==='hit')window.ReaderSearch.mark(content,Number(value.anchor)||0,String(value.query||'').length);
+
  var anchor=Math.max(0,Math.min(text.length,Number(value.anchor)||0));
  if(value.kind==='turn'){show(page+(value.delta<0?-1:1));ready(value,starts[page]);return;}
  if(value.kind==='page'){show(Number(value.page)||0);var restored=anchorPage(anchor)===page?anchor:starts[page];

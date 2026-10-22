@@ -65,12 +65,12 @@ internal object ZipContainerProbe {
      */
     private fun classify(zip: ZipFile): ZipContainer {
         val paths = entryPaths(zip)
-        val epubMimetype = paths[MIMETYPE]?.takeIf { !it.isDirectory }?.let { isEpubMimetype(zip, it) } ?: false
+        val mime = paths[MIMETYPE]?.takeIf { !it.isDirectory }?.let { mimetype(zip, it) }
         val wordPart = paths.keys.any { it == DOCX_DIRECTORY || it.startsWith("$DOCX_DIRECTORY/") }
         return when {
-            epubMimetype || EPUB_CONTAINER in paths -> ZipContainer.EPUB
+            mime == EPUB_MIMETYPE || EPUB_CONTAINER in paths -> ZipContainer.EPUB
             DOCX_DOCUMENT in paths || (CONTENT_TYPES in paths && wordPart) -> ZipContainer.DOCX
-            SHEET_WORKBOOK in paths -> ZipContainer.SHEET
+            SHEET_WORKBOOK in paths || mime == "application/vnd.oasis.opendocument.spreadsheet" -> ZipContainer.SHEET
             SLIDES_PRESENTATION in paths -> ZipContainer.SLIDES
             else -> ZipContainer.ZIP
         }
@@ -97,16 +97,16 @@ internal object ZipContainerProbe {
     }
 
     /**
-     * 读取 mimetype 条目的有限前缀并与 EPUB 固定取值比对。
+     * 读取 mimetype 条目的有限前缀，供 EPUB 与 ODS 容器判定。
      *
      * @param zip 已打开的 ZIP 文件
      * @param entry mimetype 条目
-     * @return 去掉首尾空白后的前缀内容等于 `application/epub+zip` 时返回 true
+     * @return 去掉首尾空白后的 MIME 前缀
      */
-    private fun isEpubMimetype(
+    private fun mimetype(
         zip: ZipFile,
         entry: ZipEntry,
-    ): Boolean =
+    ): String =
         zip.getInputStream(entry).use { input ->
             val buffer = ByteArray(MIMETYPE_PREFIX_BYTES)
             var size = 0
@@ -115,6 +115,6 @@ internal object ZipContainerProbe {
                 if (read < 0) break
                 size += read
             }
-            buffer.copyOf(size).toString(Charsets.ISO_8859_1).trim() == EPUB_MIMETYPE
+            buffer.copyOf(size).toString(Charsets.ISO_8859_1).trim()
         }
 }

@@ -6,6 +6,17 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class WebMessagePolicyTest {
+    @Test fun scrollLocationRequiresBoundedFraction() {
+        val location = """{"session":"live","kind":"locate","anchor":32,"fraction":0.75}"""
+        assertEquals(
+            0.75,
+            WebMessagePolicy.parse(location, "live", WebMessagePolicy.ORIGIN, true, false)?.position?.fraction,
+        )
+        assertNull(
+            WebMessagePolicy.parse(location.replace("0.75", "1.1"), "live", WebMessagePolicy.ORIGIN, true, false),
+        )
+    }
+
     private val message =
         """
         {"session":"live","kind":"ready","request":2,"anchor":1024,"fraction":0.5,"page":1,"pages":3}

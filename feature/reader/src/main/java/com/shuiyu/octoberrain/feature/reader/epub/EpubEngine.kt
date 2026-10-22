@@ -5,6 +5,10 @@ import com.shuiyu.octoberrain.core.common.ReaderFailure
 import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.feature.reader.ReaderFrame
 import com.shuiyu.octoberrain.feature.reader.archive.ZipArchive
+import com.shuiyu.octoberrain.feature.reader.search.SearchCollector
+import com.shuiyu.octoberrain.feature.reader.search.SearchProvider
+import com.shuiyu.octoberrain.feature.reader.search.SearchScan
+import com.shuiyu.octoberrain.feature.reader.search.collectMatches
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
 import com.shuiyu.octoberrain.feature.reader.web.OfflineWebHost
@@ -22,16 +26,27 @@ internal class EpubEngine private constructor(
     private val zip: ZipArchive,
     private val book: EpubPackage,
     private val font: Int,
-) : ReflowEngine {
+) : ReflowEngine,
+    SearchProvider {
     private var spine = 0
     private var position = WebPosition()
     private var content: EpubContent? = null
     private var document: WebDocument? = null
-    private var lastQuery: String? = null
-    private var lastMatch = -1
-    private var lastSpine = -1
     val toc: List<EpubToc> get() = book.toc
     override val capabilities = ReaderCapabilities(search = true, reflow = true, bookmark = true)
+
+    override suspend fun scan(
+        query: String,
+        offset: Int,
+    ): SearchScan {
+        val collector = SearchCollector(offset)
+        for (index in book.chapters.indices) {
+            currentCoroutineContext().ensureActive()
+            val chapter = EpubContent.build(book, index, "search")
+            collectMatches(chapter.text, query, collector) { ReaderLocator.Epub(index, it) }
+        }
+        return SearchScan(page = collector.page())
+    }
 
     override suspend fun page(locator: ReaderLocator?): ReaderFrame {
         val saved = locator as? ReaderLocator.Epub
@@ -46,25 +61,6 @@ internal class EpubEngine private constructor(
         }
 
     suspend fun chapter(target: EpubToc): ReaderFrame = load(target.spine, fragment = target.fragment)
-
-    override suspend fun findNext(query: String): ReaderFrame? {
-        require(query.length in 1..256)
-        var start =
-            position.anchor + if (lastQuery == query && lastMatch == position.anchor && lastSpine == spine) 1 else 0
-        for (index in spine..book.chapters.lastIndex) {
-            currentCoroutineContext().ensureActive()
-            val chapter = if (index == spine) checkNotNull(content) else EpubContent.build(book, index, "search")
-            val match = chapter.text.indexOf(query, start)
-            if (match >= 0) {
-                lastQuery = query
-                lastMatch = match
-                lastSpine = index
-                return load(index, match)
-            }
-            start = 0
-        }
-        return null
-    }
 
     override fun atAnchor(anchor: Int): ReaderFrame =
         frame(WebRequest(checkNotNull(document), position.copy(anchor = anchor)))

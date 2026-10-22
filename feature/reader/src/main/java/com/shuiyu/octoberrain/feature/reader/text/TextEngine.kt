@@ -9,6 +9,10 @@ import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.feature.reader.ReaderEngine
 import com.shuiyu.octoberrain.feature.reader.ReaderFrame
+import com.shuiyu.octoberrain.feature.reader.search.SearchHit
+import com.shuiyu.octoberrain.feature.reader.search.SearchProvider
+import com.shuiyu.octoberrain.feature.reader.search.SearchScan
+import com.shuiyu.octoberrain.feature.reader.search.scanTextFile
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -16,12 +20,13 @@ import java.nio.charset.Charset
 
 /** 原生文本分页只保留一个64KiB窗口，位置使用字节锚点，不因字号变化丢失进度。 */
 internal class TextEngine(
-    handle: DocumentHandle,
+    private val handle: DocumentHandle,
     private val width: Int,
     private val height: Int,
     fontPx: Float,
     private val encoding: String? = null,
-) : ReaderEngine {
+) : ReaderEngine,
+    SearchProvider {
     private val channel = handle.openChannel()
 
     /** 稀疏块索引只用于定位与字符边界对齐，页面读取仍走固定64KiB窗口。 */
@@ -45,6 +50,20 @@ internal class TextEngine(
 
     /** 当前查询词；渲染每页时重算页内区间，用于在翻页与重排后继续显示高亮。 */
     private var highlightQuery: String? = null
+
+    override suspend fun scan(
+        query: String,
+        offset: Int,
+    ): SearchScan = handle.openChannel().use { SearchScan(page = scanTextFile(it, start, charset, query, offset)) }
+
+    override suspend fun showHit(
+        hit: SearchHit,
+        query: String,
+    ): ReaderFrame {
+        highlightQuery = query
+        history.clear()
+        return page(hit.locator)
+    }
 
     override suspend fun page(locator: ReaderLocator?): ReaderFrame {
         val prefix = java.nio.ByteBuffer.allocate(3)

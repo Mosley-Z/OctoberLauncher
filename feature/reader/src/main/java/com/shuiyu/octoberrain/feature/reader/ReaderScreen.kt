@@ -21,7 +21,11 @@ import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.VolumeKeySink
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
-import com.shuiyu.octoberrain.feature.reader.pdf.PdfAdjustment
+import com.shuiyu.octoberrain.feature.reader.office.sheets.SheetTableView
+import com.shuiyu.octoberrain.feature.reader.search.ReaderSearchUi
+import com.shuiyu.octoberrain.feature.reader.search.SearchHit
+import com.shuiyu.octoberrain.feature.reader.search.SearchHost
+import com.shuiyu.octoberrain.feature.reader.search.SearchPage
 import com.shuiyu.octoberrain.feature.reader.source.openExternalDocument
 import com.shuiyu.octoberrain.feature.reader.web.OfflineWebHost
 import kotlinx.coroutines.CancellationException
@@ -44,7 +48,8 @@ internal class ReaderScreen(
     private val ref: DocumentRef,
 ) : Screen,
     VolumeKeySink,
-    BookmarkHost {
+    BookmarkHost,
+    SearchHost {
     private lateinit var chrome: ReaderChrome
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var action: Job? = null
@@ -78,6 +83,7 @@ internal class ReaderScreen(
     private var format = ReaderFormat.UNKNOWN
     private var webHost: OfflineWebHost? = null
     private val bookmarks = ReaderBookmarks(this)
+    private val searchUi = ReaderSearchUi(this)
 
     override val context: Context get() = chrome.context
 
@@ -107,6 +113,46 @@ internal class ReaderScreen(
 
     override fun showBookmarkError(error: Exception) {
         showError(error)
+    }
+
+    override val searchScope: CoroutineScope get() = scope
+    override val searchGeneration: Int get() = generation
+    override val searchVisible: Boolean get() = visible
+
+    override fun searchBusy(): Boolean = action?.isActive == true
+
+    override fun setSearchBusy(value: Boolean) = chrome.busy(value)
+
+    override fun setSearchJob(job: Job) = setBookmarkAction(job)
+
+    override fun cancelSearchJob() {
+        action?.cancel()
+    }
+
+    override fun showSearchError(error: Exception) = showError(error)
+
+    override suspend fun scanSearch(
+        query: String,
+        offset: Int,
+    ): SearchPage {
+        val reader = checkNotNull(session)
+        val scan = withContext(Dispatchers.IO) { reader.scanSearch(query, offset) }
+        return scan.page ?: run {
+            val host = checkNotNull(webHost)
+            reader.acceptSearch(checkNotNull(host.present(checkNotNull(scan.web)).search)).also {
+                check(it.offset == offset)
+            }
+        }
+    }
+
+    override suspend fun showSearchHit(
+        hit: SearchHit,
+        query: String,
+    ) {
+        val reader = checkNotNull(session)
+        val next = withContext(Dispatchers.IO) { reader.showSearchHit(hit, query) }
+        publish(next)
+        withContext(Dispatchers.IO) { reader.flush() }
     }
 
     override fun createView(context: Context): View {
@@ -155,6 +201,7 @@ internal class ReaderScreen(
 
     override fun onPause() {
         visible = false
+        searchUi.close()
         trimPending = false
         generation++
         relayoutPending = false
@@ -371,7 +418,13 @@ internal class ReaderScreen(
                     AppServices.router.toast("已搜索到文末，未找到后续匹配")
                     return
                 }
-                checkNotNull(session).acceptWeb(checkNotNull(event.position))
+                if (event.table != null) {
+                    val accepted = checkNotNull(session).acceptTable(event.table)
+                    showTable(checkNotNull(accepted.table), host)
+                    accepted
+                } else {
+                    checkNotNull(session).acceptWeb(checkNotNull(event.position))
+                }
             }
         val turned = pageTurn && frame?.locator != shown.locator
         frame = shown
@@ -389,6 +442,10 @@ internal class ReaderScreen(
 
     private fun showArchive(next: ReaderFrame) {
         chrome.page.removeAllViews()
+        next.table?.let {
+            showTable(it, null)
+            return
+        }
         val archive = next.archive ?: return
         val context = chrome.context
         val rows = android.widget.LinearLayout(context).apply { orientation = android.widget.LinearLayout.VERTICAL }
@@ -422,12 +479,29 @@ internal class ReaderScreen(
         chrome.page.addView(scroll, android.widget.FrameLayout.LayoutParams(-1, -1))
     }
 
+    private fun showTable(
+        table: ReaderTable,
+        host: OfflineWebHost?,
+    ) {
+        chrome.page.removeAllViews()
+        if (host != null) {
+            chrome.page.addView(host.view, android.widget.FrameLayout.LayoutParams(1, 1))
+        }
+        chrome.page.addView(SheetTableView(chrome.context, table), android.widget.FrameLayout.LayoutParams(-1, -1))
+    }
+
     private fun createWebHost(): OfflineWebHost {
         val mark = generation
         return OfflineWebHost(
             chrome.context,
             onTurn = { delta -> if (visible && mark == generation) turn(delta) },
-            onLocate = { anchor -> if (visible && mark == generation) perform { locateWeb(anchor) } },
+            onLocate = { target ->
+                if (visible && mark == generation) {
+                    perform {
+                        if (format == ReaderFormat.SLIDES) acceptWeb(target) else locateWeb(target.anchor)
+                    }
+                }
+            },
             onLink = { uri ->
                 if (visible &&
                     mark == generation &&
@@ -453,29 +527,6 @@ internal class ReaderScreen(
         )
     }
 
-    private fun addEpubOptions(actions: MutableList<Pair<String, () -> Unit>>) {
-        if (format != ReaderFormat.EPUB) return
-        actions += "章节目录" to {
-            val toc = session?.epubToc().orEmpty()
-            AlertDialog
-                .Builder(chrome.context)
-                .setTitle("章节目录")
-                .setItems(toc.map { it.title }.toTypedArray()) { _, index -> perform { locateEpub(toc[index]) } }
-                .show()
-        }
-    }
-
-    private fun addArchiveOptions(actions: MutableList<Pair<String, () -> Unit>>) {
-        if (format == ReaderFormat.ZIP) {
-            listOf("UTF-8", "GB18030").forEach { encoding ->
-                actions += "文件名编码 $encoding" to {
-                    charset = encoding
-                    open(ReaderLocator.Archive(charset = encoding))
-                }
-            }
-        }
-    }
-
     private fun options() {
         val capabilities = session?.capabilities
         val actions = mutableListOf<Pair<String, () -> Unit>>()
@@ -497,9 +548,38 @@ internal class ReaderScreen(
                 }
             }
         }
-        addArchiveOptions(actions)
-        addEpubOptions(actions)
-        addDocxOptions(actions)
+        ReaderFormatOptions(chrome.context).add(
+            actions,
+            format,
+            frame?.locator,
+            session,
+            ::open,
+            epub = { target -> perform { locateEpub(target) } },
+            archiveEncoding = { value ->
+                charset = value
+                open(ReaderLocator.Archive(charset = value))
+            },
+            pdf = { mode -> perform { adjustPdf(mode) } },
+        )
+        addOfficeOptions(actions)
+        addMarkdownOptions(actions)
+        if (capabilities?.pageJump == true) actions += "跳到指定页" to ::jumpPage
+        if (capabilities?.bookmark == true) {
+            actions += "添加书签" to ::addBookmark
+            actions += "查看书签" to { bookmarks.show() }
+        }
+        if (capabilities?.search == true) actions += "全文搜索" to { searchUi.show() }
+        actions += "翻页全刷" to ::chooseRefresh
+        if (ref is DocumentRef.ContentUri) actions += "重新选择文档" to ::chooseDocument
+        actions += "其他应用打开" to { openExternalDocument(chrome.context, ref) }
+        AlertDialog
+            .Builder(chrome.context)
+            .setTitle("阅读设置")
+            .setItems(actions.map { it.first }.toTypedArray()) { _, index -> actions[index].second() }
+            .show()
+    }
+
+    private fun addMarkdownOptions(actions: MutableList<Pair<String, () -> Unit>>) {
         if (format == ReaderFormat.MARKDOWN) {
             if (frame?.locator !is ReaderLocator.Text) {
                 actions += "纯文本阅读（从头，不显示图片和表格排版）" to {
@@ -513,44 +593,21 @@ internal class ReaderScreen(
                 }
             }
         }
-        if (capabilities?.pageJump == true) actions += "跳到指定页" to ::jumpPage
-        if (capabilities?.zoom == true) addPdfOptions(actions)
-        if (capabilities?.bookmark == true) {
-            actions += "添加书签" to ::addBookmark
-            actions += "查看书签" to { bookmarks.show() }
-        }
-        if (capabilities?.search == true) actions += "搜索下一个" to ::search
-        actions += "翻页全刷" to ::chooseRefresh
-        if (ref is DocumentRef.ContentUri) actions += "重新选择文档" to ::chooseDocument
-        actions += "其他应用打开" to { openExternalDocument(chrome.context, ref) }
-        AlertDialog
-            .Builder(chrome.context)
-            .setTitle("阅读设置")
-            .setItems(actions.map { it.first }.toTypedArray()) { _, index -> actions[index].second() }
-            .show()
     }
 
-    private fun addPdfOptions(actions: MutableList<Pair<String, () -> Unit>>) {
-        listOf(
-            "放大" to PdfAdjustment.ZOOM_IN,
-            "缩小" to PdfAdjustment.ZOOM_OUT,
-            "视口左移" to PdfAdjustment.LEFT,
-            "视口右移" to PdfAdjustment.RIGHT,
-            "视口上移" to PdfAdjustment.UP,
-            "视口下移" to PdfAdjustment.DOWN,
-            "切换裁边5%" to PdfAdjustment.CROP,
-            "适合整页" to PdfAdjustment.FIT,
-        ).forEach { (label, mode) ->
-            actions += label to { perform { adjustPdf(mode) } }
-        }
-    }
-
-    private fun addDocxOptions(actions: MutableList<Pair<String, () -> Unit>>) {
-        if (format != ReaderFormat.DOCX) return
-        val current = frame?.locator as? ReaderLocator.Docx ?: ReaderLocator.Docx()
-        actions += (if (current.preview) "正文阅读" else "原版式预览") to {
-            open(current.copy(preview = !current.preview, page = -1))
-        }
+    private fun addOfficeOptions(actions: MutableList<Pair<String, () -> Unit>>) {
+        ReaderOfficeOptions(chrome.context).add(
+            actions,
+            frame?.locator,
+            session,
+            reopen = ::open,
+            locate = { sheet, row, column -> perform { locateSheet(sheet, row, column) } },
+            slide = { page -> perform { locatePdf(page) } },
+            encoding = { value ->
+                charset = value
+                open((frame?.locator as? ReaderLocator.Sheet)?.copy(charset = value))
+            },
+        )
     }
 
     private fun chooseRefresh() {
@@ -586,6 +643,7 @@ internal class ReaderScreen(
                     when (val locator = frame?.locator) {
                         is ReaderLocator.Pdf -> locator.page
                         is ReaderLocator.Docx -> locator.page
+                        is ReaderLocator.Slide -> locator.slide
                         else -> 0
                     }
                 setText(String.format(Locale.ROOT, "%d", page + 1))
@@ -600,70 +658,6 @@ internal class ReaderScreen(
                 val page = input.text.toString().toIntOrNull()
                 if (page != null && page > 0) perform { locatePdf(page - 1) }
             }.show()
-    }
-
-    private var searchQuery = ""
-
-    private fun search() {
-        if (session?.capabilities?.search != true || action?.isActive == true) return
-        val input =
-            EditText(chrome.context).apply {
-                setSingleLine(true)
-                filters = arrayOf(InputFilter.LengthFilter(256))
-                setText(searchQuery)
-            }
-        AlertDialog
-            .Builder(chrome.context)
-            .setTitle("搜索下一个（从当前位置）")
-            .setView(input)
-            .setNegativeButton("返回", null)
-            .setPositiveButton("查找") { _, _ ->
-                val query = input.text.toString()
-                if (query.isNotEmpty()) {
-                    searchQuery = query
-                    findNext(query)
-                }
-            }.show()
-    }
-
-    private fun findNext(query: String) {
-        val reader = session ?: return
-        val mark = generation
-        chrome.busy(true)
-        val cancelSearch = {
-            action?.cancel()
-            if (visible && mark == generation) open(frame?.locator)
-        }
-        val progress =
-            AlertDialog
-                .Builder(chrome.context)
-                .setMessage("正在分块查找…")
-                .setNegativeButton("取消") { _, _ -> cancelSearch() }
-                .setOnCancelListener { cancelSearch() }
-                .show()
-        val job =
-            scope.launch {
-                try {
-                    val found = withContext(Dispatchers.IO) { reader.findNext(query) }
-                    if (visible && mark == generation) {
-                        if (found == null) {
-                            AppServices.router.toast("已搜索到文末，未找到后续匹配")
-                        } else {
-                            publish(found)
-                            withContext(Dispatchers.IO) { reader.flush() }
-                        }
-                    }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    if (visible && mark == generation) showError(failure)
-                } finally {
-                    progress.dismiss()
-                    if (visible && mark == generation) chrome.busy(false)
-                }
-            }
-        action = job
-        job.invokeOnCompletion { finishAction(mark) }
     }
 
     private fun addBookmark() {

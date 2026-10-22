@@ -1,5 +1,7 @@
 # 阅读器任务看板与执行入口
 
+2026-10-23续接：0a1534c已提交；RD012/013首轮Office双机验证已落专属验收，RD014统一搜索在集成。根唯一Gradle操作者；设备租用/最终APK以STATUS和RD017为准，不以旧首轮包替代后续搜索包。
+
 最新阅读器批次（2026-10-23）：用户批准接手剩余开发。RD016第一批、RD015入口/已知同源身份增量已验证；RD011 DOCX双模式READY_FOR_REVIEW。见[DOCX与入口验收](../docs/acceptance/2026-10-23-reader-docx-and-entry.md)、[接力](../memory/sessions/2026-10-23-reader-resources-docx-codex.md)。后续RD012→RD013→RD014及资源/最终门禁；P4、真实SAF和复杂格式矩阵仍待，未关闭全方案。
 
 最新交付：FIX005/006均READY_FOR_REVIEW；[验收](../docs/acceptance/2026-10-22-shared-shelf-refresh.md)与[交接](../memory/sessions/2026-10-22-shared-shelf-refresh-codex.md)。本书共享缓存/刷新取代FIX004独立自动模式，下方“当前”旧记录按历史理解；后续依安排回RD016。

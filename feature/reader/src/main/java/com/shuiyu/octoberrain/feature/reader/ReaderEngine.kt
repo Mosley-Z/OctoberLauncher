@@ -27,4 +27,37 @@ internal data class ReaderFrame(
     val bitmap: Bitmap? = null,
     val archive: com.shuiyu.octoberrain.feature.reader.archive.ArchivePage? = null,
     val web: com.shuiyu.octoberrain.feature.reader.web.WebRequest? = null,
+    val table: ReaderTable? = null,
 )
+
+/** 仅当前20行×10列进入原生视图；行列位置为0起点，值不执行公式。 */
+internal data class ReaderTable(
+    val sheet: Int,
+    val sheets: List<String>,
+    val row: Int,
+    val column: Int,
+    val totalRows: Int,
+    val totalColumns: Int,
+    val cells: List<List<String>>,
+    val merges: List<TableMerge> = emptyList(),
+    val highlight: Pair<Int, Int>? = null,
+)
+
+internal data class TableMerge(
+    val row: Int,
+    val column: Int,
+    val rows: Int,
+    val columns: Int,
+)
+
+internal interface TableEngine : ReaderEngine {
+    val sheetNames: List<String>
+
+    suspend fun locate(
+        sheet: Int,
+        row: Int,
+        column: Int,
+    ): ReaderFrame
+
+    fun acceptTable(table: ReaderTable): ReaderFrame
+}

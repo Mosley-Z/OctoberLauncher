@@ -4,6 +4,12 @@
 
 | 文件 | 主题 | 使用边界 |
 | --- | --- | --- |
+| [2026-10-23-reader-office-search-integration.md](2026-10-23-reader-office-search-integration.md) | Office、统一搜索、旧CSV迁移与系统入口集成 | 最终门禁132例及双机报告汇总；物理刷新/真实SAF等边界单列 |
+| [2026-10-23-reader-office-s4.md](2026-10-23-reader-office-s4.md) | S4 PPTX原版式/提纲/200页与短压 | Office首包，非最终统一搜索包 |
+| [2026-10-23-reader-office-p4.md](2026-10-23-reader-office-p4.md) | P4工作簿/CSV/PPTX首轮 | Office首包，非最终统一搜索包 |
+| [2026-10-23-reader-p4-baseline.md](2026-10-23-reader-p4-baseline.md) | P4已提交基线补验 | TXT/PDF/Markdown/EPUB/ZIP/DOCX代表用例 |
+| [2026-10-23-reader-sheets.md](2026-10-23-reader-sheets.md) | 表格专属实现与预算/搜索证据 | 子任务交付；最终设备由集成报告汇总 |
+| [2026-10-23-reader-slides-subtask.md](2026-10-23-reader-slides-subtask.md) | PPTX专属实现与固定资源链 | 子任务交付；最终设备由集成报告汇总 |
 | [2026-10-23-reader-docx-and-entry.md](2026-10-23-reader-docx-and-entry.md) | DOCX双模式、自有URI/路径进度及书签迁移 | S4/debug/release首轮；复杂包、真实SAF、P4及全格式门禁待补 |
 | [2026-10-22-reader-resource-first.md](2026-10-22-reader-resource-first.md) | RD016刷新设置、低内存与基础恢复第一批 | S4合成PDF压力；Office/P4/最终APK矩阵待补 |
 | [2026-10-22-shared-shelf-refresh.md](2026-10-22-shared-shelf-refresh.md) | FIX005/006 最近在读、封面清理、与本书共用缓存/刷新 | 取代独立自动模式；S4及门禁，P4待补 |

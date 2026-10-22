@@ -1,9 +1,9 @@
 # TASK-RD-014 跨引擎搜索与能力收口
 
-- 状态：TODO（规划卡，未执行）
+- 状态：IN_PROGRESS（统一计数与双向定位实施中）
 - 优先级/阶段：P1 / R4
-- 执行者/集成者：未分配
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Codex；sheets子智能体负责CSV/Workbook专属适配
+- 分支/工作树/源码基线：master / D:/DSHStation/OctoberLauncher / 0a1534c+Office批次；保留已有修改
 - 依赖：[005](TASK-RD-005-text.md)、[009](TASK-RD-009-markdown.md)、[010](TASK-RD-010-epub.md)、[011](TASK-RD-011-docx.md)、[012](TASK-RD-012-sheets.md)、[013](TASK-RD-013-slides.md)
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -34,15 +34,26 @@
 
 ## 执行与接力记录
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
-- 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
-- 提交/合并/发布：未执行
+- 开始/最近更新：2026-10-23，用户授权提交后续接并行
+- 已改文件/接口决定：search/SearchProvider、TextScan、ReaderSearchUi，各引擎scan/showHit及公共Web搜索协议；见CONTRACTS和集成交付
+- 验证命令及结果/证据：全仓check/debug/release退出0，reader132例0失败；_analysis/verify/office-next/final-gate-4.log
+- 未覆盖/阻塞/解除条件：最终包双机验收正在执行，未用中间包冒充最终通过
+- 构建进程/设备占用/恢复：根唯一Gradle；S4/P4各测试子智能体独占，阶段结束回报恢复
+- 下一步：双机最终包计数/上下个/高亮/取消/恢复，资源压力交017统一收口
+- 接收方/集成点：Codex根集成者
+- 提交/合并/发布：基线0a1534c已提交；本卡增量待交付，未推送/升版/发布
 
 ## 2026-10-22 审查整改关联（最新排期）
 
 [FIX001](TASK-FIX-001-reader-review.md) 先修宿主忙碌重排；本卡后续将“搜索执行期间尺寸改变/退出”加入集成回归，沿用其 generation 与调度契约，不另做第二套调度。Office 引擎自身依赖不变。
+
+
+## 2026-10-23 授权续接与六行回读
+
+- 最终入口：阅读设置统一“全文搜索”，PDF保持无搜索入口；旧next内部接口过渡保留，UI不再单独分叉。
+- 控件：搜索词输入、可取消加载、总结果计数、上一个/下一个与换词；表格文案明确按单元格计数。
+- 显示：当前结果才高亮/跳转；查找没有结果不改变当前位置，扫描不装入整书DOM。
+- 状态：SearchProvider.scan返回最多64条SearchHit与完整total；offset决定结果窗口，query/结果仅在当前UI内存，不写正文或查询到日志。
+- 迁移：既有Locator/书签/SQLite不变，showHit定位成功并显示后才保存；取消/换词/退出沿唯一动作队列与generation。
+- 验收：跨未加载块/章节/sheet/幻灯片及DOCX末段；上下个和计数对照、取消/尺寸/换书、最终双机构建。Office旧包设备验收单独标版本，不冒充搜索版。
+- 所有权：根修改search公共契约/UI与Text/EPUB/Markdown/DOCX及公共Web协议；sheets仅自己包和专属脚本/测试；PPTX由原执行者设备结束后接适配。根独占Gradle。

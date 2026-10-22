@@ -23,13 +23,19 @@ internal data class WebDocument(
     val internalLinks: Set<String> = emptySet(),
     val styles: String = "",
     val docxPreview: Boolean = false,
+    val office: OfficeWebMode? = null,
 )
+
+internal enum class OfficeWebMode { SHEETS, SLIDES }
 
 internal data class WebPosition(
     val anchor: Int = 0,
     val fraction: Double = 0.0,
     val page: Int = 0,
     val pages: Int = 1,
+    val sheet: Int = 0,
+    val row: Int = 0,
+    val column: Int = 0,
 )
 
 internal data class WebRequest(
@@ -38,6 +44,8 @@ internal data class WebRequest(
     val kind: String = "position",
     val delta: Int = 0,
     val query: String? = null,
+    val searchOffset: Int = 0,
+    val matchOrdinal: Int = -1,
 )
 
 /** WebView在主线程完成排版后，才接受定位并保存；IO引擎不接触WebView。 */

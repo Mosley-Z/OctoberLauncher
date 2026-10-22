@@ -7,6 +7,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DocumentKindsTest {
+    @Test fun officeTablesHaveDedicatedRoutes() {
+        assertEquals(ReaderFormat.SHEET, DocumentKinds.detect("download", "text/csv", "a,b".toByteArray()))
+        assertEquals(ReaderFormat.SHEET, DocumentKinds.detect("table.csv", "text/csv", "a,b".toByteArray()))
+        assertEquals(ReaderFormat.TEXT, DocumentKinds.detect("table.tsv", "text/plain", "a\tb".toByteArray()))
+        val ole = listOf(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1).map { it.toByte() }.toByteArray()
+        assertEquals(ReaderFormat.SHEET, DocumentKinds.detect("table.xls", null, ole))
+        assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("table.doc", null, ole))
+    }
+
     @Test fun magicOverridesMisleadingExtensionAndMime() {
         assertEquals(ReaderFormat.PDF, DocumentKinds.detect("a.txt", "text/plain", "%PDF-1.4".toByteArray()))
         assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("a.txt", "text/plain", byteArrayOf(0, 1, 2)))

@@ -25,6 +25,7 @@
 | `feature:settings` | 设置首页与分组页、设置声明表、美化模式、各类选择器 |
 | `feature:content` | 书架、微信读书、KOReader、天气、使用统计、最近使用与负一屏书架卡片 |
 | `feature:files` | 文件浏览、相册、图片查看、图片编辑、外部查看与选图入口 |
+| `feature:reader` | 离线文本/PDF/Markdown/EPUB/ZIP、受预算Office、统一搜索、进度与书签 |
 | `service` | 通知监听服务、无障碍悬浮层服务与悬浮状态栏 |
 
 ## 构建
@@ -149,4 +150,4 @@ toolchain.path          工具链位置，换机器只改这一行
 
 ## 许可与来源
 
-本工程业务代码为自有实现。阅读器原样打包固定版本docx-preview与JSZip资源，来源和摘要见 `feature/reader/src/main/assets/reader/licenses/docx-assets.json`，完整许可随包保留；没有复制Gander业务Kotlin代码。其他上游对照材料（`_tools/upstream/` 中的 APK 与逆向产物）仅用于行为对照，不参与构建与运行；第三方许可入口为 `feature/settings/.../ThirdPartyLicenses.kt`，微信读书融合来源与边界见 `docs/design/17-weread-fusion.md`。
+本工程业务代码为自有实现。阅读器原样打包固定docx-preview/JSZip、SheetJS CE和PPTXjs完整资源链；来源与摘要分别见 `feature/reader/src/main/assets/reader/licenses/docx-assets.json` 、`reader/web/sheets/LICENSES.txt`及`reader/web/slides/vendor-manifest.json`，完整许可随包保留；没有复制Gander业务Kotlin代码。实际支持与预算边界见[Office与搜索验收](docs/acceptance/2026-10-23-reader-office-search-integration.md)。其他上游对照材料（`_tools/upstream/` 中的 APK 与逆向产物）仅用于行为对照，不参与构建与运行；第三方许可入口为 `feature/settings/.../ThirdPartyLicenses.kt`，微信读书融合来源与边界见 `docs/design/17-weread-fusion.md`。

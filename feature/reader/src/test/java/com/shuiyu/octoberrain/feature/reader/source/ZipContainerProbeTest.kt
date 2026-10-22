@@ -10,6 +10,20 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class ZipContainerProbeTest {
+    @Test fun odsIsDetectedFromMimetypeWithoutRelyingOnExtension() {
+        withTempDirectory { directory ->
+            val file =
+                writeArchive(
+                    directory,
+                    "table.zip",
+                    listOf(
+                        "mimetype" to "application/vnd.oasis.opendocument.spreadsheet",
+                    ),
+                )
+            assertEquals(ZipContainer.SHEET, ZipContainerProbe.probe(file))
+        }
+    }
+
     @Test fun epubIsDetectedFromMimetypeEntry() {
         withTempDirectory { directory ->
             val file = writeArchive(directory, "book.epub", listOf("mimetype" to "application/epub+zip"))

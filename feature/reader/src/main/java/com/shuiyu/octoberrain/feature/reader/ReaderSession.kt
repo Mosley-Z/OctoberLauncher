@@ -5,8 +5,13 @@ import android.os.Build
 import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.ReaderFormat
 import com.shuiyu.octoberrain.core.common.ReaderLocator
+import com.shuiyu.octoberrain.feature.reader.office.slides.SlideEngine
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfAdjustment
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfEngine
+import com.shuiyu.octoberrain.feature.reader.search.SearchHit
+import com.shuiyu.octoberrain.feature.reader.search.SearchPage
+import com.shuiyu.octoberrain.feature.reader.search.SearchProvider
+import com.shuiyu.octoberrain.feature.reader.search.SearchScan
 import com.shuiyu.octoberrain.feature.reader.session.BookmarkRow
 import com.shuiyu.octoberrain.feature.reader.session.ReadingRepository
 import com.shuiyu.octoberrain.feature.reader.session.mergeAliases
@@ -16,6 +21,7 @@ import com.shuiyu.octoberrain.feature.reader.source.SourceResolver
 import com.shuiyu.octoberrain.feature.reader.source.ZipContainerProbe
 import com.shuiyu.octoberrain.feature.reader.web.ReflowEngine
 import com.shuiyu.octoberrain.feature.reader.web.WebPosition
+import com.shuiyu.octoberrain.feature.reader.web.WebSearchPage
 import java.io.Closeable
 
 /** 会话的文件、引擎与记录由同一个后台任务串行操作，退出关闭自己的资源。 */
@@ -36,6 +42,7 @@ internal class ReaderSession(
     var fontSp = 20
         private set
     val name: String get() = handle?.metadata?.name ?: "文件阅读"
+    val csv: Boolean get() = handle?.metadata?.let { DocumentKinds.isCsv(it.name, it.mime) } ?: false
     val capabilities get() = engine?.capabilities
     var format: ReaderFormat = ReaderFormat.UNKNOWN
         private set
@@ -81,6 +88,18 @@ internal class ReaderSession(
 
     fun acceptWeb(position: WebPosition): ReaderFrame = (checkNotNull(engine) as ReflowEngine).accept(position)
 
+    fun acceptTable(table: ReaderTable): ReaderFrame = (checkNotNull(engine) as TableEngine).acceptTable(table)
+
+    fun sheetNames(): List<String> = (engine as? TableEngine)?.sheetNames.orEmpty()
+
+    suspend fun locateSheet(
+        sheet: Int,
+        row: Int,
+        column: Int,
+    ): ReaderFrame? = (engine as? TableEngine)?.locate(sheet, row, column)
+
+    fun slideOutline(): List<String> = (engine as? SlideEngine)?.outline().orEmpty()
+
     fun epubToc(): List<com.shuiyu.octoberrain.feature.reader.epub.EpubToc> =
         (engine as? com.shuiyu.octoberrain.feature.reader.epub.EpubEngine)?.toc.orEmpty()
 
@@ -94,10 +113,13 @@ internal class ReaderSession(
 
     suspend fun locatePdf(page: Int): ReaderFrame =
         checkNotNull(engine).page(
-            if (format == ReaderFormat.DOCX) {
-                ReaderLocator.Docx(preview = true, page = page)
-            } else {
-                ReaderLocator.Pdf(page)
+            when (format) {
+                ReaderFormat.DOCX -> ReaderLocator.Docx(preview = true, page = page)
+                ReaderFormat.SLIDES ->
+                    (frame?.locator as? ReaderLocator.Slide ?: ReaderLocator.Slide()).copy(
+                        slide = page,
+                    )
+                else -> ReaderLocator.Pdf(page)
             },
         )
 
@@ -105,6 +127,32 @@ internal class ReaderSession(
         if (Build.VERSION.SDK_INT >= 27) (engine as? PdfEngine)?.adjust(mode) else null
 
     suspend fun findNext(query: String): ReaderFrame? = checkNotNull(engine).findNext(query)
+
+    suspend fun scanSearch(
+        query: String,
+        offset: Int,
+    ): SearchScan = (checkNotNull(engine) as SearchProvider).scan(query, offset)
+
+    suspend fun showSearchHit(
+        hit: SearchHit,
+        query: String,
+    ): ReaderFrame = (checkNotNull(engine) as SearchProvider).showHit(hit, query)
+
+    fun acceptSearch(result: WebSearchPage): SearchPage =
+        SearchPage(result.offset, result.total, result.hits.map { SearchHit(searchLocator(it.position), it.snippet) })
+
+    private fun searchLocator(position: WebPosition): ReaderLocator =
+        when (format) {
+            ReaderFormat.MARKDOWN -> ReaderLocator.Markdown(position.anchor)
+            ReaderFormat.DOCX ->
+                ReaderLocator.Docx(
+                    preview = (frame?.locator as? ReaderLocator.Docx)?.preview ?: false,
+                    textOffset = position.anchor,
+                    page = -1,
+                )
+            ReaderFormat.SHEET -> ReaderLocator.Sheet(position.sheet, position.row, position.column)
+            else -> error("Unexpected search coordinate type")
+        }
 
     fun trimMemory() {
         engine?.trimMemory()

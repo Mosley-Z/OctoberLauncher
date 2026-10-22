@@ -1,9 +1,9 @@
 # TASK-RD-017 完整集成、审查与交付验收
 
-- 状态：TODO（规划卡，未执行）
+- 状态：IN_PROGRESS（Office/RD014整包门禁已过，双机最终矩阵中）
 - 优先级/阶段：P0 / R5
-- 执行者/集成者：未分配
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Codex；S4/P4由各测试子智能体独占
+- 分支/工作树/源码基线：master/0a1534c + Office/RD014工作区；保留无关修改
 - 依赖：[011](TASK-RD-011-docx.md)、[012](TASK-RD-012-sheets.md)、[013](TASK-RD-013-slides.md)、[014](TASK-RD-014-search.md)、[015](TASK-RD-015-integration.md)、[016](TASK-RD-016-resources.md)、[FIX001](TASK-FIX-001-reader-review.md)、[FIX002](TASK-FIX-002-single-bookshelf.md)、[FIX003](TASK-FIX-003-special-icons.md)、[FIX004](TASK-FIX-004-shelf-controls-refresh.md)（最新书架行为交付）、[FIX006](TASK-FIX-006-shared-shelf-refresh.md)（覆盖独立自动模式）
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -54,3 +54,24 @@
 ## FIX006最新关联（覆盖旧FIX004计时要求）
 
 使用[FIX006](TASK-FIX-006-shared-shelf-refresh.md)共享微信读书缓存/book刷新/dataVersion通知；不要恢复独立微信读书快照与计时器。RD016审计共享读写/并发/前后台资源；RD017补P4和真实网络失败，旧自动长间隔矩阵已取消。本地手动目录快照保留。
+
+## 2026-10-23 P4基线补验（分派子任务，非整卡完成）
+
+- 执行者/文件范围：P4测试子智能体，独占serial `P4L202610130006`；仅本节、[验收记录](../docs/acceptance/2026-10-23-reader-p4-baseline.md)、`_analysis/verify/p4-baseline/`、`_ui-out/p4-baseline-*`。源码/共享文档/Gradle/S4未操作。
+- 基线：master工作树中稳定提交`0a1534c`的release副本，摘要`c2d9efcd09348c51663a2068a7b78ac1031130d18bc79681fd9951927a6d55ab`，1.0.28/48；并行源码开发未纳入该APK。
+- 六行回读：①自身content URI外部入口保留；②阅读壳常显三按钮、设置菜单操作；③TXT/PDF/Markdown/EPUB/ZIP/DOCX各自合成样本；④仅刷新间隔单字段变更，消费者为阅读器Refresh；⑤原6→0→12→重启保留12→还原6，合成进度/书签保留；⑥用真实552×768 P4点击、状态、强停恢复、损坏PDF返回HOME与进程PSS作为证据，未测项单列。
+- 验证：覆盖安装保留数据；TXT翻页/书签/强停恢复，PDF翻页/重开，Markdown/EPUB翻页，ZIP目录内TXT，DOCX正文/原版式及模式锚点强停恢复，全刷0/12可选、12重启持久化与6恢复，损坏PDF失败后HOME；详见验收矩阵。
+- 资源：DOCX主+绑定WebView renderer PSS123,357 KiB；PDF主+isolated worker100,094 KiB，均为小合成样本单次快照，不代表峰值或压力通过。
+- 恢复/释放：原刷新6已CHECKED回读，原物理552×768未变，未改网络/锁屏/字体；最终基线release、HOME，P4已释放给集成者。新建独立合成Download目录和阅读记录保留供新包复验。
+- 未覆盖/下一步：新Office/统一搜索最终包、复杂样本、全格式状态矩阵、SAF/网络/锁屏、物理EPD与长压均待最终同一APK双机验收；017不记DONE。无后台脚本/Gradle，无提交/升版/发布。
+
+
+## 2026-10-23 Office/RD014集成六行回读
+
+- 入口：现有文件/最近阅读/外部URI统一Reader，补真实支持的Office VIEW/SEND精确MIME；图片保持原流程。
+- 控件：阅读设置接工作表/行列、幻灯片目录/提纲、全文搜索与上下个；常显返回/前后页和刷新单选延续。
+- 显示：仅当前表格窗口或当前幻灯片资源入视图；复杂对象提示，超限/无权限明确失败且可返回。
+- 字段/消费者：Sheet与Slide Locator、ReaderTable/OfficeWebMode、内部SearchProvider；旧SQLite不重建，搜索词/结果不持久化。
+- 迁移/保留：同源身份别名与既有进度书签延续；复制/移动保持独立，取消/退出沿唯一动作队列；界面成功后落盘。
+- 验收：全仓门禁/debug/release、同最终APK双机计数/高亮/取消/入口与200/30压力；物理刷新/真实SAF等未覆盖独立保留。
+- 自动结果与APK详见[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)，根独占Gradle；本批未推送/升版/发布。

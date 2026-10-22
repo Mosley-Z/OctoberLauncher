@@ -1,9 +1,13 @@
 # 稳定项目记忆
 
-维护日期：2026-10-22。只收可追溯结论；动态进度见 [STATUS.md](STATUS.md)。本文件手工维护，不声称存在自动注入。
+维护日期：2026-10-23。只收可追溯结论；动态进度见 [STATUS.md](STATUS.md)。本文件手工维护，不声称存在自动注入。
 
 | 结论/经验 | 来源与边界 |
 | --- | --- |
+| Office用SheetJS0.20.3与PPTXjs1.21.1固定完整资源链，工作簿原生20×10窗口，PPTX只传当前页关系闭包；8MiB/32MiB及结构预算在JS前检查 | 2026-10-23-reader-office-search-integration、专属许可/manifest；小样本兼容不等于完整Office |
+| 统一搜索扫描不变更位置，完整计数仅缓存64命中，跨窗口重扫；表格按匹配单元格计数。受控mark/原生高亮，不依赖WebView83缺失的Custom Highlight API | SearchProvider/ReaderSearchUi；显示命中后remember/flush，取消同时使JS token失效 |
+| CSV从旧纯文本升级时必须迁移Text字节锚点和旧编码到逻辑记录，不能按物理行数（引号可含换行）；先8KiB增量解码计字符，再按CSV记录边界定位 | CsvData.legacyRow/CsvLegacyTest；只保留当前窗口，旧书签共用迁移 |
+| Android CLI text=为子串匹配，状态含“阅读设置”会误命中；阅读按钮用id=reader_settings或当前annotate标签，并回读实际结果 | 2026-10-23 P4合成CSV错误恢复验收；CLI成功不等于产品交互通过 |
 | DOCX正文/原版式采用固定docx-preview0.4.0与JSZip3.10.1；原版式按宽适配/页内滚动，禁止将长页整屏缩到不可读。Docx定位器保存模式与锚点；复杂Word排版/P4仍待 | 2026-10-23-reader-docx-and-entry验收，S4/WebView83及release首轮 |
 | 自有FileProvider files_share URI与规范路径共用身份，旧别名在事务中保留较新进度与全部书签；归档需继承父别名和编码/路径/CRC。不可将任意第三方URI或同名副本直接合并 | SourceResolver/OwnedDocumentPath/ReaderIdentity，2026-10-23入口迁移设备证据；通用摘要关联未做 |
 | 负一屏微信读书与桌面本书共用weread缓存及book刷新入口，不独立计时/复制快照；本地书源仍手动。先排序后限量，以同一目标书对照所有入口的成员和排名 | FIX005/006、2026-10-22-shared-shelf-refresh验收；取代FIX004独立自动模式，P4待补 |

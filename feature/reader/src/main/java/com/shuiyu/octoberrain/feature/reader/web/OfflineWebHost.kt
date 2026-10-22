@@ -17,6 +17,7 @@ import androidx.webkit.WebViewFeature
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.ReaderFailure
 import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
@@ -30,7 +31,7 @@ import java.io.IOException
 internal class OfflineWebHost(
     private val context: Context,
     private val onTurn: (Int) -> Unit,
-    private val onLocate: (Int) -> Unit,
+    private val onLocate: (WebPosition) -> Unit,
     private val onLink: (Uri) -> Unit,
     private val onFailure: (Exception) -> Unit,
 ) : Closeable {
@@ -136,8 +137,8 @@ internal class OfflineWebHost(
                         )
                     }
                 when (event?.kind) {
-                    "ready" -> if (event.request == requestId) pending?.complete(event)
-                    "locate" -> if (pending == null) event.position?.let { onLocate(it.anchor) }
+                    "ready", "table", "searchResults" -> if (event.request == requestId) pending?.complete(event)
+                    "locate" -> if (pending == null) event.position?.let(onLocate)
                     "turn" -> if (pending == null) onTurn(event.delta)
                     "link" ->
                         if (pending == null) {
@@ -150,11 +151,13 @@ internal class OfflineWebHost(
                                 }
                             }
                         }
-                    "error" -> {
-                        val error = ReaderSourceException(ReaderFailure.RENDERER)
-                        if (event.request == requestId) pending?.completeExceptionally(error)
-                        onFailure(error)
-                    }
+                    "error" ->
+                        if (event.request == requestId) {
+                            val error = ReaderSourceException(event.failure ?: ReaderFailure.RENDERER)
+                            pending?.completeExceptionally(error)
+                            close()
+                            onFailure(error)
+                        }
                 }
             }
         }
@@ -172,6 +175,11 @@ internal class OfflineWebHost(
                 .put("kind", request.kind)
                 .put("delta", request.delta)
                 .put("page", request.position.page)
+                .put("sheet", request.position.sheet)
+                .put("row", request.position.row)
+                .put("column", request.position.column)
+                .put("searchOffset", request.searchOffset)
+                .put("matchOrdinal", request.matchOrdinal)
                 .put("anchor", request.position.anchor.coerceIn(0, 4_000_000))
                 .put(
                     "fraction",
@@ -189,7 +197,13 @@ internal class OfflineWebHost(
             }
             return withTimeout(15000) { result.await() }
         } catch (_: TimeoutCancellationException) {
-            throw ReaderSourceException(ReaderFailure.RENDERER)
+            val error = ReaderSourceException(ReaderFailure.RENDERER)
+            close()
+            onFailure(error)
+            throw error
+        } catch (cancelled: CancellationException) {
+            if (!closed) view.evaluateJavascript("window.ReaderHost.command({kind:'cancel'})", null)
+            throw cancelled
         } finally {
             pending = null
         }
@@ -210,7 +224,11 @@ internal class OfflineWebHost(
                 try {
                     when {
                         path == "index.html" -> {
-                            response("text/html", ByteArrayInputStream(indexHtml(doc, command)), doc.docxPreview)
+                            response(
+                                "text/html",
+                                ByteArrayInputStream(indexHtml(doc, command)),
+                                doc.docxPreview || doc.office != null,
+                            )
                         }
                         path.startsWith("res/") ->
                             doc.resources.open(path.removePrefix("res/"))?.let { response(it.mime, it.stream) }
@@ -227,9 +245,8 @@ internal class OfflineWebHost(
     private fun staticResource(
         doc: WebDocument,
         path: String,
-    ): WebResourceResponse {
-        val scripts = setOf("docx-host.js", "jszip3.min.js", "docx-preview.min.js")
-        return if (path !in setOf("host.js", "style.css") && !(doc.docxPreview && path in scripts)) {
+    ): WebResourceResponse =
+        if (path != "style.css" && !OfficeWebAssets.allows(doc, path)) {
             blocked()
         } else {
             try {
@@ -241,7 +258,6 @@ internal class OfflineWebHost(
                 blocked()
             }
         }
-    }
 
     private fun indexHtml(
         doc: WebDocument,
@@ -249,21 +265,14 @@ internal class OfflineWebHost(
     ): ByteArray {
         val bootstrap = Uri.encode(command)
         val font = doc.fontSp.coerceIn(14, 36)
-        val scripts =
-            if (doc.docxPreview) {
-                "<script src=\"/static/jszip3.min.js\"></script>" +
-                    "<script src=\"/static/docx-preview.min.js\"></script>" +
-                    "<script src=\"/static/docx-host.js\"></script>"
-            } else {
-                "<script src=\"/static/host.js\"></script>"
-            }
+        val scripts = OfficeWebAssets.markup(doc)
         val html =
             """
             <!doctype html><html lang="zh-CN" data-reader-session="${doc.session}"
             data-reader-command="$bootstrap"><meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
             <link rel="stylesheet" href="/static/style.css"><style>:root{font-size:${font}px}${doc.styles}</style>
-            <body><main id="reader-content">${if (doc.docxPreview) "" else doc.body}</main>
+            <body><main id="reader-content">${if (doc.docxPreview || doc.office != null) "" else doc.body}</main>
             $scripts</body></html>
             """.trimIndent()
         return html.toByteArray(Charsets.UTF_8)

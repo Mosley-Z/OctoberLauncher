@@ -23,6 +23,11 @@ function anchorAt(target){var lo=0,hi=text.length;while(lo<hi){var mid=Math.floo
 function display(target){page=Math.max(0,Math.min(pages-1,target));content.style.transform='translateX('+(-page*step)+'px)';}
 function ready(command,anchor,found){post({kind:'ready',request:command.request,anchor:anchor,fraction:pages<=1?0:page/(pages-1),page:page,pages:pages,found:found!==false});}
 function command(value){try{
+ window.ReaderSearch.begin();
+ if(value.kind==='cancel')return;
+ if(value.kind==='searchAll'){window.ReaderSearch.scan(value,text,post);return;}
+ if(value.kind==='hit'){window.ReaderSearch.mark(content,Number(value.anchor)||0,String(value.query||'').length);indexText();}
+
  var anchor=Math.max(0,Math.min(text.length,Number(value.anchor)||0));
  if(value.kind==='turn'){display(page+(value.delta<0?-1:1));var nextAnchor=anchorAt(page);reveal(nextAnchor);ready(value,nextAnchor);return;}
  if(value.kind==='search'){

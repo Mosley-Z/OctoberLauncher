@@ -13,6 +13,15 @@
 
 ## 冻结步骤
 
+### 2026-10-23 Office并行批次接口（集成者Codex）
+
+- 基线已提交0a1534c；本批增加ReaderLocator.Sheet(sheet,row,column,charset)及Slide(slide,outline,textOffset,fraction)，旧定位器与数据库结构不变。
+- ReaderFrame.table为ReaderTable；TableEngine提供sheetNames、locate(sheet,row,column)、acceptTable(table)。ReaderTable仅当前20×10窗口，位置0起点，cells单元格最多512字符；merges为绝对行列与跨度，仅传当前窗口相交区域。
+- WebDocument.office=OfficeWebMode.SHEETS/SLIDES；保留既有docxPreview。专属脚本位于reader/web/sheets/或reader/web/slides/，资源白名单/宿主/Registry/UI接线仅集成者改。
+- WebPosition新增sheet/row/column；WebRequest现有kind/delta/query沿用，序列化命令增加上述字段与page。
+- 表格脚本回传kind=table、request/session、sheet/sheets/row/column/totalRows/totalColumns/cells/merges；最大256KiB，20×10、512字符、100个sheet、200个可见merge。元数据上限100000行/1024列，不能先解析巨簿再以窗口化冒充预算。
+- slides保持ReflowEngine，原版式每次只提供当前页的离线资源/DOM；引擎自行保存总页数，accept的WebPosition仅表示当前页布局。额外提纲查询由引擎公开专属方法，集成者接入。
+
 001先核查实际路由与AppServices，结合000兼容结果给出最小Kotlin签名；在本文件填入契约版本、提交或源码差异、类型路径、调用线程、错误和关闭语义。下游以该版本实际源码接入；不得各自创建同名但不同含义的接口。
 
 ## 草案边界
@@ -75,3 +84,11 @@ ReaderRegistry现支持TEXT/PDF/MARKDOWN真实factory。ReaderEngine挂起page/t
 - ReaderLocator.Archive(directory,page,charset)、Image、Epub(spine,textOffset,fraction)已接SQLite。Image仅采样静态首帧；不替代原图库。
 - EPUB一章一WebDocument，共用一个WebView；内部跨章链接必须命中当前WebDocument.internalLinks精确清单。CSS只接受EpubStyles生成的有限属性与作用域选择器；不信任原始CSS、导入、字体或网络URL。
 - Registry实际支持TEXT/PDF/MARKDOWN/ZIP/EPUB/IMAGE；其他容器候选不代表Office已产品接入。系统ACTION_VIEW已补充EPUB/ZIP MIME；ACTION_SEND仍未实现。
+
+
+## 2026-10-23 RD014统一搜索冻结
+
+- reader/search/SearchProvider.scan(query,offset)返回SearchScan(page或web二选一)，纯扫描不改变当前位置；SearchPage(offset,total,hits)最多64条，snippet最多160字符。showHit(hit,query)返回待显示ReaderFrame，使用已有Locator，查询不持久化。
+- SearchCollector按全文自然顺序完整计数，仅保存请求offset起64条。表格每个匹配单元格计1条（不按单格内重复词数），其余按重叠匹配位置计数。
+- WebRequest增加searchOffset，扫描kind=searchAll，响应kind=searchResults（session/request/offset/total/hits）；每个hit含anchor或sheet/row/column与snippet。原生根验证后按当前引擎映射Locator，不能接任意多态Locator。
+- 显示命中kind=hit，定位成功后才记进度。扫描期间取消沿既有action/generation；JS每批yield并以新request失效旧扫描。结果计数完整前不显示虚假总数。

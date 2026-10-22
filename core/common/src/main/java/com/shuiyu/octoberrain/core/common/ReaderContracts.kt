@@ -41,6 +41,24 @@ data class DocumentMetadata(
 @Serializable
 sealed interface ReaderLocator {
     @Serializable
+    @SerialName("sheet")
+    data class Sheet(
+        val sheet: Int = 0,
+        val row: Int = 0,
+        val column: Int = 0,
+        val charset: String = "UTF-8",
+    ) : ReaderLocator
+
+    @Serializable
+    @SerialName("slide")
+    data class Slide(
+        val slide: Int = 0,
+        val outline: Boolean = false,
+        val textOffset: Int = 0,
+        val fraction: Double = 0.0,
+    ) : ReaderLocator
+
+    @Serializable
     @SerialName("docx")
     data class Docx(
         val preview: Boolean = false,

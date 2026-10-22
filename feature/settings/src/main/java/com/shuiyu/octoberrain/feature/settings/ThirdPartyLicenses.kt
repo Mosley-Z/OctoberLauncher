@@ -57,6 +57,20 @@ internal object ThirdPartyLicenses {
                 "reader/licenses/docx.txt",
             ),
             LicenseEntry(
+                "SheetJS CE 0.20.3",
+                "Apache-2.0",
+                "",
+                "SheetJS LLC",
+                "reader/web/sheets/LICENSES.txt",
+            ),
+            LicenseEntry(
+                "PPTXjs 1.21.1 / jQuery / JSZip / D3 / NVD3",
+                "MIT / BSD-3-Clause / Apache-2.0",
+                "",
+                "PPTXjs and dependency contributors",
+                "reader/web/slides/LICENSES.txt",
+            ),
+            LicenseEntry(
                 "desugar_jdk_libs 2.1.3",
                 "GPL-2.0 + Classpath Exception",
                 "",

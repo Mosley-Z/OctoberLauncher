@@ -7,6 +7,8 @@ import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.feature.reader.ReaderFrame
 import com.shuiyu.octoberrain.feature.reader.archive.ZipArchive
 import com.shuiyu.octoberrain.feature.reader.epub.EpubResources
+import com.shuiyu.octoberrain.feature.reader.search.SearchProvider
+import com.shuiyu.octoberrain.feature.reader.search.SearchScan
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
 import com.shuiyu.octoberrain.feature.reader.web.ImageResourceBudget
@@ -24,10 +26,16 @@ internal class DocxEngine private constructor(
     private val zip: ZipArchive,
     private val document: WebDocument,
     private val preview: Boolean,
-) : ReflowEngine {
+) : ReflowEngine,
+    SearchProvider {
     private var position = WebPosition()
     override val capabilities =
         ReaderCapabilities(search = true, reflow = !preview, pageJump = preview, bookmark = true)
+
+    override suspend fun scan(
+        query: String,
+        offset: Int,
+    ): SearchScan = SearchScan(web = WebRequest(document, position, "searchAll", query = query, searchOffset = offset))
 
     override suspend fun page(locator: ReaderLocator?): ReaderFrame {
         val saved = locator as? ReaderLocator.Docx

@@ -1,0 +1,56 @@
+[
+  {
+    "path": "lib/pptx/jquery.min.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/jquery.min.js",
+    "bytes": 95957,
+    "sha256": "ecb916133a9376911f10bc5c659952eb0031e457f5df367cde560edbfba38fb8"
+  },
+  {
+    "path": "lib/pptx/jszip2.min.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/jszip2.min.js",
+    "bytes": 75490,
+    "sha256": "215fb2537b13d82daabd46e1ee59ffe4dce90abd0acb0ac5432e77071f422e9c"
+  },
+  {
+    "path": "lib/pptx/pptxjs.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/pptxjs.js",
+    "bytes": 816735,
+    "sha256": "7f1a487a948bb80afc19e0a5109f48eb31b39939211d75eaa621d865b57614f6"
+  },
+  {
+    "path": "lib/pptx/d3.min.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/d3.min.js",
+    "bytes": 151661,
+    "sha256": "46c05e6969d585cd0ecb89f5de826501e7aa574f416a4a1823a500ae0a8254e3"
+  },
+  {
+    "path": "lib/pptx/nv.d3.min.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/nv.d3.min.js",
+    "bytes": 215800,
+    "sha256": "a88a6fcf2999cce9654cb119e8c2aa50872cc55da25341099b872f1a788ce233"
+  },
+  {
+    "path": "lib/pptx/filereader.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/filereader.js",
+    "bytes": 14528,
+    "sha256": "96df9b7a2c5801e64fbf4917ea8d10167e22b90de17767352e286e8202737079"
+  },
+  {
+    "path": "lib/pptx/divs2slides.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/divs2slides.js",
+    "bytes": 37767,
+    "sha256": "2362ec53b975a6440f4b402b10f2dadf61ac19ccbe8c64f543cda5b279868e3d"
+  },
+  {
+    "path": "lib/pptx/pptxjs.css",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/pptxjs.css",
+    "bytes": 2584,
+    "sha256": "c488fb0ec604387bb2a6b8cc8f1e2427dc6e24b2e38cf239b38b10a480195ed3"
+  },
+  {
+    "path": "lib/pptx/nv.d3.min.css",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/pptx/nv.d3.min.css",
+    "bytes": 9345,
+    "sha256": "d0821b9917df9978a8b377746ada4c15c311c83b1e44bcdfe812809ec5f51bd7"
+  }
+]

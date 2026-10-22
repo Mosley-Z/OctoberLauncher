@@ -7,6 +7,8 @@ import com.shuiyu.octoberrain.core.common.ReaderCapabilities
 import com.shuiyu.octoberrain.core.common.ReaderFailure
 import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.feature.reader.ReaderFrame
+import com.shuiyu.octoberrain.feature.reader.search.SearchProvider
+import com.shuiyu.octoberrain.feature.reader.search.SearchScan
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
 import com.shuiyu.octoberrain.feature.reader.source.copyBounded
@@ -29,9 +31,15 @@ import java.util.UUID
 
 internal class MarkdownEngine private constructor(
     private val document: WebDocument,
-) : ReflowEngine {
+) : ReflowEngine,
+    SearchProvider {
     private var position = WebPosition()
     override val capabilities = ReaderCapabilities(search = true, reflow = true, bookmark = true)
+
+    override suspend fun scan(
+        query: String,
+        offset: Int,
+    ): SearchScan = SearchScan(web = WebRequest(document, position, "searchAll", query = query, searchOffset = offset))
 
     override suspend fun page(locator: ReaderLocator?): ReaderFrame {
         val saved = locator as? ReaderLocator.Markdown

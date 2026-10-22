@@ -1,5 +1,25 @@
 # 当前状态与接力
 
+## 当前：Office/统一搜索最终包双机核心验收与长压（2026-10-23）
+
+- 源码冻结于0a1534c后本批差异；全仓check/debug/release退出0，132例reader测试0失败，日志office-next/final-gate-4.log。最终APK office-search-final-release.apk SHA256 477ab628f67c8670428ae6d6e3b471f57236a2bfaafd2fe9c82df246944d50be；前序包逐项区别，不覆盖证据。
+- 当前设备独占：S4 SA4B03CN2608081096X由slides子智能体；P4 P4L202610130006由p4_baseline子智能体。根不操作同serial；两者完成核心后同包200有效翻页/30开关，结束按字段恢复refresh6/原生尺寸/HOME并释放。根独占Gradle，已完成门禁，无并发构建。
+- P4旧基线→fcf3自然CSV升级：UTF8 BOM与GB18030旧进度/书签均142行1列，原quoted newline不偏行，GB不用重选编码。最终477保留此修复；S4已对照确认同段加粗拆run完整词漏搜在477精确1/1并高亮。
+- 交付汇总：[Office与统一搜索](../docs/acceptance/2026-10-23-reader-office-search-integration.md)。未推送/升版/发布，网站/Wrapper/原始日志等无关修改保留；全方案仍有真实SAF/物理EPD及完整状态矩阵边界，不记全部DONE。
+
+## 当前：Office双机首轮完成，统一搜索待新包验收（2026-10-23）
+
+- 已提交0a1534c，未推送；后续Office/RD014尚在工作区。Office首包reader113例0失败、模块check/debug/release通过，固定APK bf8b834c…（office-next/office-release.apk）。
+- S4：PPTX图片/表格/中文、提纲、跨未加载200页搜索、书签回跳/强停、20次翻页与10次开关通过。P4：XLSX/XLS/ODS、CSV引号跨行/GB编码/晚段搜索、坐标/进度、预算错误及PPTX200页抽验。两机已回HOME、原生尺寸、全刷6并释放；独立报告见docs/acceptance/2026-10-23-reader-office-{s4,p4}.md。
+- RD014实施中：SearchProvider全文计数+64条结果窗口、双向定位/取消/受控高亮，根持有公共代码与Gradle，sheets已交适配，slides正在同页命中ordinal适配。共享模块首轮check已过，但新搜索版双机构建/验收尚待，不能用Office旧包替代。
+- 已修自审发现的代理尾重复计数、原生搜索跳转旧history、Workbook高亮消息丢失，以及实际JS取消。原始日志只留_analysis；不记整方案DONE。
+
+## 当前：0a1534c已提交，Office并行批次开工（2026-10-23）
+
+- 用户新指令：提交后继续，允许子智能体并行开发/测试，P4上线。已提交0a1534c；未推送/升版/发布。网站、原始设备记录、未验证Gradle9.6 Wrapper及相关gradle.properties改动留在工作区，未纳入提交。
+- 集成者Codex唯一Gradle操作者，拥有core/common、ReaderEngine/Registry/Screen/Session、Web公共宿主/协议、许可与共享文档。表格、PPTX子任务只改专属文件，接口见CONTRACTS本批冻结。
+- 设备租用：P4L202610130006交P4测试子智能体独占，基线APK `_analysis/verify/office-next/baseline-release.apk`；S4 SA4B03CN2608081096X由Codex独占。分机操作，不同时覆盖同一serial。测试子智能体不得运行Gradle。
+
 ## 当前：RD016第一批与DOCX首轮已交付，表格/PPTX/统一搜索待继续（2026-10-23）
 
 - 用户本聊天批准按基础余项/RD016→Office→统一搜索→最终验收推进；Codex接手，保留master/cfeae53之后全部差异，不提交/升版/发布。

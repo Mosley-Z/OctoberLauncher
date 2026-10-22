@@ -5,6 +5,13 @@ import java.util.Locale
 
 /** 文件头优先；扩展名和 MIME 只用于文本与容器候选，不能证明引擎已支持。 */
 internal object DocumentKinds {
+    fun isCsv(
+        name: String,
+        mime: String?,
+    ): Boolean =
+        name.substringAfterLast('.', "").equals("csv", ignoreCase = true) ||
+            mime?.substringBefore(';')?.lowercase(Locale.ROOT) in setOf("text/csv", "application/csv")
+
     /**
      * 在缺少容器内部标记时判定格式。
      *
@@ -48,6 +55,8 @@ internal object DocumentKinds {
         return when {
             container != null -> containerFormat(container)
             exact != null -> exact
+            header.take(8) == listOf(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1).map { it.toByte() } &&
+                extension == "xls" -> ReaderFormat.SHEET
             isZipHeader(header) -> extensionFormat(extension)
             else -> textKind(extension, mime, header)
         }
@@ -100,6 +109,7 @@ internal object DocumentKinds {
         val utf16 = prefix == listOf(255, 254) || prefix == listOf(254, 255)
         if (header.any { it == 0.toByte() } && !utf16) return ReaderFormat.UNKNOWN
         return when {
+            isCsv("file.$extension", mime) -> ReaderFormat.SHEET
             extension in setOf("md", "markdown") -> ReaderFormat.MARKDOWN
             extension in TEXT_EXTENSIONS || mime?.startsWith("text/") == true -> ReaderFormat.TEXT
             else -> ReaderFormat.UNKNOWN
