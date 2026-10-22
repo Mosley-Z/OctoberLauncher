@@ -2,7 +2,7 @@
     <application>
         <service android:name=".pdf.PdfWorkerService" android:exported="false"
             android:enabled="@bool/reader_pdf_available" tools:targetApi="27" android:isolatedProcess="true" android:process=":reader_pdf" />
-        <activity android:name=".source.DocumentEntryActivity" android:exported="true">
+        <activity android:name=".source.DocumentEntryActivity" android:exported="true" android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
