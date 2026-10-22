@@ -195,15 +195,15 @@ class NegativeSpecsTest {
         assertEquals(SettingEffect.NONE, spec.effect)
     }
 
-    /** 分组顺序位于系统设置之后、书架设置之前，页面拼接结果一致。 */
+    /** 分组顺序位于系统设置之后、阅读与数据之前，页面拼接结果一致。 */
     @Test
     fun `分组顺序位于系统与书架之间`() {
         val ids = SettingsCatalog.groups.map { it.id }
         val negativeIndex = ids.indexOf(SettingsCatalog.GROUP_NEGATIVE_CARDS)
         val systemIndex = ids.indexOf(SettingsCatalog.GROUP_SYSTEM_SYSTEM)
-        val bookshelfIndex = ids.indexOf(SettingsCatalog.GROUP_BOOKSHELF_SOURCE)
+        val bookshelfIndex = ids.indexOf(SettingsCatalog.GROUP_BOOKSHELF_LOCAL)
         assertTrue(negativeIndex > systemIndex)
-        assertTrue(negativeIndex < bookshelfIndex)
+        assertEquals(-1, bookshelfIndex)
     }
 
     /**

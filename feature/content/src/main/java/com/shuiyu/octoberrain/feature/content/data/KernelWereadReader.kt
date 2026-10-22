@@ -66,7 +66,7 @@ class KernelWereadReader(
      *
      * @return 书目编号到 Unix 秒时间的映射
      */
-    private fun readTimes(): Map<String, Long> {
+    internal fun readTimes(): Map<String, Long> {
         val file = File(root, ASSETS_FILE).takeIf { it.isFile } ?: return emptyMap()
         val modified = file.lastModified()
         val size = file.length()

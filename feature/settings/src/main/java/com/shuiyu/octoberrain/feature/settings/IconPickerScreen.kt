@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -27,14 +28,15 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * 单个应用的图标选择页。
+ * 单个入口的图标选择页。
  *
- * 顶部展示应用名与当前图标，可恢复默认图标；下方沿用美化模式的图片目录，
+ * 参数 targetId 为应用包名或 special:<名称>，两者共用同一套覆盖存储与目录选择。
+ * 顶部展示入口名与当前图标，可恢复默认图标；下方沿用美化模式的图片目录，
  * 按两列列出缩略图，点击图片即写入图标覆盖并返回上一页。
  * 目录位置与美化模式共用 [ImageDirectoryStore]，任一处更改目录后另一处同步。
  */
 class IconPickerScreen(
-    private val packageName: String,
+    private val targetId: String,
 ) : Screen {
     /** 页面级协程作用域，随页面销毁取消。 */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -45,11 +47,11 @@ class IconPickerScreen(
     /** 当前图片目录，进入页面时从共享存储读取。 */
     private var imageDir: File = ImageDirectoryStore.defaultDirectory
 
-    /** 应用显示名称，创建页面时解析一次。 */
-    private var appLabel: String = packageName
+    /** 入口显示名称，创建页面时解析一次。 */
+    private var appLabel: String = targetId
 
     override fun createView(context: Context): View {
-        appLabel = SettingsUi.appLabel(packageName)
+        appLabel = IconTargets.labelOf(targetId, SettingsUi::appLabel)
         imageDir = ImageDirectoryStore.load(context)
         val page =
             InkPage(context, "$appLabel · 图标", showBack = true) {
@@ -117,6 +119,14 @@ class IconPickerScreen(
                 setPadding(0, tokens.gap / 2, 0, 0)
             },
         )
+        val hasOverride =
+            runCatching { AppServices.iconOverrides.overrides().containsKey(targetId) }.getOrDefault(false)
+        card.addView(
+            InkWidgets.caption(context, if (hasOverride) "当前使用自定义图片" else "当前使用系统图标").apply {
+                gravity = Gravity.CENTER
+                setPadding(0, tokens.gap / 4, 0, 0)
+            },
+        )
         card.addView(
             InkWidgets.textView(context, "恢复默认图标", tokens.textBody, InkColors.INK).apply {
                 gravity = Gravity.CENTER
@@ -128,7 +138,7 @@ class IconPickerScreen(
         return card
     }
 
-    /** 读取当前生效图标：图标覆盖优先，其次应用图标。 */
+    /** 读取当前生效图标：图标覆盖优先，其次应用图标或内置字形。 */
     private fun loadCurrentIcon(
         target: ImageView,
         sizePx: Int,
@@ -136,12 +146,15 @@ class IconPickerScreen(
         scope.launch {
             val bitmap =
                 withContext(Dispatchers.IO) {
-                    val overridePath =
-                        runCatching {
-                            AppServices.iconOverrides.overrides()[packageName]
+                    AppServices.iconOverrides.loadOverride(targetId, sizePx)
+                        ?: runCatching {
+                            val special = IconTargets.specialEntryOf(targetId)
+                            if (special != null) {
+                                AppServices.catalog.loadSpecialIcon(special, sizePx)
+                            } else {
+                                AppServices.catalog.loadIcon(targetId, sizePx)
+                            }
                         }.getOrNull()
-                    overridePath?.let { ImageDirectoryStore.decodeSampled(target.context, it, sizePx) }
-                        ?: runCatching { AppServices.catalog.loadIcon(packageName, sizePx) }.getOrNull()
                 }
             if (bitmap != null && target.isAttachedToWindow) target.setImageBitmap(bitmap)
         }
@@ -265,7 +278,7 @@ class IconPickerScreen(
         }
     }
 
-    /** 为当前应用设置图标覆盖，成功后返回上一页。 */
+    /** 为当前入口设置图标覆盖，成功后返回上一页。 */
     private fun applyImage(
         context: Context,
         file: File,
@@ -277,7 +290,7 @@ class IconPickerScreen(
         scope.launch {
             val ok =
                 runCatching {
-                    AppServices.iconOverrides.setOverride(packageName, Uri.fromFile(file))
+                    AppServices.iconOverrides.setOverride(targetId, Uri.fromFile(file))
                 }.getOrDefault(false)
             if (pageRef == null) return@launch
             if (ok) {
@@ -291,10 +304,10 @@ class IconPickerScreen(
         }
     }
 
-    /** 清除当前应用的图标覆盖。 */
+    /** 清除当前入口的图标覆盖。 */
     private fun restoreDefault(context: Context) {
         scope.launch {
-            runCatching { AppServices.iconOverrides.clearOverride(packageName) }
+            runCatching { AppServices.iconOverrides.clearOverride(targetId) }
             if (pageRef == null) return@launch
             SettingsUi.toast(context, "已恢复默认图标")
             runCatching { AppServices.router.back() }

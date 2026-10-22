@@ -76,9 +76,19 @@ class ClockWidget
 
         /** 启动每分钟刷新，已在运行时直接返回。 */
         private fun startTicker() {
-            if (ticking) return
+            if (!hostVisible || ticking) return
             ticking = true
             handler.postDelayed(tick, millisToNextMinute())
+        }
+
+        override fun onHostVisible(visible: Boolean) {
+            super.onHostVisible(visible)
+            if (visible) {
+                startTicker()
+            } else {
+                ticking = false
+                handler.removeCallbacks(tick)
+            }
         }
 
         override fun onWidgetDestroy() {

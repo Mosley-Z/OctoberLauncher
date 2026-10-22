@@ -9,7 +9,6 @@ import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.ScreenProvider
 import com.shuiyu.octoberrain.core.common.ScreenRegistry
 import com.shuiyu.octoberrain.feature.content.ui.BookScreen
-import com.shuiyu.octoberrain.feature.content.ui.BookshelfScreen
 import com.shuiyu.octoberrain.feature.content.ui.KoreaderScreen
 import com.shuiyu.octoberrain.feature.content.ui.NoteScreen
 import com.shuiyu.octoberrain.feature.content.ui.SearchScreen
@@ -40,11 +39,13 @@ class ContentModule : LauncherModule {
     /**
      * 页面提供者：按目的地创建内容页面，未知目的地返回 null 交由宿主处理。
      * 内容域注册的页面均为单例目的地；文件页由 feature/files 单独注册。
+     *
+     * 书架已并入桌面负一屏，[Destination.Bookshelf] 不再由此提供者创建页面，
+     * 由宿主把该目的地映射到负一屏，保证旧入口仍然可用。
      */
     private object ContentScreenProvider : ScreenProvider {
         override fun create(destination: Destination): Screen? =
             when (destination) {
-                Destination.Bookshelf -> BookshelfScreen()
                 Destination.Book -> BookScreen()
                 Destination.Note -> NoteScreen()
                 Destination.Todo -> TodoScreen()

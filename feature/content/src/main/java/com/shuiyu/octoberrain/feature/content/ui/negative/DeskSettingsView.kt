@@ -8,7 +8,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.DeskModulePolicy
-import com.shuiyu.octoberrain.core.common.NegativePageConfig
 import com.shuiyu.octoberrain.core.common.WereadDeskConfig
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -19,8 +18,8 @@ import java.io.File
 /**
  * 墨台设置态。
  *
- * 设置态在同一页面内替换列表态显示，分三组：模块开关与排序、阅读资产过滤、阅读指纹选书与
- * 字号。修改即时写入配置并同步到墨单、阅读资产、阅读指纹三个内核分区；写入后调用
+ * 设置态在同一页面内替换列表态显示，分四组：模块开关与排序、书架书源与行数、阅读资产过滤、
+ * 阅读指纹选书与字号。修改即时写入配置并同步到墨单、阅读资产、阅读指纹三个内核分区；写入后调用
  * [onChanged] 通知宿主刷新列表，不发生页面跳转。
  *
  * 版式上每个分组以标题起段，标题上方留一档大间距，行名与右侧控件同基线，说明文字单独
@@ -314,41 +313,10 @@ internal class DeskSettingsView(
             isClickable = enabled
         }
 
-    /** 渲染书架分组：行数行与说明分两层展示。 */
+    /** 低频书架设置统一收纳；行数与书源只在书架标题行操作。 */
     private fun renderShelfGroup() {
-        val page = AppServices.config.state.value.desktop.negativePage
-        addGroupTitle(GROUP_SHELF)
-        val row = newRow()
-        addRowLabel(row, LABEL_SHELF_ROWS)
-        row.addView(
-            buildStepper(
-                value = page.effectiveShelfRows.toString(),
-                onMinus = { stepShelfRows(-1) },
-                onPlus = { stepShelfRows(1) },
-            ),
-        )
-        addItem(row)
-        addHint(HINT_SHELF_ROWS)
-    }
-
-    /**
-     * 调整书架行数。
-     *
-     * 结果夹取到 [NegativePageConfig.SHELF_ROWS_MIN] 与 [NegativePageConfig.SHELF_ROWS_MAX]，
-     * 写入后由宿主重建分区，书架按新行数立即重排。
-     *
-     * @param delta 位移，负值减少，正值增加。
-     */
-    private fun stepShelfRows(delta: Int) {
-        AppServices.config.edit { config ->
-            val page = config.desktop.negativePage
-            val next =
-                (page.effectiveShelfRows + delta)
-                    .coerceIn(NegativePageConfig.SHELF_ROWS_MIN, NegativePageConfig.SHELF_ROWS_MAX)
-            config.copy(desktop = config.desktop.copy(negativePage = page.copy(shelfRows = next)))
-        }
-        onChanged()
-        render()
+        addGroupTitle("书架设置")
+        body.addView(ShelfSettingsPanel(context, onChanged))
     }
 
     /** 渲染阅读资产过滤分组：两个开关、恢复动作与已移出数量说明。 */
@@ -543,11 +511,17 @@ internal class DeskSettingsView(
         /** 书架分组标题。 */
         const val GROUP_SHELF: String = "书架分区"
 
+        /** 书源标签。 */
+        const val LABEL_SHELF_SOURCE: String = "书源"
+
         /** 书架行数标签。 */
         const val LABEL_SHELF_ROWS: String = "书架行数"
 
-        /** 书架行数说明。 */
-        const val HINT_SHELF_ROWS: String = "负一屏每行两本，最多五行共十本"
+        /** 微信读书书源的说明。 */
+        const val HINT_SHELF_WEREAD: String = "展示微信读书书架，每行两本，最多五行共十本"
+
+        /** 本地书源的说明。 */
+        const val HINT_SHELF_LOCAL: String = "展示本地目录中的书籍，每行两本，最多五行共十本，并附最近阅读"
 
         /** 指纹分组标题。 */
         const val GROUP_FINGERPRINT: String = "阅读指纹"

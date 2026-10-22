@@ -5,13 +5,14 @@ import com.shuiyu.octoberrain.core.common.IntegrationsConfig
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * 微信读书阅读设置用例。
  *
- * 覆盖刷新间隔与统计范围的取值校验、旧配置与非法配置的回退、声明表条目、
+ * 覆盖刷新间隔与数据来源的取值校验、旧配置与非法配置的回退、声明表条目、
  * 选项写入换算、生效方式分发与许可清单。
  */
 class WereadReadingSettingsTest {
@@ -69,45 +70,17 @@ class WereadReadingSettingsTest {
     }
 
     @Test
-    fun `声明表包含刷新间隔与统计范围两项`() {
-        val refresh = SettingsCatalog.specOf("bookshelf.wereadRefreshMinutes")
-        val stats = SettingsCatalog.specOf("bookshelf.wereadStatsRange")
-        assertNotNull(refresh)
-        assertNotNull(stats)
-        assertEquals(SettingsCatalog.GROUP_BOOKSHELF_WEREAD, refresh?.group)
-        assertEquals(SettingsCatalog.GROUP_BOOKSHELF_WEREAD, stats?.group)
-        assertEquals(SettingEffect.CONTENT_REFRESH, refresh?.effect)
-        assertEquals(SettingEffect.PARTIAL, stats?.effect)
-        val refreshControl = refresh?.control as SettingControl.Choice
-        val statsControl = stats?.control as SettingControl.Choice
-        assertEquals(4, refreshControl.options.size)
-        assertEquals(3, statsControl.options.size)
-        assertEquals(listOf("30 分钟", "1 小时", "3 小时", "6 小时"), refreshControl.options.map { it.label })
-        assertEquals(listOf("月统计", "年统计", "全部"), statsControl.options.map { it.label })
-    }
-
-    @Test
-    fun `刷新间隔选项下标与配置值互相换算`() {
-        val control = SettingsCatalog.specOf("bookshelf.wereadRefreshMinutes")?.control as SettingControl.Choice
-        val expected = listOf(30, 60, 180, 360)
-        expected.forEachIndexed { index, minutes ->
-            val written = control.write(LauncherConfig(), index)
-            assertEquals(minutes, written.integrations.wereadRefreshMinutes)
-            assertEquals(index, control.read(written))
-        }
-        val fallback = LauncherConfig(integrations = IntegrationsConfig(wereadRefreshMinutes = 120))
-        assertEquals(1, control.read(fallback))
-    }
-
-    @Test
-    fun `统计范围选项下标与配置值互相换算`() {
-        val control = SettingsCatalog.specOf("bookshelf.wereadStatsRange")?.control as SettingControl.Choice
-        val expected = listOf("month", "year", "overall")
-        expected.forEachIndexed { index, range ->
-            val written = control.write(LauncherConfig(), index)
-            assertEquals(range, written.integrations.wereadStatsRange)
-            assertEquals(index, control.read(written))
-        }
+    fun `旧书架设置声明全部移出设置应用`() {
+        listOf(
+            "bookshelf.localEnabled",
+            "bookshelf.wereadEnabled",
+            "bookshelf.rows.count",
+            "bookshelf.open",
+            "bookshelf.wereadStatsRange",
+            "bookshelf.wereadRefreshMinutes",
+            "bookshelf.wereadSource",
+        ).forEach { assertNull(SettingsCatalog.specOf(it)) }
+        assertTrue(SettingsCatalog.bookshelfGroups.isEmpty())
     }
 
     @Test

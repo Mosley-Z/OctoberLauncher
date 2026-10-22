@@ -15,6 +15,9 @@ internal interface ReaderEngine : Closeable {
     suspend fun turn(delta: Int): ReaderFrame
 
     suspend fun findNext(query: String): ReaderFrame? = null
+
+    /** 宿主在动作队列空闲时调用，仅释放可重建缓存，保留当前显示帧。 */
+    fun trimMemory() = Unit
 }
 
 internal data class ReaderFrame(

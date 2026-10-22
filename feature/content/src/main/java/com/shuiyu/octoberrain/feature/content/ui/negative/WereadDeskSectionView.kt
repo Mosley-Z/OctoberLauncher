@@ -141,6 +141,8 @@ internal class WereadDeskSectionView(
         state.executor.execute {
             state.page?.release()
             state.page = null
+            state.spare?.recycle()
+            state.spare = null
         }
         state.executor.shutdown()
     }
@@ -208,12 +210,21 @@ internal class WereadDeskSectionView(
                                 it
                         }
                 if (page == null) return@execute
-                val rendered = runCatching { renderFrame(page, requestedWidth) }.getOrNull()
+                val rendered = runCatching { renderFrame(page, requestedWidth, state) }.getOrNull()
                 mainHandler.post {
                     if (!valid(state, token) || rendered?.width != requestedWidth) {
                         rendered?.bitmap?.recycle()
                     } else if (rendered != null) {
+                        val previous = frame?.bitmap
                         applyFrame(rendered)
+                        runCatching {
+                            state.executor.execute {
+                                if (valid(state, token)) {
+                                    state.spare?.takeUnless { it === previous }?.recycle()
+                                    state.spare = previous
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -224,6 +235,7 @@ internal class WereadDeskSectionView(
     private fun renderFrame(
         page: DeskPage,
         width: Int,
+        state: WorkerState,
     ): SectionFrame? {
         if (width <= 0) return null
         val unit = deskHost.host.scale()
@@ -239,7 +251,18 @@ internal class WereadDeskSectionView(
             }
         val height = if (blank) MIN_SECTION_HEIGHT_DP * unit else (total - header).coerceIn(1f, cap)
         val pixels = ceil(height).toInt().coerceIn(1, MAX_CACHE_HEIGHT_PX)
-        val bitmap = if (blank) null else Bitmap.createBitmap(width, pixels, Bitmap.Config.ARGB_8888)
+        val spare = state.spare?.takeUnless { it.isRecycled }
+        state.spare = null
+        val bitmap =
+            if (blank) {
+                state.spare = spare
+                null
+            } else if (spare != null && spare.width == width && spare.height == pixels) {
+                spare.apply { eraseColor(android.graphics.Color.WHITE) }
+            } else {
+                spare?.recycle()
+                Bitmap.createBitmap(width, pixels, Bitmap.Config.ARGB_8888)
+            }
         return runCatching {
             if (bitmap != null) {
                 val canvas = Canvas(bitmap)
@@ -471,6 +494,7 @@ internal class WereadDeskSectionView(
                 Thread(runnable, LOAD_THREAD_NAME).apply { isDaemon = true }
             }
         var page: DeskPage? = null
+        var spare: Bitmap? = null
         var frameQueued = false
         var scrollQueued = false
         var scrollDelta = 0f

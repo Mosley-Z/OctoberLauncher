@@ -2,7 +2,6 @@ package com.shuiyu.octoberrain.feature.content
 
 import android.content.Context
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.BookCollection
 import com.shuiyu.octoberrain.core.common.BookItem
 import com.shuiyu.octoberrain.core.common.ContentSource
 import com.shuiyu.octoberrain.core.common.InkLog
@@ -37,6 +36,9 @@ import com.shuiyu.octoberrain.feature.content.data.WereadStats
 import com.shuiyu.octoberrain.feature.content.data.WereadSyncBridge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeout
 import java.io.File
 
@@ -50,6 +52,9 @@ import java.io.File
 class ContentSourceImpl(
     context: Context,
 ) : ContentSource {
+    private val version = MutableStateFlow(0L)
+    override val dataVersion = version.asStateFlow()
+
     private companion object {
         /** 微读数据目录名，与内核 KernelDataLoader 的根目录一致。 */
         private const val WEREAD_DATA_DIR = "weread"
@@ -95,6 +100,7 @@ class ContentSourceImpl(
     private data class Timed<T>(
         val value: T,
         val at: Long,
+        val directory: String? = null,
     ) {
         /** 是否在三十分钟有效期内。 */
         fun isFresh(now: Long): Boolean = now - at <= SHELF_CACHE_TTL_MS
@@ -105,7 +111,7 @@ class ContentSourceImpl(
     private val koreader = KoreaderRepository(appContext)
     private val usage = UsageRepository(appContext)
 
-    /** 本地书架缓存，与来源开关、行数无关，只有数据版本参与有效期判断。 */
+    /** 本地书架缓存按目录与有效期区分，不因切换展示来源或行数清空。 */
     @Volatile
     private var localBooksCache: Timed<List<BookItem>>? = null
 
@@ -132,14 +138,21 @@ class ContentSourceImpl(
     /** 天气客户端，页面据此判断是否启用。 */
     val weatherClient = WeatherClient()
 
-    /** 书架是否启用本地书籍来源。 */
-    fun localShelfEnabled(): Boolean = ContentPaths.integrations().bookshelfLocalEnabled
+    /**
+     * 本地书籍是否可读。
+     *
+     * 书籍目录已配置即可读，目录内容为空时由扫描结果自然返回空列表。判断不再读取旧的
+     * 书架来源开关，书架展示哪一侧改由负一屏书源决定。
+     */
+    fun localShelfAvailable(): Boolean = ContentPaths.integrations().booksDir.isNotBlank()
 
-    /** 书架是否启用微信读书来源：微信读书集成开启，且书架未关闭该来源。 */
-    fun wereadShelfEnabled(): Boolean {
-        val integrations = ContentPaths.integrations()
-        return integrations.bookshelfWereadEnabled && integrations.wereadEnabled
-    }
+    /**
+     * 微信读书数据是否可读。
+     *
+     * 只取决于微信读书集成总开关。旧的书架来源开关不参与判断，避免关闭书架来源后
+     * 月统计、摘录与阅读指纹等数据一并失效。
+     */
+    fun wereadAvailable(): Boolean = ContentPaths.integrations().wereadEnabled
 
     /**
      * 读取完整书架，不受公共契约的条目数量限制；本地来源关闭时直接返回空。
@@ -151,9 +164,14 @@ class ContentSourceImpl(
 
     /** 读取本地书架，[force] 为 true 时绕过有效期直接重新扫描。 */
     private suspend fun localBooks(force: Boolean): List<BookItem> {
-        if (!localShelfEnabled()) return emptyList()
+        if (!localShelfAvailable()) return emptyList()
         val now = System.currentTimeMillis()
-        val cached = localBooksCache
+        val directory = ContentPaths.integrations().booksDir
+        val cached = localBooksCache?.takeIf { it.directory == directory }
+        if (cached == null && localBooksCache != null) {
+            localBooksCache = null
+            bookshelf.invalidate()
+        }
         if (!force && cached != null && cached.isFresh(now)) return cached.value
         var fetched: List<BookItem>? = null
         val value =
@@ -164,26 +182,25 @@ class ContentSourceImpl(
             ) {
                 bookshelf.scan(deadlineMs = TIMEOUT_SCAN_MS - 1000L).also { fetched = it }
             }
-        fetched?.let { localBooksCache = Timed(it, System.currentTimeMillis()) }
+        fetched?.let {
+            if (ContentPaths.integrations().booksDir == directory) {
+                localBooksCache = Timed(it, System.currentTimeMillis(), directory)
+            }
+        }
         return value
     }
 
-    /**
-     * 读取书架合集划分。
-     *
-     * 每个一级子目录对应一个合集，直接放在书籍根目录下的书籍归入「未分类」；
-     * 扫描超时或失败时返回上一次的合集结果，避免页面出现空白；本地来源关闭时
-     * 不生成合集。
-     */
-    suspend fun bookshelfCollections(): List<BookCollection> {
-        if (!localShelfEnabled()) return emptyList()
-        return guarded(
-            fallback = bookshelf.cachedCollections(),
-            label = "书架合集",
-            timeoutMs = TIMEOUT_SCAN_MS,
-        ) {
-            bookshelf.collections(deadlineMs = TIMEOUT_SCAN_MS - 1000L)
-        }
+    /** 仅取已落盘的索引，不触发联网，供书架展示和升级承接。 */
+    internal fun storedWereadShelf(): List<WereadShelfItem> = kernelWeread.shelf(SHELF_CACHE_LIMIT)
+
+    /** 本地用户书架刷新不吞掉目录/权限错误，不把旧列表当作扫描成功。 */
+    internal suspend fun refreshLocalDisplayShelf(): List<BookItem> {
+        check(ContentPaths.hasStorageAccess())
+        val root = ContentPaths.booksRoot()
+        check(root.isDirectory || (!root.exists() && root.mkdirs()))
+        val items = bookshelf.scan(deadlineMs = TIMEOUT_SCAN_MS - 1000L)
+        localBooksCache = Timed(items, System.currentTimeMillis(), ContentPaths.integrations().booksDir)
+        return items
     }
 
     /** 读取 KOReader 最近书目。 */
@@ -214,6 +231,18 @@ class ContentSourceImpl(
         koreader.invalidate()
         wereadClient.invalidate()
         weatherClient.invalidate()
+        version.update { it + 1L }
+    }
+
+    /**
+     * 清空书架两侧的内存缓存。
+     *
+     * 供负一屏切换书源后立即按新书源重新读取，避免沿用另一侧三十分钟内的旧结果；
+     * 不递减数据版本，配置写入本身已触发界面刷新。
+     */
+    fun invalidateShelfCaches() {
+        localBooksCache = null
+        wereadShelfCache = null
     }
 
     /**
@@ -230,7 +259,9 @@ class ContentSourceImpl(
         val now = System.currentTimeMillis()
         val localItems: List<BookItem> =
             if (local) {
-                localBooksCache?.takeIf { it.isFresh(now) }?.value ?: return null
+                localBooksCache
+                    ?.takeIf { it.directory == ContentPaths.integrations().booksDir && it.isFresh(now) }
+                    ?.value ?: return null
             } else {
                 emptyList()
             }
@@ -302,7 +333,7 @@ class ContentSourceImpl(
      * 请求失败时退回上一次缓存。
      */
     private suspend fun wereadShelfItems(force: Boolean): List<WereadShelfItem> {
-        if (!wereadShelfEnabled()) return emptyList()
+        if (!wereadAvailable()) return emptyList()
         val now = System.currentTimeMillis()
         val cached = wereadShelfCache
         if (!force && cached != null && cached.isFresh(now)) return cached.value
@@ -325,7 +356,7 @@ class ContentSourceImpl(
     }
 
     override suspend fun wereadMonth(): WereadMonth? {
-        if (!wereadShelfEnabled()) return null
+        if (!wereadAvailable()) return null
         return guarded(
             fallback = null,
             label = "微信读书月度统计",
@@ -336,7 +367,7 @@ class ContentSourceImpl(
     }
 
     override suspend fun wereadHighlights(limit: Int): List<WereadHighlight> {
-        if (!wereadShelfEnabled()) return emptyList()
+        if (!wereadAvailable()) return emptyList()
         return guarded(
             fallback = emptyList(),
             label = "微信读书划线",
@@ -347,7 +378,7 @@ class ContentSourceImpl(
     }
 
     override suspend fun wereadPeriod(period: WereadStatsPeriod): WereadStatsSnapshot? {
-        if (!wereadShelfEnabled()) return null
+        if (!wereadAvailable()) return null
         return guarded(
             fallback = null,
             label = "微信读书周期统计",
@@ -363,7 +394,7 @@ class ContentSourceImpl(
     }
 
     override suspend fun wereadNotes(limit: Int): WereadNotesSnapshot {
-        if (!wereadShelfEnabled() || !wereadClient.isConfigured()) return WereadNotesSnapshot()
+        if (!wereadAvailable() || !wereadClient.isConfigured()) return WereadNotesSnapshot()
         return guarded(
             fallback = WereadNotesSnapshot(),
             label = "微信读书笔记",
@@ -387,7 +418,7 @@ class ContentSourceImpl(
     }
 
     override suspend fun wereadBill(): WereadBillSnapshot? {
-        if (!wereadShelfEnabled()) return null
+        if (!wereadAvailable()) return null
         return kernelWeread.bill() ?: networkBill()
     }
 
@@ -408,7 +439,7 @@ class ContentSourceImpl(
         }
 
     override suspend fun wereadRank(limit: Int): List<WereadRankEntry> {
-        if (!wereadShelfEnabled()) return emptyList()
+        if (!wereadAvailable()) return emptyList()
         val local = kernelWeread.rank(limit)
         return if (local.isNotEmpty()) local else networkRank(limit)
     }
@@ -432,7 +463,7 @@ class ContentSourceImpl(
         }
 
     override suspend fun wereadFingerprint(): WereadFingerprintSnapshot? {
-        if (!wereadShelfEnabled()) return null
+        if (!wereadAvailable()) return null
         return kernelWeread.fingerprint() ?: networkFingerprint()
     }
 
@@ -497,7 +528,7 @@ class ContentSourceImpl(
         }
 
     override suspend fun searchBooks(query: String): List<BookItem> {
-        if (!localShelfEnabled()) return emptyList()
+        if (!localShelfAvailable()) return emptyList()
         val keyword = query.trim()
         if (keyword.isEmpty()) return emptyList()
         return guarded(
@@ -530,7 +561,7 @@ class ContentSourceImpl(
 
     /** 微信读书侧的阅读快照，作为 KOReader 缺失时的补充；来源关闭时返回 null。 */
     private suspend fun wereadReadingSnapshot(): ReadingSnapshot? {
-        if (!wereadShelfEnabled()) return null
+        if (!wereadAvailable()) return null
         if (!wereadClient.isConfigured()) return null
         val shelf = wereadShelf(1).firstOrNull() ?: return null
         val month = runCatching { wereadClient.month() }.getOrNull()

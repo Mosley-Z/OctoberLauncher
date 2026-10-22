@@ -413,12 +413,12 @@ sealed interface Destination {
     data object BeautifyPreview : Destination
 
     /**
-     * 单应用图标选择：展示图片缩略图，选中后写入该应用的图标覆盖。
+     * 单条目图标选择：展示图片缩略图，选中后写入该条目的图标覆盖。
      *
-     * @param packageName 需要更换图标的应用包名。
+     * @param targetId 图标目标标识：应用为包名，特殊入口为 special:名称。
      */
     data class IconPicker(
-        val packageName: String,
+        val targetId: String,
     ) : Destination
 
     data object FontPicker : Destination
@@ -827,6 +827,9 @@ interface WereadPrefsWriter {
  */
 object AppServices {
     var reader: ReaderGateway? = null
+
+    /** 最近阅读查询入口，由阅读器模块注册；未安装时为空。 */
+    var recent: RecentGateway? = null
     lateinit var config: ConfigStore
     lateinit var catalog: AppCatalog
     lateinit var content: ContentSource

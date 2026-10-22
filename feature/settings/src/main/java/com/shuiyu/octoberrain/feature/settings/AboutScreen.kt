@@ -1,11 +1,16 @@
 package com.shuiyu.octoberrain.feature.settings
 
+import android.app.AlertDialog
 import android.os.Build
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.device.DeviceRuntime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
 
 /**
  * 关于本机页面。
@@ -56,16 +61,46 @@ class AboutScreen : SettingsBaseScreen("关于本机") {
             AppServices.router.navigate(Destination.Update)
         }
 
-        val licenses = SettingsUi.section(page, "开源许可", "第三方项目与许可协议")
-        ThirdPartyLicenses.entries.forEach { entry ->
-            licenses.info(entry.name, entry.summary)
-        }
+        buildLicenses(page)
         SettingsUi.note(page, ThirdPartyLicenses.WEREAD_SOURCE_DETAIL)
 
         SettingsUi.note(
             page,
             "本应用为墨水屏阅读设备定制，界面按纸面阅读场景设计；更新安装需要系统允许安装未知来源应用。",
         )
+    }
+
+    private fun buildLicenses(page: InkPage) {
+        val context = page.context
+        val licenses = SettingsUi.section(page, "开源许可", "第三方项目与许可协议")
+        ThirdPartyLicenses.entries.forEach { entry ->
+            val asset = entry.asset
+            if (asset == null) {
+                licenses.info(entry.name, entry.summary)
+            } else {
+                licenses.action(entry.name, entry.license, "查看许可原文") {
+                    scope.launch {
+                        try {
+                            val text =
+                                withContext(Dispatchers.IO) {
+                                    context.assets
+                                        .open(asset)
+                                        .bufferedReader()
+                                        .use { it.readText() }
+                                }
+                            AlertDialog
+                                .Builder(context)
+                                .setTitle(entry.name)
+                                .setMessage(text)
+                                .setPositiveButton("关闭", null)
+                                .show()
+                        } catch (_: IOException) {
+                            AppServices.router.toast("许可文本暂不可用")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /** 宽度分类转可读文本。 */

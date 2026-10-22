@@ -171,6 +171,7 @@ internal class OfflineWebHost(
                 .put("request", id)
                 .put("kind", request.kind)
                 .put("delta", request.delta)
+                .put("page", request.position.page)
                 .put("anchor", request.position.anchor.coerceIn(0, 4_000_000))
                 .put(
                     "fraction",
@@ -204,34 +205,12 @@ internal class OfflineWebHost(
             .Builder()
             .setDomain(WebMessagePolicy.HOST)
             .addPathHandler("/static/") { path ->
-                if (path !in setOf("host.js", "style.css")) {
-                    blocked()
-                } else {
-                    try {
-                        response(
-                            if (path.endsWith(".js")) "application/javascript" else "text/css",
-                            context.assets.open("reader/web/$path"),
-                        )
-                    } catch (_: IOException) {
-                        blocked()
-                    }
-                }
+                staticResource(doc, path)
             }.addPathHandler("/session/${doc.session}/") { path ->
                 try {
                     when {
                         path == "index.html" -> {
-                            val bootstrap = Uri.encode(command)
-                            val font = doc.fontSp.coerceIn(14, 36)
-                            val html =
-                                """
-                                <!doctype html><html lang="zh-CN" data-reader-session="${doc.session}"
-                                data-reader-command="$bootstrap"><meta charset="utf-8">
-                                <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-                                <link rel="stylesheet" href="/static/style.css"><style>:root{font-size:${font}px}${doc.styles}</style>
-                                <body><main id="reader-content">${doc.body}</main>
-                                <script src="/static/host.js"></script></body></html>
-                                """.trimIndent()
-                            response("text/html", ByteArrayInputStream(html.toByteArray(Charsets.UTF_8)))
+                            response("text/html", ByteArrayInputStream(indexHtml(doc, command)), doc.docxPreview)
                         }
                         path.startsWith("res/") ->
                             doc.resources.open(path.removePrefix("res/"))?.let { response(it.mime, it.stream) }
@@ -245,9 +224,55 @@ internal class OfflineWebHost(
                 }
             }.build()
 
+    private fun staticResource(
+        doc: WebDocument,
+        path: String,
+    ): WebResourceResponse {
+        val scripts = setOf("docx-host.js", "jszip3.min.js", "docx-preview.min.js")
+        return if (path !in setOf("host.js", "style.css") && !(doc.docxPreview && path in scripts)) {
+            blocked()
+        } else {
+            try {
+                response(
+                    if (path.endsWith(".js")) "application/javascript" else "text/css",
+                    context.assets.open("reader/web/$path"),
+                )
+            } catch (_: IOException) {
+                blocked()
+            }
+        }
+    }
+
+    private fun indexHtml(
+        doc: WebDocument,
+        command: String,
+    ): ByteArray {
+        val bootstrap = Uri.encode(command)
+        val font = doc.fontSp.coerceIn(14, 36)
+        val scripts =
+            if (doc.docxPreview) {
+                "<script src=\"/static/jszip3.min.js\"></script>" +
+                    "<script src=\"/static/docx-preview.min.js\"></script>" +
+                    "<script src=\"/static/docx-host.js\"></script>"
+            } else {
+                "<script src=\"/static/host.js\"></script>"
+            }
+        val html =
+            """
+            <!doctype html><html lang="zh-CN" data-reader-session="${doc.session}"
+            data-reader-command="$bootstrap"><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+            <link rel="stylesheet" href="/static/style.css"><style>:root{font-size:${font}px}${doc.styles}</style>
+            <body><main id="reader-content">${if (doc.docxPreview) "" else doc.body}</main>
+            $scripts</body></html>
+            """.trimIndent()
+        return html.toByteArray(Charsets.UTF_8)
+    }
+
     private fun response(
         mime: String,
         stream: java.io.InputStream,
+        connectLocal: Boolean = false,
     ): WebResourceResponse =
         WebResourceResponse(
             mime,
@@ -259,7 +284,8 @@ internal class OfflineWebHost(
                 "X-Content-Type-Options" to "nosniff",
                 "Content-Security-Policy" to
                     "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-                    "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; object-src 'none'; " +
+                    "img-src 'self' data: blob:; font-src 'self' data:; " +
+                    "connect-src ${if (connectLocal) "'self'" else "'none'"}; object-src 'none'; " +
                     "frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'",
             ),
             stream,

@@ -119,4 +119,15 @@ class ThemeIconTargetTest {
 
         assertEquals(emptyMap<String, String>(), targets)
     }
+
+    @Test
+    fun specialIconsMatchIdentityAndNeverFillAnAppSlot() {
+        val result =
+            resolveThemeIconTargets(
+                sourcePackages = listOf("special:settings", "special:files", "special:weread"),
+                themeOrder = listOf("special:settings", "special:files", "special:weread"),
+                deviceOrder = listOf("special:files", "app:example.app", "special:settings"),
+            )
+        assertEquals(mapOf("special:settings" to "special:settings", "special:files" to "special:files"), result)
+    }
 }

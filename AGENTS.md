@@ -8,6 +8,9 @@
 2. 读分配给自己的 `task/TASK-*.md` 和它引用的设计；未分配时先看 `task/README.md`。
 3. 代码修改前读 `docs/design/35-development-workflow.md`；按需查 `docs/design/33-dsh-development-playbook.md`。
 4. 执行 `git status --short`，核实当前源码与工具链。不要默认历史版本、测试数量或设备连接仍有效。
+5. 设备界面观测与点击用 `scripts/android-ui.ps1`，标准 View 走 `layout`/`find`/`click`，桌面自绘元素走 `annotate`/`resolve`/`tap -Label`；用法与限制见 `docs/design/33-dsh-development-playbook.md` §10。
+
+执行跨卡整改前，在当前卡记录最终入口、控件位置、显示归属、状态字段与消费者、迁移和验收触发；见 [需求对接约定](docs/design/36-demand-handoff-contract.md)。不为这一步重复请求用户确认。
 
 ## 工作边界
 

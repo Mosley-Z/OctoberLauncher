@@ -37,8 +37,9 @@ import kotlin.math.max
  * 左滑退出阈值取十四像素与屏宽百分之十二的较大值；顶栏的返回入口与系统返回键由墨台容器
  * 自行处理展开态、设置态与浮层关闭，容器不消费返回键时交给宿主返回桌面。
  */
-internal class NegativeScreen :
-    Screen,
+internal class NegativeScreen(
+    private val showShelfSettings: Boolean = false,
+) : Screen,
     NegativeHost {
     /** 页面根容器。 */
     private var frame: FrameLayout? = null
@@ -90,6 +91,12 @@ internal class NegativeScreen :
             scope.launch {
                 AppServices.config.state.collect { cfg -> applyConfig(cfg) }
             }
+        if (showShelfSettings) {
+            root.post {
+                val view = deskView
+                runCatching { view?.javaClass?.getMethod("showShelfSettings")?.invoke(view) }
+            }
+        }
         return root
     }
 

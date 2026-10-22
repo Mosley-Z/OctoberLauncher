@@ -12,6 +12,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.DesktopLayoutSnapshot
 import com.shuiyu.octoberrain.core.common.LauncherEntry
 import com.shuiyu.octoberrain.core.common.SortMode
+import com.shuiyu.octoberrain.core.common.iconTargetId
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkWidgets
@@ -107,7 +108,7 @@ internal fun BeautifyScreen.buildAppColumn(
     } else {
         val overrides = overrides()
         entries.forEach { entry ->
-            val row = buildAppRow(context, entry, overrides.containsKey(entry.packageName))
+            val row = buildAppRow(context, entry, overrides.containsKey(entry.iconTargetId))
             appRows[entry.key] = row
             list.addView(row)
         }
@@ -346,11 +347,7 @@ internal fun BeautifyScreen.applyImage(cell: ImageCell) {
             SettingsUi.toast(context, "请先选择左侧应用")
             return
         }
-    val packageName =
-        entry.packageName ?: run {
-            SettingsUi.toast(context, "该条目不是应用，无法更换图标")
-            return
-        }
+    val targetId = entry.iconTargetId
     val file = File(cell.path)
     if (!file.exists()) {
         SettingsUi.toast(context, "图片文件已不存在")
@@ -359,7 +356,7 @@ internal fun BeautifyScreen.applyImage(cell: ImageCell) {
     scope.launch {
         val ok =
             runCatching {
-                AppServices.iconOverrides.setOverride(packageName, Uri.fromFile(file))
+                AppServices.iconOverrides.setOverride(targetId, Uri.fromFile(file))
             }.getOrDefault(false)
         if (root == null) return@launch
         if (!ok) {
@@ -383,11 +380,10 @@ internal fun BeautifyScreen.applyImage(cell: ImageCell) {
  */
 private fun BeautifyScreen.refreshRowIcon(entry: LauncherEntry) {
     val row = appRows[entry.key] as? LinearLayout ?: return
-    val packageName = entry.packageName ?: return
     val tokens = DesignRuntime.tokens
     val size = tokens.dp(32f)
     val icon = row.getChildAt(0) as? ImageView ?: return
-    loadAppIcon(packageName, icon, size)
+    loadEntryIcon(entry, icon, size)
     if (row.findViewWithTag<View>(OVERRIDE_MARK_TAG) == null) {
         row.addView(
             InkWidgets.textView(row.context, "已换", tokens.textCaption, InkColors.INK_2).apply {

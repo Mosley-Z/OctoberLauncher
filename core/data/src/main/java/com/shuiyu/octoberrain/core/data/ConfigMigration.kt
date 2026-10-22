@@ -24,6 +24,7 @@ import com.shuiyu.octoberrain.core.common.rewriteRemovedWidgetIds
  * 5. v5 到 v6：已有配置标记安装顺序已初始化。
  * 6. v6 到 v7：停止内置微信读书密钥自动回填，已保存的密钥保持不变。
  * 7. v7 到 v8：负一屏扩展为五模块，冗余组件标识改写为保留组件。
+ * 8. v10 到 v11：书架书源从两个启用开关合并为负一屏的单一书源。
  */
 object ConfigMigration {
     private const val TAG = "配置迁移"
@@ -49,11 +50,16 @@ object ConfigMigration {
     /** 第八版配置的版本号：负一屏扩展为五模块并删除冗余组件。 */
     private const val VERSION_V8 = 8
 
-    /** 第九版配置的版本号：负一屏模块标识改为微读墨记墨台标识。 */
+    /** 第九版配置的版本号：负一屏模块标识迁移。 */
     private const val VERSION_V9 = 9
 
     /** 第十版配置的版本号：微读数据来源标记，默认按导入来源处理。 */
     private const val VERSION_V10 = 10
+
+    /** 第十一版配置的版本号：书架书源合并为负一屏的单一书源。 */
+    private const val VERSION_V11 = 11
+
+    private const val VERSION_V13 = 13
 
     /**
      * 第八版之前的负一屏模块标识。
@@ -79,9 +85,13 @@ object ConfigMigration {
      * v7 起密钥仅由用户在设置页填写，空值保持空值。
      *
      * @param config 从磁盘或备份文件读出的配置。
+     * @param shelfSourcePresent 原始 JSON 是否显式保存书源，避免默认值掩盖字段缺失。
      * @return 迁移后的配置；版本已是最新或更高时原样返回。
      */
-    fun migrate(config: LauncherConfig): LauncherConfig {
+    fun migrate(
+        config: LauncherConfig,
+        shelfSourcePresent: Boolean = false,
+    ): LauncherConfig {
         if (config.version >= LauncherConfig.CURRENT_VERSION) return config
         var migrated = config
         if (migrated.version < VERSION_V2) {
@@ -110,6 +120,13 @@ object ConfigMigration {
         }
         if (migrated.version < VERSION_V10) {
             migrated = migrateV9ToV10(migrated)
+        }
+        if (migrated.version < VERSION_V11) {
+            migrated = migrateShelfSource(migrated, shelfSourcePresent)
+        }
+        // v13 removes the independent shelf scheduler; unknown legacy fields are dropped on decode/save.
+        if (migrated.version < VERSION_V13) {
+            migrated = migrated.copy(version = VERSION_V13)
         }
         if (migrated.version != LauncherConfig.CURRENT_VERSION) {
             // 高于当前版本的配置在函数入口已原样返回；此分支只防御未来新增版本号却缺少迁移步骤的构建，

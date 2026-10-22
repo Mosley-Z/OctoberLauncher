@@ -118,14 +118,10 @@ class SettingsSpecTest {
         assertEquals(1.15f, slider.read(scaled), 0.001f)
     }
 
+    /** 书架行数与书源已移交负一屏墨台设置，设置页不再声明该控件。 */
     @Test
-    fun `书架行数步进换算到配置值`() {
-        val control = SettingsCatalog.specOf("bookshelf.rows.count")?.control as SettingControl.Stepper
-        val base = LauncherConfig()
-        assertEquals(2, control.read(base))
-        val rows = control.write(base, 4)
-        assertEquals(5, rows.integrations.bookshelfRows)
-        assertEquals(4, control.read(rows))
+    fun `书架行数不再由设置页声明`() {
+        assertEquals(null, SettingsCatalog.specOf("bookshelf.rows.count"))
     }
 
     @Test

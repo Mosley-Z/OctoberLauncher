@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -40,6 +41,9 @@ private const val UI_PREFS = "octoberrain_ui"
 
 /** 上次拒绝设为默认桌面的时间戳键。 */
 private const val KEY_HOME_ROLE_DISMISSED_AT = "home_role_dismissed_at"
+
+/** 外部文档入口诊断日志标签，仅记录动作、scheme 与授权状态。 */
+private const val TAG_INCOMING = "MainIncoming"
 
 /** 拒绝设为默认桌面后的静默时长：三天。 */
 private const val HOME_ROLE_PROMPT_INTERVAL_MS = 3L * 24 * 60 * 60 * 1000
@@ -441,7 +445,10 @@ class MainActivity : Activity() {
             incoming?.action == Intent.ACTION_VIEW &&
                 uri?.scheme == "content" &&
                 incoming.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
-        return valid && AppServices.reader?.open(DocumentRef.ContentUri(uri.toString())) == true
+        Log.i(TAG_INCOMING, "incoming action=${incoming?.action} scheme=${uri?.scheme} valid=$valid")
+        val opened = valid && AppServices.reader?.open(DocumentRef.ContentUri(uri.toString())) == true
+        Log.i(TAG_INCOMING, "incoming opened=$opened")
+        return opened
     }
 
     /**

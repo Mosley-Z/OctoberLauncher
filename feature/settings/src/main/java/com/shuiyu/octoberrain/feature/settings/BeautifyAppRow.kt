@@ -8,9 +8,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.LauncherEntry
+import com.shuiyu.octoberrain.core.common.iconTargetId
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
-import com.shuiyu.octoberrain.core.design.InkGlyphs
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,25 +37,16 @@ internal fun BeautifyScreen.buildAppRow(
         }
 
     val iconSize = tokens.dp(32f)
-    val packageName = entry.packageName
-    if (packageName != null) {
-        val image =
-            ImageView(context).apply {
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                setPadding(tokens.dp(2f), tokens.dp(2f), tokens.dp(2f), tokens.dp(2f))
-            }
-        row.addView(
-            image,
-            LinearLayout.LayoutParams(iconSize, iconSize).apply { rightMargin = tokens.gap / 2 },
-        )
-        loadAppIcon(packageName, image, iconSize)
-    } else {
-        val glyph = InkGlyphs.view(context, InkGlyphs.Kind.FOLDER, tokens.dp(20f))
-        row.addView(
-            glyph,
-            LinearLayout.LayoutParams(iconSize, iconSize).apply { rightMargin = tokens.gap / 2 },
-        )
-    }
+    val image =
+        ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(tokens.dp(2f), tokens.dp(2f), tokens.dp(2f), tokens.dp(2f))
+        }
+    row.addView(
+        image,
+        LinearLayout.LayoutParams(iconSize, iconSize).apply { rightMargin = tokens.gap / 2 },
+    )
+    loadEntryIcon(entry, image, iconSize)
 
     row.addView(
         InkWidgets.textView(context, entry.label, tokens.textBody, InkColors.INK).apply {
@@ -79,19 +70,24 @@ internal fun BeautifyScreen.buildAppRow(
     return row
 }
 
-/** 异步读取应用图标，优先使用已设置的覆盖图标。 */
-internal fun BeautifyScreen.loadAppIcon(
-    packageName: String,
+/** 异步读取入口图标，优先使用已设置的覆盖图标，其次应用图标或内置字形。 */
+internal fun BeautifyScreen.loadEntryIcon(
+    entry: LauncherEntry,
     target: ImageView,
     sizePx: Int,
 ) {
     scope.launch {
         val bitmap =
             withContext(Dispatchers.IO) {
-                runCatching { AppServices.iconOverrides.loadOverride(packageName, sizePx) }
+                runCatching { AppServices.iconOverrides.loadOverride(entry.iconTargetId, sizePx) }
                     .getOrNull()
-                    ?: runCatching { AppServices.catalog.loadIcon(packageName, sizePx) }
-                        .getOrNull()
+                    ?: runCatching {
+                        if (entry.isApp) {
+                            entry.packageName?.let { AppServices.catalog.loadIcon(it, sizePx) }
+                        } else {
+                            entry.special?.let { AppServices.catalog.loadSpecialIcon(it, sizePx) }
+                        }
+                    }.getOrNull()
             }
         if (bitmap != null && root != null && target.isAttachedToWindow) {
             target.setImageBitmap(bitmap)

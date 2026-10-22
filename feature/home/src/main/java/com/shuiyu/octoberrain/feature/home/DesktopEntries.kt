@@ -27,7 +27,6 @@ internal object DesktopEntries {
             SpecialSpec("special:weread", "微信读书", SpecialEntry.WEREAD),
             SpecialSpec("special:koreader", "KOReader", SpecialEntry.KOREADER),
             SpecialSpec("special:files", "文件", SpecialEntry.FILES),
-            SpecialSpec("special:bookshelf", "书架", SpecialEntry.BOOKSHELF),
             SpecialSpec("special:settings", "设置", SpecialEntry.SETTINGS),
         )
 
@@ -68,7 +67,7 @@ internal object DesktopEntries {
                 SortMode.PACKAGE -> appEntries.sortedBy { it.packageName ?: "" }
                 SortMode.MANUAL -> appEntries
             }
-        // 按配置过滤内置入口；默认配置隐藏微信读书、文件与书架三个入口。
+        // 按配置过滤内置入口；默认配置隐藏微信读书与文件入口；旧书架键不再生成可见条目。
         val specialEntries =
             specials.filter { it.key !in desktop.hiddenSpecials }.map { spec ->
                 LauncherEntry(

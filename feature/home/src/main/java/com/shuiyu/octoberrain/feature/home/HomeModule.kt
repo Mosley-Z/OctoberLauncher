@@ -33,6 +33,9 @@ class HomeModule : LauncherModule {
             when (destination) {
                 Destination.Home -> HomeScreen()
                 Destination.Negative -> NegativeScreen()
+                Destination.BookshelfSettings -> NegativeScreen(showShelfSettings = true)
+                // 书架已并入负一屏，旧书架路由映射到负一屏，保证既有入口继续可用。
+                Destination.Bookshelf -> NegativeScreen()
                 is Destination.AppInfo -> AppInfoScreen(destination.packageName)
                 else -> null
             }

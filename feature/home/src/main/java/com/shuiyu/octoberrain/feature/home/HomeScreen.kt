@@ -33,6 +33,8 @@ internal class HomeScreen :
     private var receiver: BroadcastReceiver? = null
     private var appContext: Context? = null
     private var minuteTicker: MinuteTicker? = null
+    private var resumed = false
+    private var pendingData = true
 
     /** 创建桌面视图并建立数据订阅。 */
     override fun createView(context: Context): View {
@@ -49,14 +51,16 @@ internal class HomeScreen :
         // 配置与应用目录任一变化都重新组装入口；两者均为 StateFlow，首次订阅即拿到当前值。
         job.launch {
             AppServices.config.state.collect { config ->
-                home.applyData(AppServices.catalog.apps.value, config)
-                // 配置变化后通知组件重新读取配置并刷新内容。
-                home.refreshCurrentWidget(true)
+                if (resumed) {
+                    home.applyData(AppServices.catalog.apps.value, config)
+                } else {
+                    pendingData = true
+                }
             }
         }
         job.launch {
             AppServices.catalog.apps.collect { apps ->
-                home.applyData(apps, AppServices.config.state.value)
+                if (resumed) home.applyData(apps, AppServices.config.state.value) else pendingData = true
             }
         }
         // 通知变化时重绘桌面，使应用角标与未读计数保持同步。
@@ -72,27 +76,37 @@ internal class HomeScreen :
                     .collect { home.invalidateIcons() }
             }
         }
+        AppServices.content.dataVersion?.let { version ->
+            job.launch {
+                version.drop(1).collect {
+                    if (resumed) home.refreshCurrentWidget(true) else pendingData = true
+                }
+            }
+        }
         registerPackageReceiver(context, job)
         return home
     }
 
-    /** 回到前台时重新枚举应用、刷新内容源并通知组件更新。 */
+    /** 回到桌面仅重读组件本地数据；完整同步由到期策略或用户操作触发。 */
     override fun onResume() {
         val job = scope ?: return
+        resumed = true
         minuteTicker?.start()
         val home = view
+        home?.setHostVisible(true)
+        if (pendingData) {
+            home?.applyData(AppServices.catalog.apps.value, AppServices.config.state.value)
+            pendingData = false
+        }
         home?.refreshCurrentWidget(true)
         job.launch { runCatching { AppServices.catalog.refresh() } }
-        job.launch {
-            // 内容源刷新完成后再通知组件，保证组件读取到的是刷新后的数据。
-            runCatching { AppServices.content.refreshAll() }
-            home?.refreshCurrentWidget(true)
-        }
     }
 
-    /** 离开前台时暂停分钟刷新，避免页面不可见时持续重绘。 */
+    /** 不可见时延后配置加载，并暂停组件轮播。 */
     override fun onPause() {
+        resumed = false
         minuteTicker?.stop()
+        view?.setHostVisible(false)
     }
 
     /** 返回键优先交给桌面处理，用于退出整理模式。 */

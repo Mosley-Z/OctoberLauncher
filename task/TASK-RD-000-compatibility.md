@@ -1,9 +1,9 @@
 # TASK-RD-000 设备与兼容性尖峰
 
-- 状态：TODO（规划卡，未执行）
+- 状态：IN_PROGRESS（原生与Office基础探针通过，压力矩阵待补）
 - 优先级/阶段：P0 / R0
-- 执行者/集成者：未分配
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Codex（本聊天）
+- 分支/工作树/源码基线：master / 1379e8b + PERF-001已验证差异；保留性能修改
 - 依赖：无；收到执行指令后可开展
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -34,11 +34,22 @@
 
 ## 执行与接力记录
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
-- 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
+- 开始/最近更新：2026-10-22 03:16
+- 已改文件/接口决定：见本卡下方原生首轮进展及task/CONTRACTS.md
+- 验证命令及结果/证据：见本卡增量与docs/acceptance/2026-10-22-reader-native-first.md
+- 未覆盖/阻塞/解除条件：已开始；未完成项见本卡增量与验收边界
+- 构建进程/设备占用/恢复：最终构建已退出；S4 debug/P4 release，探针正常收尾后卸载
+- 下一步：独立APK验证原生PDF和WebView83能力，原生通路通过后冻结001基础契约；Office资源矩阵保持待验（34方案明确Office不阻塞基础阅读）
+- 接收方/集成点：Codex（本聊天）
 - 提交/合并/发布：未执行
+
+
+### 2026-10-22 原生首轮进展（Codex）
+
+S4/P4均API30、armeabi-v7a、128MiB memoryClass、lowRam=true、WebView83。原生PdfRenderer/SharedMemory及Web基础特性探针通过；Office候选包真实加载、表格/幻灯片压力测试尚未完成，保持IN_PROGRESS。证据：_analysis/reader-probe/*native-webview.txt。
+
+验证：`check :app:assembleDebug :app:assembleRelease --offline --console=plain`退出0（1556 tasks）；日志`_analysis/reader-probe/native-gate.log`。未提交、未发布。下一步按本卡未完成项接力，不能把原生探针当产品PDF验收。
+
+### Office基础增量
+
+S4/P4的DOCX中文80段、SheetJS中文1001行及显式21行窗口、PPTX3页基础DOM通过。候选资源版本/摘要/来源/完整许可已固定，仅独立探针使用。限制与初次宿主错误修正见reader-native-probe验收增量；图片、图表、大文件、renderer总PSS等仍待验，不完成本卡。

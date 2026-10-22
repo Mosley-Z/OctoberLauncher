@@ -124,7 +124,7 @@ class JsonConfigStore(
             )
             return parsed
         }
-        val migrated = ConfigMigration.migrate(parsed)
+        val migrated = ConfigMigration.migrate(parsed, hasShelfSource(root))
         if (migrated.version != parsed.version) {
             val error = persist(migrated)
             if (error != null) {

@@ -1,9 +1,9 @@
 # TASK-RD-015 基础阅读入口与最近阅读集成
 
-- 状态：TODO（规划卡，未执行）
+- 状态：IN_PROGRESS（本轮增量完成，整包与全入口门禁待 017 统筹）
 - 优先级/阶段：P0 / R3
-- 执行者/集成者：未分配
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Lead（本轮增量）；task-7 集成、task-8 能力表
+- 分支/工作树/源码基线：master `1379e8b` 之后工作区修改；保留既有未提交改动
 - 依赖：[004](TASK-RD-004-reading-state.md)、[005](TASK-RD-005-text.md)、[006](TASK-RD-006-pdf.md)、[008](TASK-RD-008-zip.md)、[009](TASK-RD-009-markdown.md)、[010](TASK-RD-010-epub.md)
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -34,11 +34,27 @@
 
 ## 执行与接力记录
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
-- 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
-- 提交/合并/发布：未执行
+### 2026-10-22 Codex 接手基础余项
+
+- 用户批准按检查建议推进；负责人/集成者 Codex，master/cfeae53 + 保留差异。
+- 最终入口：文件页/负一屏本地与最近阅读保持统一打开；外部来源不可访问时，阅读设置提供“重新选择文档”，不增加第二书架。
+- 控件与显示：重选仅出现在 content URI 来源；系统选择器取消不导航，不清空旧记录；选中后进入所选文档。
+- 状态与消费者：HostFilePicker 仅在系统返回 persistable + read 授权时持久保存，SourceResolver 据真实 persistedUriPermissions 标记可恢复性；不伪造永久授权。
+- 迁移与保留：不变更数据库 schema；路径身份仍按规范路径区分，复制/移动不沿用另一文件书签；旧失效 URI 记录保留。
+- 验收：系统选择/取消/持久授权/撤销后重选、文件页返回与复制移动区分；与 RD016 压力分开记录，未实测不勾选。
+- 文件范围：ReaderScreen、ReaderErrors、HostFilePicker及相关验证；共享入口由本集成者串行修改。
+- 文件页补测发现本应用FileProvider URI与LocalPath身份分岔；增加已知files_share根的双向别名，并在事务中保留较新进度、迁移全部书签。只合并可确认的同源，不按文件名或内容相似合并副本；任意第三方URI摘要关联仍待004后续收口。相关文件扩展为SourceResolver/OwnedDocumentPath、DocumentMetadata.aliases、ReadingRepository.mergeAliases及Session调用点，由本集成者串行修改。
+- 2026-10-23增量：文件页本地打开与自有URI同源16/17进度/书签通过，副本/移动后新路径独立1/17；重选自有选择器通过，真实SAF因设备无DocumentsUI仍待。[DOCX与入口验收](../docs/acceptance/2026-10-23-reader-docx-and-entry.md)。完整门禁/双构建通过；未关闭所有格式/第三方URI/列表返回矩阵，保持IN_PROGRESS。
+
+- 开始/最近更新：2026-10-22 16:15；Lead 执行本轮增量，task-7 集成、task-8 能力表
+- 已改文件/接口决定：`core/common` 的 ReaderContracts.kt 与 Contracts.kt（`RecentDocument`、`RecentGateway`、`AppServices.recent`）；`feature/reader` 的 ReaderModule.kt（注册查询）；`feature/content` 的 BookshelfScreen.kt（最近阅读区、本地书统一入口）；`app` 的 MainActivity.kt（`MainIncoming` 入口诊断日志）
+- 验证命令及结果/证据：`:core:common`、`:feature:reader`、`:feature:content` 单测与 detekt 通过（31s）；`check :app:assembleDebug :app:assembleRelease` 通过（3m18s，1564 tasks，EXIT=0）；设备书架最近阅读与三国演义.epub 打开通过；证据 `_ui-out/rd015/` 与 [RD015 验收](../docs/acceptance/2026-10-22-reader-entry-integration-dsh.md)
+- 未覆盖/阻塞/解除条件：文件页非图片入口未重跑；复制移动后阅读记录区分未验；Office 未集成；能力表五条入口文案建议待决策
+- 构建进程/设备占用/恢复：设备已回桌面，来源开关恢复为本地目录关、微信读书开；无后台构建
+- 下一步：RD016 资源压力；RD017 整包与设备门禁收口；入口文案按能力表建议评估
+- 接收方/集成点：下一轮集成者
+- 提交/合并/发布：未提交，未升版本
+
+## 2026-10-22 审查整改关联（最新排期）
+
+最新产品目标由 [FIX002](TASK-FIX-002-single-bookshelf.md) 取代旧独立书架接入目标：唯一书架是负一屏，最近阅读和本地书打开迁往负一屏；旧 Destination.Bookshelf 兼容跳转，设置不保留第二套展示。原验收保留历史语境，不能作为新入口验收。本卡余项（文件页入口、复制/移动、真实授权重选、能力文案）仍需完成，不因搬迁自动关闭。验收按格式能力执行，图片/PDF 等未声明书签或搜索能力不能强行要求；不支持能力核对菜单准确。下一步先完成 FIX001 → FIX002 → FIX003，再回 RD016。

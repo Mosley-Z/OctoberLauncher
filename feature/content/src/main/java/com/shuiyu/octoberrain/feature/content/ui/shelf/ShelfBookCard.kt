@@ -21,10 +21,7 @@ private const val COVER_RATIO_HEIGHT = 4
 /** 卡片圆角，取任务规格给出的十二至十六像素区间中值。 */
 private const val CARD_CORNER_DP = 14f
 
-/** 底部进度层高度，腰封据此与卡片底边保持固定距离。 */
-private const val BOTTOM_LAYER_DP = 30f
-
-/** 腰封与底部进度层之间的留白。 */
+/** 腰封与卡片底边的留白。 */
 private const val RIBBON_GAP_DP = 8f
 
 /** 封面解码的目标边长，与其余页面的缩略图档位一致。 */
@@ -43,8 +40,8 @@ private val WRAP_CONTENT = ViewGroup.LayoutParams.WRAP_CONTENT
 /**
  * 书架封面卡片。
  *
- * 卡片以书籍封面作为主体，封面之上叠加三处信息层：位于中下部的书名腰封、
- * 位于底边的阅读进度层与右上角的百分比角标。尺寸全部由设计令牌换算，卡片
+ * 卡片以书籍封面作为主体，封面之上叠加两处信息层：位于中下部的书名腰封、
+ * 右上角的百分比角标。尺寸全部由设计令牌换算，卡片
  * 高度按封面比例从宽度推导，同一行卡片因此等高。
  */
 object ShelfBookCard {
@@ -89,7 +86,6 @@ object ShelfBookCard {
             }
         card.addView(coverView(context, coverPath, displayTitle))
         card.addView(ribbonView(context, displayTitle, displayAuthor))
-        card.addView(progressLayer(context, percent))
         card.addView(badgeView(context, percent))
         return card
     }
@@ -132,7 +128,7 @@ object ShelfBookCard {
                     )
                 layoutParams =
                     FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply {
-                        bottomMargin = tokens.dp(BOTTOM_LAYER_DP) + tokens.dp(RIBBON_GAP_DP)
+                        bottomMargin = tokens.dp(RIBBON_GAP_DP)
                     }
             }
         ribbon.addView(labelView(context, title, tokens.textCaption, InkColors.INK))
@@ -157,18 +153,6 @@ object ShelfBookCard {
             ellipsize = TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         }
-
-    /** 底部进度层：贴住卡片底边，含进度条与右下角状态图标。 */
-    private fun progressLayer(
-        context: Context,
-        percent: Int,
-    ): View {
-        val tokens = DesignRuntime.tokens
-        return ShelfProgressOverlay(context, percent, tokens.dp(CARD_CORNER_DP)).apply {
-            layoutParams =
-                FrameLayout.LayoutParams(MATCH_PARENT, tokens.dp(BOTTOM_LAYER_DP), Gravity.BOTTOM)
-        }
-    }
 
     /** 右上角百分比角标：反白块底色、加粗居中文字，底边带尖角。 */
     private fun badgeView(

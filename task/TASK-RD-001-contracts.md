@@ -1,9 +1,9 @@
 # TASK-RD-001 阅读器契约与模块骨架
 
-- 状态：TODO（规划卡，未执行）
+- 状态：DONE
 - 优先级/阶段：P0 / R1
-- 执行者/集成者：未分配
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Codex（本聊天，串行集成）
+- 分支/工作树/源码基线：master / 1379e8b + PERF-001 完成差异
 - 依赖：[000](TASK-RD-000-compatibility.md)
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -34,11 +34,23 @@
 
 ## 执行与接力记录
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
+- 开始/最近更新：2026-10-22 03:18
+- 已改文件/接口决定：见本卡下方原生首轮进展及task/CONTRACTS.md
+- 验证命令及结果/证据：见本卡增量与docs/acceptance/2026-10-22-reader-native-first.md
+- 未覆盖/阻塞/解除条件：000原生PDF/SharedMemory/WebView83探针已通过；Office资源待验，按34方案原生通路先行，不引入外部依赖
+- 构建进程/设备占用/恢复：最终构建已退出；S4 debug/P4 release，探针正常收尾后卸载
 - 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
+- 接收方/集成点：Codex（本聊天）
 - 提交/合并/发布：未执行
+
+
+### 2026-10-22 原生首轮进展（Codex）
+
+原生公共契约v1、feature:reader、Gateway/路由/Manifest/R8接线落地，见CONTRACTS.md。全量check及debug/release通过；后续Registry/OpenPlan随多引擎扩展，故本卡暂保留IN_PROGRESS。
+
+验证：`check :app:assembleDebug :app:assembleRelease --offline --console=plain`退出0（1556 tasks）；日志`_analysis/reader-probe/native-gate.log`。未提交、未发布。下一步按本卡未完成项接力，不能把原生探针当产品PDF验收。
+
+
+### 006集成后冻结
+
+ReaderRegistry最小实际工厂已接入TEXT/PDF，模块/路由/入口/R8/debug/release/原生设备闭环成立；本卡完成。OpenPlan/通用EngineFactory草案不作为虚构接口；后续Web引擎由集成者增量扩展Registry。接口见CONTRACTS.md。

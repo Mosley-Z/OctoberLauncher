@@ -64,3 +64,9 @@
 
 # ReaderModule由OctoberRainApp反射装配。
 -keep class com.shuiyu.octoberrain.feature.reader.ReaderModule { public <init>(); }
+
+# Negative screen compatibility destination invokes these view entry points.
+-keepclassmembers class com.shuiyu.octoberrain.feature.content.ui.negative.DeskContainerView {
+    public void showShelfSettings();
+    public boolean handleBack();
+}

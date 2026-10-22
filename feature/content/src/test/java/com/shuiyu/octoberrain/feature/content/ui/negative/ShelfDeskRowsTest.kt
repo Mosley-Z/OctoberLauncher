@@ -6,9 +6,10 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
- * 书架行数对负一屏装配的影响测试。
+ * 书架行数与书源对负一屏装配的影响测试。
  *
- * 行数存放于负一屏配置，写入后由装配快照差异触发分区重建，书架据此按新行数重排。
+ * 行数与书源都存放于负一屏配置，写入后由装配快照差异触发分区重建，书架据此按新的
+ * 行数重排或改为读取另一侧书源数据。
  */
 class ShelfDeskRowsTest {
     /** 书架行数变化使装配快照失效，宿主重建分区后行数即时生效。 */
@@ -28,5 +29,21 @@ class ShelfDeskRowsTest {
             original.desktop.negativePage.copy(shelfRows = 3),
             DeskContainerConfig.from(changed).page,
         )
+    }
+
+    /** 书源切换使装配快照失效，宿主重建分区后按新书源重新读取书目。 */
+    @Test
+    fun shelfSourceInvalidateContainerSnapshot() {
+        val original = LauncherConfig()
+        val snapshot = DeskContainerConfig.from(original)
+        val changed =
+            original.copy(
+                desktop =
+                    original.desktop.copy(
+                        negativePage = original.desktop.negativePage.copy(shelfSource = "local"),
+                    ),
+            )
+        assertNotEquals(snapshot, DeskContainerConfig.from(changed))
+        assertEquals("local", DeskContainerConfig.from(changed).page.shelfSource)
     }
 }

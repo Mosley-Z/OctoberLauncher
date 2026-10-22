@@ -9,6 +9,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.BeautifyTheme
 import com.shuiyu.octoberrain.core.common.ConfigStore
 import com.shuiyu.octoberrain.core.common.GridAlign
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.SortMode
 import com.shuiyu.octoberrain.core.common.ThemeLayout
 import com.shuiyu.octoberrain.core.common.ThemeRepository
@@ -87,21 +88,22 @@ class ThemeRepositoryImpl(
                                 ?: fullOrder.take(firstPageCapacity(desktop))
                         ThemeScope.ALL -> fullOrder
                     }
+                val iconEntries = configValue.appearance.iconOverrides.entries
+                val source = iconEntries.associate { IconTargets.normalizeStoredKey(it.key) to it.value }
                 val targetPackages =
                     if (scope == ThemeScope.HOME) {
-                        order.filter { it.startsWith("app:") }.map { it.removePrefix("app:") }.toSet()
+                        order.map { IconTargets.normalizeStoredKey(it) }.toSet()
                     } else {
-                        configValue.appearance.iconOverrides.keys
+                        source.keys
                     }
-                val source = configValue.appearance.iconOverrides
                 val copied = mutableMapOf<String, String>()
-                source.forEach { (pkg, path) ->
-                    if (pkg !in targetPackages) return@forEach
+                source.forEach { (targetId, path) ->
+                    if (targetId !in targetPackages) return@forEach
                     val from = File(path)
                     if (!from.exists()) return@forEach
-                    val to = File(iconsDir, safeName(pkg) + ".png")
+                    val to = File(iconsDir, IconFileNames.fileName(targetId))
                     from.copyTo(to, overwrite = true)
-                    copied[pkg] = to.absolutePath
+                    copied[targetId] = to.absolutePath
                 }
                 val theme =
                     BeautifyTheme(
@@ -223,12 +225,12 @@ class ThemeRepositoryImpl(
 
     /** 把源图标复制到覆盖目录，源文件缺失时返回 null。 */
     private fun copyIcon(
-        pkg: String,
+        targetId: String,
         path: String,
     ): String? {
         val from = File(path)
         if (!from.exists()) return null
-        val to = File(overrideDir, safeName(pkg) + ".png")
+        val to = File(overrideDir, IconFileNames.fileName(targetId))
         return runCatching {
             from.copyTo(to, overwrite = true)
             to.absolutePath
@@ -369,12 +371,13 @@ class ThemeRepositoryImpl(
                 val dir = File(root, id).apply { mkdirs() }
                 val iconsDir = File(dir, "icons").apply { mkdirs() }
                 val copied = mutableMapOf<String, String>()
-                icons.forEach { (pkg, value) ->
+                icons.forEach { (storedKey, value) ->
                     runCatching {
                         val bytes = Base64.decode(value.jsonPrimitive.content, Base64.DEFAULT)
-                        val to = File(iconsDir, safeName(pkg) + ".png")
+                        val targetId = IconTargets.normalizeStoredKey(storedKey)
+                        val to = File(iconsDir, IconFileNames.fileName(targetId))
                         to.writeBytes(bytes)
-                        copied[pkg] = to.absolutePath
+                        copied[targetId] = to.absolutePath
                     }
                 }
                 val theme = BeautifyTheme(id, uniqueName(name), createdAt, copied, order, layout, scope)
@@ -409,9 +412,6 @@ class ThemeRepositoryImpl(
         return "$base $index"
     }
 
-    /** 把包名转换为可用于文件名的安全字符串。 */
-    private fun safeName(packageName: String): String = packageName.replace(Regex("[^A-Za-z0-9._-]"), "_")
-
     /** 首页可容纳的条目数量，布局服务缺失时用于裁剪顺序。 */
     private fun firstPageCapacity(desktop: com.shuiyu.octoberrain.core.common.DesktopConfig): Int {
         val columns = desktop.columns.coerceAtLeast(3)
@@ -424,7 +424,13 @@ class ThemeRepositoryImpl(
 private const val APP_PREFIX = "app:"
 
 /** 与桌面条目构建保持一致的内置特殊入口键，用于复现桌面顺序。 */
-private val SPECIAL_ENTRIES = listOf("special:settings", "special:files")
+private val SPECIAL_ENTRIES =
+    listOf(
+        "special:weread",
+        "special:koreader",
+        "special:files",
+        "special:settings",
+    )
 
 /**
  * 计算主题图标应落到当前设备的哪些应用上。
@@ -450,9 +456,10 @@ internal fun resolveThemeIconTargets(
     val positions = themeApps.withIndex().associate { (index, entry) -> entry to index }
     val known = deviceOrder.toSet()
     val resolved = LinkedHashMap<String, String>()
-    // 第一轮：包名直接命中。
-    sourcePackages.forEach { pkg ->
-        if (known.contains(APP_PREFIX + pkg)) resolved[pkg] = pkg
+    // 第一轮：包名与特殊入口直接命中，特殊入口不参与补位。
+    sourcePackages.forEach { targetId ->
+        val direct = if (targetId.startsWith(IconTargets.SPECIAL_PREFIX)) targetId else APP_PREFIX + targetId
+        if (known.contains(direct)) resolved[targetId] = targetId
     }
     // 第二轮：缺失应用按主题内应用序号回退到设备同序号应用。
     sourcePackages.forEach { pkg ->

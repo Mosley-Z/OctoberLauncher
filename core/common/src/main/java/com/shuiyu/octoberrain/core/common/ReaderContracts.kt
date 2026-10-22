@@ -35,10 +35,20 @@ data class DocumentMetadata(
     val size: Long?,
     val modified: Long?,
     val persistentAccess: Boolean,
+    val aliases: List<String> = emptyList(),
 )
 
 @Serializable
 sealed interface ReaderLocator {
+    @Serializable
+    @SerialName("docx")
+    data class Docx(
+        val preview: Boolean = false,
+        val textOffset: Int = 0,
+        val fraction: Double = 0.0,
+        val page: Int = 0,
+    ) : ReaderLocator
+
     @Serializable
     @SerialName("epub")
     data class Epub(
@@ -103,4 +113,31 @@ enum class ReaderFailure { MISSING, PERMISSION, UNSUPPORTED, CORRUPT, LIMIT, REN
 /** 主线程打开入口；false表示宿主或模块尚未就绪。 */
 fun interface ReaderGateway {
     fun open(ref: DocumentRef): Boolean
+}
+
+/**
+ * 最近阅读条目。
+ *
+ * @property name 展示名称，取来源的最后一段名称。
+ * @property ref 已解析来源，可直接交给 [ReaderGateway] 打开。
+ * @property updated 最近一次保存位置的毫秒时间戳。
+ */
+data class RecentDocument(
+    val name: String,
+    val ref: DocumentRef,
+    val updated: Long,
+)
+
+/**
+ * 最近阅读查询入口。
+ *
+ * 由阅读器模块在安装时注册，书架等入口只依赖本接口读取，不直接访问阅读数据库。
+ */
+fun interface RecentGateway {
+    /**
+     * 读取最近阅读。
+     *
+     * @param limit 最多返回条数，调用方按界面容量请求。
+     */
+    fun recent(limit: Int): List<RecentDocument>
 }

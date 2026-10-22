@@ -114,7 +114,8 @@ val NEGATIVE_MODULE_ID_ALIASES: Map<String, String> =
  *
  * 参数 enabled 为是否启用负一屏；kind 为内容来源；
  * limit 为单屏展示条目上限；showProgress 表示是否绘制进度条；
- * showCover 表示是否绘制封面缩略图；shelfRows 为书架分区的展示行数。
+ * showCover 表示是否绘制封面缩略图；shelfRows 为书架分区的展示行数；
+ * shelfSource 为书架分区展示的书源，取值 weread 或 local。
  */
 @Serializable
 data class NegativePageConfig(
@@ -148,7 +149,18 @@ data class NegativePageConfig(
      * 夹取到 [SHELF_ROWS_MIN] 与 [SHELF_ROWS_MAX] 之间，写回配置的始终是夹取后的值。
      */
     val shelfRows: Int = SHELF_ROWS_DEFAULT,
+    /**
+     * 书架分区展示的书源，取值 weread 或 local。
+     *
+     * 旧配置缺少该字段时取 [SHELF_SOURCE_DEFAULT]；未知值、空串与大小写差值
+     * 在读取时由 [effectiveShelfSource] 归一为默认书源。
+     */
+    val shelfSource: String = SHELF_SOURCE_DEFAULT,
 ) {
+    /** 归一后的书架书源：仅识别 local，其余一律按微信读书处理。 */
+    val effectiveShelfSource: String
+        get() = if (shelfSource == SHELF_SOURCE_LOCAL) SHELF_SOURCE_LOCAL else SHELF_SOURCE_WEREAD
+
     /** 夹取到合法区间的书架行数。 */
     val effectiveShelfRows: Int
         get() = shelfRows.coerceIn(SHELF_ROWS_MIN, SHELF_ROWS_MAX)
@@ -172,6 +184,15 @@ data class NegativePageConfig(
 
         /** 书架分区的取书上限，等于行数上限与每行本数之积。 */
         const val SHELF_ITEM_LIMIT: Int = SHELF_ROWS_MAX * SHELF_COLUMNS
+
+        /** 书架书源：微信读书。 */
+        const val SHELF_SOURCE_WEREAD: String = "weread"
+
+        /** 书架书源：本地目录。 */
+        const val SHELF_SOURCE_LOCAL: String = "local"
+
+        /** 书架书源默认值。 */
+        const val SHELF_SOURCE_DEFAULT: String = SHELF_SOURCE_WEREAD
     }
 }
 
@@ -674,11 +695,16 @@ data class IntegrationsConfig(
     val wereadApiKey: String = "",
     val wereadEnabled: Boolean = true,
     val koreaderEnabled: Boolean = true,
-    /** 书架是否收录本地目录中的书籍，默认仅展示微信读书。 */
+    /**
+     * 书架是否收录本地目录中的书籍。
+     *
+     * 兼容字段：书架书源已迁移到 [NegativePageConfig.shelfSource]，V11 迁移读取本字段后
+     * 恢复默认值，界面不再读写，保留仅为解析旧配置。
+     */
     val bookshelfLocalEnabled: Boolean = false,
-    /** 书架是否收录微信读书书架内容。 */
+    /** 兼容字段：书架是否收录微信读书书架内容，语义同上。 */
     val bookshelfWereadEnabled: Boolean = true,
-    /** 书架每页展示的书籍行数，默认三行。 */
+    /** 兼容字段：旧版书架每页展示行数，V11 迁移后恢复默认值。 */
     val bookshelfRows: Int = 3,
     val booksDir: String = "Books",
     val weatherEnabled: Boolean = true,
@@ -793,7 +819,7 @@ data class LauncherConfig(
 ) {
     companion object {
         /** 当前配置结构版本，读取旧配置时据此执行迁移。 */
-        const val CURRENT_VERSION = 10
+        const val CURRENT_VERSION = 13
     }
 }
 
@@ -1004,6 +1030,7 @@ data class UsageEntry(
 )
 
 /** 书架条目。 */
+@Serializable
 data class BookItem(
     val path: String,
     val title: String,
@@ -1015,6 +1042,7 @@ data class BookItem(
 )
 
 /** 微信读书书架条目。 */
+@Serializable
 data class WereadShelfItem(
     val bookId: String,
     val title: String,

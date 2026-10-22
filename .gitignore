@@ -25,6 +25,9 @@ _tools/*.jar
 _tools/**/*.jar
 _tools/node_modules/
 
+# Android CLI 工具二进制、标注截图与布局 JSON：可重新获取，不入库
+_ui-out/
+
 # 构建日志与一次性运行记录不入库
 _analysis/**/*.log
 *.log
@@ -41,3 +44,13 @@ app/build/
 _analysis/device/
 # 反编译探针产物
 _analysis/*.jar
+
+# 可重建的原生阅读器兼容探针输出
+_analysis/reader-probe/out/
+
+# 探针候选库按vendor-manifest重建，不进入产品APK
+_analysis/reader-probe/assets/lib/
+_analysis/reader-probe/assets/deck.pptx
+
+# 大型合成PDF仅由generate_pdf_fixtures.py重建
+_analysis/reader-probe/fixtures/

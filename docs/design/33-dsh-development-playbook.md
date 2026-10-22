@@ -193,6 +193,22 @@
 
 导航脚本不要盲点固定坐标。先截图或 XML 确认当前页面；进入菜单优先根据实际文本 bounds 定位。长任务返回 session 时先等待完成，再读截图。审批超时与命令成功是不同状态，不能假定操作已经执行，也不能无条件循环重试。
 
+### Android CLI 界面观测
+
+标准 View 页面（设置、文件、书架设置等）优先用结构树定位：`layout` 输出节点 JSON，含 `text`、`resource-id`、`interactions`、`bounds` 与 `center`；`find` 按键值或文本查找，`click` 直接点击。十雨桌面的图标、时钟、阅读统计条由 Canvas 自绘，文字不进 accessibility 树，`layout` 与 `input` 选择器都取不到，只能先 `annotate` 截图标注编号，读图后用 `tap -Label` 点击。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action layout -Serial <serial>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action annotate -Serial <serial>
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action resolve -Labels "#1 #26"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action tap -Label "#26"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action find -FindText "书架设置"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action click -Selector "text=桌面偏好"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action key -Key back
+```
+
+脚本从 `toolchain.path` 取 JDK 与 Android SDK，CLI 二进制放在 `_ui-out\android-cli\android.exe`，也可用环境变量 `ANDROID_CLI` 指定；标注截图与布局 JSON 默认写入 `_ui-out\<时间戳>\`，该目录已在 `.gitignore` 忽略。`layout` 热态约 1.1 秒，冷启动首次约 11 秒；S4 上 `uiautomator dump` 约 2.8 秒。多设备必须用 `-Serial` 指定，同一 serial 同一时间只允许一个操作者。脚本文件必须保存为带 BOM 的 UTF-8，Windows PowerShell 5.1 才能正确读取中文。
+
 ## 11. 排查顺序：先分层，再修改
 
 当出现“页面空白”时，先区分：
@@ -240,3 +256,7 @@
 ```
 
 持续使用这张表的价值，是让下一轮开发更快发现“接上了界面却没接上行为”的问题。功能移植的完成标准应始终落在用户的连续使用体验上。
+
+## 14. 跨卡整改后的需求回读
+
+按 [36](36-demand-handoff-contract.md) 固定最终入口、控件位置和显示归属，并对所有异步动作入口核对完成回调；不要用辅助规则单测或不匹配触发条件的设备回归替代目标用例。Canvas 长按可用 `scripts/android-ui.ps1 -Action tap -Label "#编号" -HoldMs 650 -Screenshot <当前标注图> -Serial <serial>`；标号在图片替换/导航后可能变化，必须重新 annotate。

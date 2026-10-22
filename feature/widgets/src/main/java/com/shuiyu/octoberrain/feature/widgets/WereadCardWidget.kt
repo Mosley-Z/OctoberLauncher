@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.RectF
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.NegativePageConfig
 
 /**
  * 微信读书卡片组件的公共基类。
@@ -29,7 +30,9 @@ abstract class WereadCardWidget(
             WereadWidgetLogic.stateOf(
                 key = integrations.wereadApiKey,
                 enabled = integrations.wereadEnabled,
-                shelfEnabled = integrations.bookshelfWereadEnabled,
+                // 书架书源决定卡片是否有书架数据可展示，本地来源下不读取微信读书书架。
+                shelfEnabled =
+                    config.desktop.negativePage.effectiveShelfSource == NegativePageConfig.SHELF_SOURCE_WEREAD,
                 hasData = hasData,
             )
         state = resolved

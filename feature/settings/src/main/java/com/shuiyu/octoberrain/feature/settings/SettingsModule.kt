@@ -34,7 +34,6 @@ private class SettingsProvider : ScreenProvider {
     override fun create(destination: Destination): Screen? =
         when (destination) {
             Destination.Settings -> SettingsHomeScreen()
-            Destination.BookshelfSettings -> BookshelfSettingsScreen()
             Destination.Beautify -> BeautifyScreen()
             Destination.BeautifyPreview -> PreviewScreen()
             Destination.SystemSettings -> SettingsSystemScreen()
@@ -50,7 +49,7 @@ private class SettingsProvider : ScreenProvider {
             Destination.IconPackPicker -> IconPackPickerScreen()
             Destination.FontPicker -> FontPickerScreen()
             Destination.Backup -> BackupScreen()
-            is Destination.IconPicker -> IconPickerScreen(destination.packageName)
+            is Destination.IconPicker -> IconPickerScreen(destination.targetId)
             else -> null
         }
 }

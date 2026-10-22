@@ -99,7 +99,11 @@ class BackupServiceImpl(
                 return@withContext BackupResult(false, "配置解析失败，文件可能已损坏")
             }
             val sections = mutableListOf("配置")
-            var merged = ConfigMigration.migrate(decoded)
+            var merged =
+                ConfigMigration.migrate(
+                    decoded,
+                    hasShelfSource(AppJson.format.parseToJsonElement(rawConfig.toString(Charsets.UTF_8))),
+                )
             val themeEntry = entries[ENTRY_THEME]
             if (themeEntry != null) {
                 val theme = parseTheme(themeEntry)

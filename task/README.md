@@ -1,8 +1,40 @@
 # 阅读器任务看板与执行入口
 
-创建于2026-10-22。21张卡的初始状态都是TODO，均未实施；实时状态以每张卡的状态字段为准。本看板不复制动态状态。文件存在不等于已向Agent派工。
+最新阅读器批次（2026-10-23）：用户批准接手剩余开发。RD016第一批、RD015入口/已知同源身份增量已验证；RD011 DOCX双模式READY_FOR_REVIEW。见[DOCX与入口验收](../docs/acceptance/2026-10-23-reader-docx-and-entry.md)、[接力](../memory/sessions/2026-10-23-reader-resources-docx-codex.md)。后续RD012→RD013→RD014及资源/最终门禁；P4、真实SAF和复杂格式矩阵仍待，未关闭全方案。
+
+最新交付：FIX005/006均READY_FOR_REVIEW；[验收](../docs/acceptance/2026-10-22-shared-shelf-refresh.md)与[交接](../memory/sessions/2026-10-22-shared-shelf-refresh-codex.md)。本书共享缓存/刷新取代FIX004独立自动模式，下方“当前”旧记录按历史理解；后续依安排回RD016。
+
+
+当前最新：[FIX006 书架与本书共用缓存/刷新](TASK-FIX-006-shared-shelf-refresh.md)，取消FIX004独立自动模式，连同FIX005一起交付。
+
+
+当前用户反馈优先：[FIX005 最近在读排序与书封底部清理](TASK-FIX-005-shelf-recency.md)，Codex负责。
+
+
+最新执行：[FIX004 书架标题操作与刷新方式](TASK-FIX-004-shelf-controls-refresh.md)，Codex已交付并标记READY_FOR_REVIEW，[验收](../docs/acceptance/2026-10-22-shelf-refresh-controls.md)/[最新交接](../memory/sessions/2026-10-22-shelf-refresh-codex.md)；后续按依赖回RD016。本卡取代 FIX002 中标题控件仍位于设置里的旧交付目标，保留其修复成果。
+
+
+创建于2026-10-22。21张卡创建时都是TODO；2026-10-22已开始原生阅读器实现；实时状态以每张卡的状态字段为准。本看板不复制动态状态。文件存在不等于已向Agent派工。
 
 先读 [PROJECT](../PROJECT.md)、[STATUS](../memory/STATUS.md)、自己的卡、[开发流程](../docs/design/35-development-workflow.md)。设计来源是 [34总方案](../docs/design/34-files-reader-upgrade-plan.md)。通用任务模板在 [task模板](../docs/templates/task.md)。
+
+性能前置任务：[PERF-001](TASK-PERF-001-s4-performance.md)已完成，验证边界见卡片及验收报告。
+
+## 当前接管结果（2026-10-22）
+
+三 FIX 已由 Codex 接管纠正并交付 S4/debug/release 证据；单卡为 READY_FOR_REVIEW，P4 未连接，不写全部 DONE。[最新接力](../memory/sessions/2026-10-22-fix-takeover-codex.md)、[验收](../docs/acceptance/2026-10-22-fix-takeover-codex.md)。用户已明确本轮以 S4 收尾、P4 延后；后续可按依赖回 RD016，最终双机门禁补齐 P4；不要按下方历史 TODO 描述重复实施。用户已授权的接管继续有效。
+
+## 当前插队批次（2026-10-22 用户最新指令）
+
+DSH 下一步改为 **FIX001 → FIX002 → FIX003 → RD016 → 按原依赖继续**。当前已开始的操作先安全收尾，核实是否有活跃执行者，不中断半途写入或另开重复构建。本节保留原排期；实施结果以顶部接管结果和单卡最新记录为准。
+
+| 顺序 | 实施卡 | 前置与交付 |
+| --- | --- | --- |
+| 1 | [FIX001 阅读器两处修复](TASK-FIX-001-reader-review.md) | 基于现有 RD003/004/015 增量，修重排调度与最近阅读独立性 |
+| 2 | [FIX002 唯一负一屏书架](TASK-FIX-002-single-bookshelf.md) | 依赖 FIX001；迁移最近阅读，拆分展示来源与数据开关 |
+| 3 | [FIX003 内置入口图标](TASK-FIX-003-special-icons.md) | 依赖 FIX002 的共享入口交接；支持设置/文件换图与主题 |
+
+这三个 FIX 是本批串行优先级，不要求无关 Office 引擎新增技术依赖。RD003/004/014 的交叉范围、RD015/016/017 的后续责任已在各卡追加，不形成 RD015 ↔ FIX 的依赖环。最新交接见 [整改交接](../memory/sessions/2026-10-22-review-remediation-to-dsh.md)。
 
 ## 任务索引
 
@@ -54,3 +86,9 @@ settings.gradle.kts；app Gradle/Manifest/OctoberRainApp/proguard；core:common�
 > 执行 task/TASK-RD-xxx-主题.md。先读PROJECT与STATUS，再核实依赖交付和已有差异。你只拥有卡内指定文件；共享入口提交具体接线建议给集成者。完成代码和必要自测，更新任务卡、验收记录与接力；不自行安装同一设备、升版本或发布。
 
 任务编号只表达身份，不表达实际执行顺序。新范围用新卡或有记录地调整原卡，取消时注明影响下游；不能因聊天压缩遗失未完成事项。
+
+本轮交接：[Codex→DSH](../memory/sessions/2026-10-22-reader-to-dsh-handoff.md)。先核实未提交差异与设备，无需重开已结束构建。
+
+## 产品网站（独立范围）
+
+- [WEB-001 产品站本地预览](TASK-WEB-001-product-site.md)：负责人Codex，状态以卡为准；与Android构建/设备任务无依赖。

@@ -21,7 +21,9 @@ class WereadNoteLibrary(
         val file = File(root, "nt_index.json")
         val stamp = "${file.lastModified()}:${file.length()}"
         if (stamp != indexStamp) {
-            index = readObject(file).array("books").mapNotNull { it as? JsonObject }
+            val parsed = runCatching { Json.parseToJsonElement(file.readText()) }.getOrNull()
+            val books = (parsed as? JsonArray) ?: (parsed as? JsonObject)?.array("books")
+            index = books.orEmpty().mapNotNull { it as? JsonObject }
             indexStamp = stamp
             cache.clear()
         }

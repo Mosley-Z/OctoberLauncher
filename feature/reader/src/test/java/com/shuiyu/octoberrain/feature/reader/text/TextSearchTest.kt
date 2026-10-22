@@ -2,6 +2,7 @@ package com.shuiyu.octoberrain.feature.reader.text
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -41,5 +42,28 @@ class TextSearchTest {
                 assertEquals(65536L, channel.position())
             }
         }
+    }
+
+    @Test fun matchCarriesWindowRangeForPageHighlight() {
+        val file = temporary.newFile()
+        file.writeText("a".repeat(65530) + "中文目标后")
+        Files.newByteChannel(file.toPath()).use { channel ->
+            val match = requireNotNull(findTextMatch(channel, 0, Charsets.UTF_8, "目标") {})
+            assertEquals(65536L, match.byteOffset)
+            // 命中位于第二个窗口起点，窗口起点与命中起点重合。
+            assertEquals(65536L, match.windowOffset)
+            assertEquals(0, match.charStart)
+            assertEquals(2, match.charEnd)
+            val text = readTextWindow(channel, match.windowOffset, Charsets.UTF_8).text
+            assertEquals("目标", text.substring(match.charStart, match.charEnd))
+        }
+    }
+
+    @Test fun pageRangesCoverRepeatedAndAdjacentMatches() {
+        assertEquals(listOf(TextRange(0, 2), TextRange(2, 4)), findTextRanges("abab", "ab"))
+        assertEquals(listOf(TextRange(0, 3), TextRange(3, 6)), findTextRanges("aaaaaa", "aaa"))
+        assertTrue(findTextRanges("文本", "").isEmpty())
+        assertTrue(findTextRanges("", "文本").isEmpty())
+        assertTrue(findTextRanges("文本", "不存在").isEmpty())
     }
 }

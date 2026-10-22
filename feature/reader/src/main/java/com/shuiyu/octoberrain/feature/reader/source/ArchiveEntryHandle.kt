@@ -40,6 +40,7 @@ internal class ArchiveEntryHandle(
                     item.size,
                     parent.metadata.modified,
                     parent.metadata.persistentAccess,
+                    parent.metadata.aliases.map { "$it!$charset:$path:${item.crc}" },
                 )
             ready = true
         } finally {

@@ -27,12 +27,22 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.WereadAchievement
 import com.shuiyu.octoberrain.core.common.WereadAppearance
 import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
+import com.shuiyu.octoberrain.core.data.WereadIdeaSummary
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.feature.wereadapp.WereadAppData
 import com.shuiyu.octoberrain.feature.wereadapp.WereadAppPrefs
 import com.shuiyu.octoberrain.feature.wereadapp.WereadCardForm
 import com.shuiyu.octoberrain.feature.wereadapp.WereadMicroBridge
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
@@ -73,6 +83,10 @@ internal class WereadReadingPage(
 
     /** 数据访问入口。 */
     private val data = WereadAppData(context)
+    private val summary = WereadIdeaSummary(data.root)
+    private val summaryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var summaryJob: Job? = null
+    private var ideaChars = 0
 
     /** 当前页签内容形态。 */
     private enum class Stage {
@@ -230,6 +244,7 @@ internal class WereadReadingPage(
     /** 释放定时任务与图片资源。 */
     fun release() {
         cancelPending()
+        summaryScope.cancel()
         handler.removeCallbacksAndMessages(null)
         card.setCoverBitmap(null, null)
     }
@@ -538,12 +553,27 @@ internal class WereadReadingPage(
 
     /** 绑定洞察页数据。 */
     private fun bindInsight() {
+        summaryJob?.cancel()
+        summaryJob =
+            summaryScope.launch {
+                val chars =
+                    withContext(Dispatchers.IO) {
+                        val taskContext = currentCoroutineContext()
+                        summary.characters { taskContext.ensureActive() }
+                    }
+                ideaChars = chars
+                if (stage == Stage.INSIGHT) applyInsight()
+            }
+        applyInsight()
+    }
+
+    private fun applyInsight() {
         val nowSec = PeriodCalendar.nowSec()
         val year = PeriodCalendar.yearOf(nowSec)
         val annual = parseStored("stats_annual_$year", PeriodCalendar.ANNUALLY, 0L)
         val overall = parseStored("overall", PeriodCalendar.OVERALL, 0L)
         insight.setAnnual(annual)
-        val chars = runCatching { data.notes(0).sumOf { it.ideaText.length } }.getOrDefault(0)
+        val chars = ideaChars
         insight.setOverall(overall, chars)
         val profile = overall ?: annual
         if (profile != null) {

@@ -22,6 +22,7 @@ import com.shuiyu.octoberrain.core.widget.hitRegionAt
 import com.shuiyu.octoberrain.feature.widgets.kernel.KernelBridgeInstaller
 import com.shuiyu.octoberrain.feature.widgets.kernel.WereadAppearanceCache
 import java.io.File
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -210,11 +211,17 @@ class WereadBoardWidget(
 
     /** 是否已启动整分计时。 */
     private var ticking: Boolean = false
+    private var tickDay = LocalDate.now()
 
     /** 整分重绘任务：只刷新画面，不重新读取书目与笔记。 */
     private val tick =
         object : Runnable {
             override fun run() {
+                val today = LocalDate.now()
+                if (today != tickDay) {
+                    tickDay = today
+                    reload(force = true)
+                }
                 requestDraw()
                 handler.postDelayed(this, millisToNextMinute())
             }
@@ -258,9 +265,19 @@ class WereadBoardWidget(
 
     /** 启动整分计时，已在运行时直接返回。 */
     private fun startTicker() {
-        if (ticking) return
+        if (!hostVisible || ticking) return
         ticking = true
         handler.postDelayed(tick, millisToNextMinute())
+    }
+
+    override fun onHostVisible(visible: Boolean) {
+        super.onHostVisible(visible)
+        if (visible) {
+            startTicker()
+        } else {
+            ticking = false
+            handler.removeCallbacks(tick)
+        }
     }
 
     /** 距离下一分钟开始还有多少毫秒。 */
@@ -632,7 +649,7 @@ class WereadBoardWidget(
      */
     private fun refreshBoard(): Boolean {
         val active = ensureKernel() ?: return false
-        reloadLocal(active)
+        reloadLocal()
         if (form != WereadBoardForm.TODO) {
             val mode = refreshModeOf(form)
             AppServices.wereadSync?.refresh(WereadRefreshRequest(mode, bookId = kernelBookId())) { _, _ ->
@@ -647,8 +664,7 @@ class WereadBoardWidget(
      *
      * @param active 已绑定的内核实例
      */
-    private fun reloadLocal(active: WereadBoardKernel) {
-        active.refreshData()
+    private fun reloadLocal() {
         refreshMarkVisible = true
         handler.removeCallbacks(refreshMarkTask)
         handler.postDelayed(refreshMarkTask, REFRESH_MARK_MS)
@@ -680,8 +696,7 @@ class WereadBoardWidget(
      * @param active 已绑定的内核实例
      */
     private fun onRemoteRefresh(active: WereadBoardKernel) {
-        if (destroyed) return
-        active.refreshData()
+        if (destroyed || active !== kernel) return
         reload(force = true)
     }
 
@@ -734,7 +749,8 @@ class WereadBoardWidget(
         noteToken++
         requestDraw()
         val book = currentBook() ?: return
-        kernel?.selectBook(book.bookId)
+        val active = kernel
+        noteLoader.execute { active?.selectBook(book.bookId) }
         requestCovers()
         requestNote(book)
     }
@@ -800,9 +816,11 @@ class WereadBoardWidget(
      */
     private fun moveNote(previous: Boolean): Boolean {
         val active = kernel ?: return false
-        val moved = if (previous) active.previousNote() else active.nextNote()
-        if (moved) requestDraw()
-        return moved
+        noteLoader.execute {
+            val moved = if (previous) active.previousNote() else active.nextNote()
+            handler.post { if (!destroyed && moved) requestDraw() }
+        }
+        return true
     }
 
     /**
@@ -829,8 +847,10 @@ class WereadBoardWidget(
         val host = AppServices.wereadTodos
         if (id == null || host == null) return false
         host.toggle(id)
-        kernel?.refreshData()
-        requestDraw()
+        noteLoader.execute {
+            kernel?.refreshData()
+            handler.post { if (!destroyed) requestDraw() }
+        }
         return true
     }
 

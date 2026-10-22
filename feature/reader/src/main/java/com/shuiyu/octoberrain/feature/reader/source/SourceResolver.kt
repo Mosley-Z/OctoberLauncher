@@ -6,6 +6,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.system.Os
 import android.system.OsConstants
+import androidx.core.content.FileProvider
 import com.shuiyu.octoberrain.core.common.DocumentMetadata
 import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.ReaderFailure
@@ -20,6 +21,8 @@ import java.io.InputStream
 internal class SourceResolver(
     context: Context,
 ) {
+    private val appContext = context.applicationContext
+    private val ownedAuthority = "${context.packageName}.files"
     private val resolver = context.applicationContext.contentResolver
     private val cacheDir = File(context.applicationContext.cacheDir, "reader-sources")
     private val cache = SourceCache(cacheDir)
@@ -50,7 +53,22 @@ internal class SourceResolver(
         val file = File(ref.path).canonicalFile
         if (!file.isFile) throw ReaderSourceException(ReaderFailure.MISSING)
         if (!file.canRead()) throw ReaderSourceException(ReaderFailure.PERMISSION)
-        val metadata = DocumentMetadata("path:${file.path}", file.name, null, file.length(), file.lastModified(), true)
+        val alias =
+            runCatching {
+                FileProvider.getUriForFile(appContext, ownedAuthority, file).takeIf {
+                    it.pathSegments.firstOrNull() == "files_share"
+                }
+            }.getOrNull()
+        val metadata =
+            DocumentMetadata(
+                "path:${file.path}",
+                file.name,
+                null,
+                file.length(),
+                file.lastModified(),
+                true,
+                alias?.let { listOf("uri:$it") }.orEmpty(),
+            )
         return Handle(metadata, {
             FileInputStream(file)
         }, { ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY) }, file)
@@ -75,11 +93,35 @@ internal class SourceResolver(
         }
         val persisted = resolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
         val mime = runCatching { resolver.getType(uri) }.getOrNull()
-        val metadata = DocumentMetadata("uri:${uri.normalizeScheme()}", name, mime, size, null, persisted)
+
+        @Suppress("DEPRECATION") // 对应本应用FileProvider的external-path根，而非外部任意路径。
+        val owned =
+            OwnedDocumentPath.resolve(
+                uri.authority,
+                uri.pathSegments,
+                ownedAuthority,
+                android.os.Environment.getExternalStorageDirectory(),
+            )
+        val uriId = "uri:${uri.normalizeScheme()}"
+        val metadata =
+            if (owned == null) {
+                DocumentMetadata(uriId, name, mime, size, null, persisted)
+            } else {
+                DocumentMetadata(
+                    "path:${owned.path}",
+                    name,
+                    mime,
+                    owned.length(),
+                    owned.lastModified(),
+                    true,
+                    listOf(uriId),
+                )
+            }
         return Handle(
             metadata,
             { readDocument { resolver.openInputStream(uri) } },
             { readDocument { resolver.openFileDescriptor(uri, "r") } },
+            owned,
         )
     }
 

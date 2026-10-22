@@ -10,6 +10,7 @@ import com.shuiyu.octoberrain.feature.reader.archive.ArchiveEngine
 import com.shuiyu.octoberrain.feature.reader.epub.EpubEngine
 import com.shuiyu.octoberrain.feature.reader.image.ImageEngine
 import com.shuiyu.octoberrain.feature.reader.markdown.MarkdownEngine
+import com.shuiyu.octoberrain.feature.reader.office.docx.DocxEngine
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfEngine
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
@@ -30,6 +31,7 @@ internal object ReaderRegistry {
         charset: String?,
     ): ReaderEngine =
         when (format) {
+            ReaderFormat.DOCX -> DocxEngine.create(source, locator, fontSp)
             ReaderFormat.EPUB -> EpubEngine.create(source, fontSp)
             ReaderFormat.IMAGE -> ImageEngine(source, width, height)
             ReaderFormat.ZIP -> {

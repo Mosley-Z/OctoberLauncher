@@ -70,12 +70,12 @@ def main() -> int:
             errors.append(f"invalid migration: {old} -> {new}")
         destinations.add(new)
 
-    cards = sorted((ROOT / "task").glob("TASK-RD-*.md"))
+    cards = sorted([*(ROOT / "task").glob("TASK-RD-*.md"), *(ROOT / "task").glob("TASK-FIX-*.md")])
     graph: dict[str, set[str]] = {}
     index = (ROOT / "task/README.md").read_text(encoding="utf-8")
     for path in cards:
         text = path.read_text(encoding="utf-8")
-        task_id = re.match(r"TASK-RD-(\d{3})-", path.name)
+        task_id = re.match(r"TASK-((?:RD|FIX)-\d{3})-", path.name)
         if not task_id:
             errors.append(f"invalid task name: {path.name}")
             continue
@@ -90,7 +90,7 @@ def main() -> int:
         dependency = re.search(r"^- 依赖：(.*)$", text, re.MULTILINE)
         if not dependency:
             errors.append(f"missing dependency field: {path.name}")
-        graph[key] = set(re.findall(r"TASK-RD-(\d{3})-", dependency.group(1) if dependency else ""))
+        graph[key] = set(re.findall(r"TASK-((?:RD|FIX)-\d{3})-", dependency.group(1) if dependency else ""))
         for field in ("执行者/集成者", "允许修改", "READY条件", "验证命令及结果/证据", "下一步"):
             if f"- {field}：" not in text:
                 errors.append(f"missing handoff field {field}: {path.name}")

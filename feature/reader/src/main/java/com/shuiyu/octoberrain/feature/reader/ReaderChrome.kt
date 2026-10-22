@@ -45,7 +45,12 @@ internal class ReaderChrome(
         addView(page, LayoutParams(-1, 0, 1f))
         val bottom =
             LinearLayout(context).apply {
-                listOf(previous, more, next).forEach { addView(it, LayoutParams(0, tokens.buttonHeight, 1f)) }
+                listOf(previous, more, next).forEach { button ->
+                    // 窄屏 480px 下三按钮等分，单行截断避免换行挤压正文区。
+                    button.maxLines = 1
+                    button.ellipsize = android.text.TextUtils.TruncateAt.END
+                    addView(button, LayoutParams(0, tokens.buttonHeight, 1f))
+                }
             }
         addView(bottom)
     }
@@ -106,6 +111,9 @@ internal class ReaderPageView(
             field = value
             invalidate()
         }
+
+    /** 布局尺寸变化回调，旋转或窗口尺寸改变时供 ReaderScreen 重排。 */
+    var sizeListener: ((Int, Int) -> Unit)? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val destination = Rect()
     val inset = DesignRuntime.tokens.dp(16f)
@@ -127,6 +135,16 @@ internal class ReaderPageView(
         destination.set(0, 0, width - inset * 2, height - inset * 2)
         frame?.bitmap?.let { canvas.drawBitmap(it, null, destination, paint) }
         canvas.restore()
+    }
+
+    override fun onSizeChanged(
+        w: Int,
+        h: Int,
+        oldw: Int,
+        oldh: Int,
+    ) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w != oldw || h != oldh) sizeListener?.invoke(w, h)
     }
 
     override fun performClick(): Boolean {

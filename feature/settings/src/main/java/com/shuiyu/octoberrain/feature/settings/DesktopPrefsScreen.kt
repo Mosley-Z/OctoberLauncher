@@ -268,7 +268,7 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         }
     }
 
-    /** 组件与内容：当前组件、组件图片、隐藏应用、书架行数与恢复默认。 */
+    /** 组件与内容：当前组件、组件图片、隐藏应用、负一屏书架入口与恢复默认。 */
     private fun buildContent(
         page: InkPage,
         desktop: DesktopConfig,
@@ -307,11 +307,14 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
             ) {
                 showHiddenApps()
             }
+        // 书架行数与书源属于负一屏墨台设置，此处只提供入口与当前值概览。
+        val shelfPage = config.desktop.negativePage
+        val shelfSourceLabel = if (shelfPage.shelfSource == "local") "本地" else "微信读书"
         section.action(
-            label = "书架行数",
-            value = "${config.integrations.bookshelfRows} 行",
+            label = "负一屏书架",
+            value = "${shelfPage.effectiveShelfRows} 行 · $shelfSourceLabel",
         ) {
-            AppServices.router.navigate(Destination.BookshelfSettings)
+            AppServices.router.navigate(Destination.NegativeSettings)
         }
         section.button(label = "恢复本页默认", filled = true) {
             confirmResetLayout()

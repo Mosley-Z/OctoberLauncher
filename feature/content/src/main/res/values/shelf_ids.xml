@@ -1,0 +1,10 @@
+<resources>
+    <item name="shelf_rows_minus" type="id" />
+    <item name="shelf_rows_count" type="id" />
+    <item name="shelf_rows_plus" type="id" />
+    <item name="shelf_source" type="id" />
+    <item name="shelf_refresh" type="id" />
+    <item name="shelf_refresh_mode" type="id" />
+    <item name="shelf_refresh_interval" type="id" />
+    <item name="shelf_directory" type="id" />
+</resources>

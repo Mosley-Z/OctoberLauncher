@@ -1,13 +1,18 @@
 package com.shuiyu.octoberrain.feature.widgets.kernel
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.RectF
 import com.inkread.weekread.kernel.BookProgress
 import com.inkread.weekread.kernel.CardKernel
 import com.inkread.weekread.kernel.CardState
 import com.inkread.weekread.kernel.CardSurface
+import com.inkread.weekread.kernel.DataSource
 import com.inkread.weekread.kernel.HitRegions
+import com.inkread.weekread.kernel.NoteItem
 import com.inkread.weekread.kernel.PeriodSnapshot
+import com.inkread.weekread.kernel.ShelfSnapshot
+import com.inkread.weekread.kernel.TodoEntry
 import com.shuiyu.octoberrain.core.common.WereadAchievement
 import com.shuiyu.octoberrain.core.common.WereadAppearance
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardDataSource
@@ -279,16 +284,16 @@ internal class KernelWereadBoard : WereadBoardKernel {
         val sourceImpl = KernelDataSourceImpl({ dataSource.content }, { root })
         val cardState =
             object : CardState(surface) {
-                override fun noteProgress(): IntArray? = sourceImpl.noteProgress()
+                override fun noteProgress(): IntArray? = filler?.progress()
             }
         cardState.setHost(hostImpl)
-        val cardKernel = CardKernel(hostImpl, sourceImpl)
+        val preparedSource = KernelCardFiller(sourceImpl, hostImpl)
+        val cardKernel = CardKernel(hostImpl, preparedSource)
         this.host = hostImpl
         this.source = sourceImpl
         this.state = cardState
         this.kernel = cardKernel
-        this.filler = KernelCardFiller(sourceImpl, hostImpl)
-        cardKernel.bind()
+        this.filler = preparedSource
     }
 
     /**
@@ -299,9 +304,9 @@ internal class KernelWereadBoard : WereadBoardKernel {
      * @return 是否完成预取
      */
     override fun preload(): Boolean {
-        val cardKernel = kernel ?: return false
+        if (kernel == null) return false
         source?.invalidate()
-        cardKernel.bind()
+        filler?.prepare()
         return true
     }
 
@@ -325,7 +330,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         surface.frameWidth = width
         surface.frameHeight = height
         val form = formOf(formId)
-        val appearance = host?.filesDir()?.let(::readAppearance) ?: WereadAppearance()
+        val appearance = filler?.appearance() ?: WereadAppearance()
         rendering = true
         try {
             filler?.apply(cardState, form, appearance)
@@ -468,7 +473,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         val source = source ?: return false
         val changed = source.previousNote()
         if (changed) {
-            kernel?.bind()
+            filler?.prepare()
             host?.requestRedraw()
         }
         return changed
@@ -483,7 +488,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         val source = source ?: return false
         val changed = source.nextNote()
         if (changed) {
-            kernel?.bind()
+            filler?.prepare()
             host?.requestRedraw()
         }
         return changed
@@ -494,15 +499,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
      *
      * @return 书目编号，未取到书目时为空
      */
-    override fun currentBookId(): String? {
-        val current = source?.currentBook()?.bookId
-        return current
-            ?: source
-                ?.shelf()
-                ?.books
-                ?.firstOrNull()
-                ?.bookId
-    }
+    override fun currentBookId(): String? = filler?.bookId()
 
     /**
      * 书架候选列表。
@@ -510,7 +507,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
      * @return 候选书目
      */
     override fun bookOptions(): List<WereadBookOption> {
-        val shelf = source?.shelf() ?: return emptyList()
+        val shelf = filler?.shelf() ?: return emptyList()
         return shelf.books.map { WereadBookOption(it.bookId, it.title) }
     }
 
@@ -545,7 +542,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
     override fun selectBook(bookId: String?): Boolean {
         val dataSource = source ?: return false
         dataSource.selectBook(bookId)
-        kernel?.bind()
+        filler?.prepare()
         host?.requestRedraw()
         return true
     }
@@ -555,7 +552,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
      *
      * @return 标识列表，与待办命中区域顺序一致
      */
-    override fun todoIds(): List<String> = source?.todos()?.map { it.id.toString() }.orEmpty()
+    override fun todoIds(): List<String> = filler?.todos()?.map { it.id.toString() }.orEmpty()
 
     /**
      * 清空数据缓存并重新绑定内核。
@@ -565,7 +562,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
     override fun refreshData(): Boolean {
         val dataSource = source ?: return false
         dataSource.invalidate()
-        kernel?.bind()
+        filler?.prepare()
         return true
     }
 
@@ -707,7 +704,43 @@ internal class KernelWereadBoard : WereadBoardKernel {
 private class KernelCardFiller(
     private val source: KernelDataSourceImpl,
     private val host: KernelHostImpl,
-) {
+) : DataSource by source {
+    override fun shelf(): ShelfSnapshot? = prepared.shelf
+
+    override fun period(mode: String): PeriodSnapshot? = if (mode == "monthly") prepared.month else prepared.week
+
+    override fun notes(limit: Int): List<NoteItem> = listOfNotNull(prepared.note).take(limit.coerceAtLeast(0))
+
+    override fun todos(): List<TodoEntry> = prepared.todos
+
+    @Volatile private var prepared = PreparedCard()
+
+    /** 后台读取后一次发布，绘制不访问文件、网络或笔记全局锁。 */
+    fun prepare() {
+        val shelf = source.shelf()
+        val book = source.currentBook() ?: shelf?.books?.firstOrNull()
+        prepared =
+            PreparedCard(
+                shelf = shelf,
+                book = book,
+                week = source.period("weekly"),
+                month = source.period("monthly"),
+                note = source.notes(NOTE_LIMIT).firstOrNull(),
+                todos = source.todos(),
+                slot = source.noteSlot(),
+                progress = source.noteProgress(),
+                cover = book?.let { host.coverBitmap(it.bookId, it.coverUrl) },
+                appearance = readAppearance(host.filesDir()),
+                failed = source.hasFailure(),
+            )
+    }
+
+    fun bookId(): String? = prepared.book?.bookId
+
+    fun progress(): IntArray? = prepared.progress
+
+    fun appearance(): WereadAppearance = prepared.appearance
+
     /** 最近一次渲染的形态编号，用于切换形态时重置滚动。 */
     private var renderedForm: Int = FORM_NONE
 
@@ -757,7 +790,7 @@ private class KernelCardFiller(
         form: Int,
     ): String? {
         if (form != CardKernel.FORM_WEEK && form != CardKernel.FORM_MONTH) return null
-        return source.period(CardKernel.modeOf(form))?.let { stats ->
+        return stats(form)?.let { stats ->
             WereadAchievement.text(
                 appearance,
                 week = form == CardKernel.FORM_WEEK,
@@ -786,7 +819,7 @@ private class KernelCardFiller(
         cardState.setDeskOpenLabel(host.deskOpenLabel())
         cardState.setNoteCardSize(appearance.effectiveNoteSize)
         cardState.setNoteFullSize(appearance.effectiveBodySize)
-        cardState.setNoteSlot(source.noteSlot())
+        cardState.setNoteSlot(prepared.slot)
         cardState.setMonthHeatmap(appearance.monthHeatmap)
         cardState.setEmptyNote(null)
     }
@@ -806,7 +839,7 @@ private class KernelCardFiller(
         form: Int,
         filled: Boolean,
     ) {
-        val syncFailed = source.hasFailure()
+        val syncFailed = prepared.failed
         cardState.setErrorText(if (!filled && syncFailed) ERROR_SYNC_FAILED else null)
         cardState.setNoteHint(if (form == CardKernel.FORM_NOTE && !filled) noteHint(syncFailed) else null)
     }
@@ -862,6 +895,8 @@ private class KernelCardFiller(
             else -> false
         }
 
+    private fun stats(form: Int): PeriodSnapshot? = if (form == CardKernel.FORM_MONTH) prepared.month else prepared.week
+
     /**
      * 写入周期统计，无数据时清空状态中的统计，避免沿用上一形态的数值。
      *
@@ -873,7 +908,7 @@ private class KernelCardFiller(
         cardState: CardState,
         form: Int,
     ): Boolean {
-        val stats: PeriodSnapshot? = source.period(CardKernel.modeOf(form))
+        val stats: PeriodSnapshot? = stats(form)
         cardState.setStats(stats)
         val usable = stats != null && (stats.totalSec > 0 || stats.readDays > 0)
         return usable
@@ -889,8 +924,8 @@ private class KernelCardFiller(
      * @return 是否存在可绘制数据
      */
     private fun fillBook(cardState: CardState): Boolean {
-        val shelf = source.shelf()
-        val book = source.currentBook() ?: shelf?.books?.firstOrNull()
+        val shelf = prepared.shelf
+        val book = prepared.book
         if (book == null) {
             cardState.setBook(null)
             cardState.setCoverBitmap(null, null)
@@ -906,7 +941,7 @@ private class KernelCardFiller(
         progress.finished = book.finished
         progress.fetchedAt = shelf?.fetchedAt ?: 0L
         cardState.setBook(progress)
-        cardState.setCoverBitmap(host.coverBitmap(book.bookId, book.coverUrl), book.bookId)
+        cardState.setCoverBitmap(prepared.cover, book.bookId)
         return true
     }
 
@@ -917,7 +952,7 @@ private class KernelCardFiller(
      * @return 是否存在可绘制数据
      */
     private fun fillNote(cardState: CardState): Boolean {
-        val note = source.notes(NOTE_LIMIT).firstOrNull()
+        val note = prepared.note
         if (note == null) {
             cardState.setNote(null)
             return false
@@ -933,7 +968,7 @@ private class KernelCardFiller(
      * @return 是否存在可绘制数据
      */
     private fun fillTodo(cardState: CardState): Boolean {
-        val todos = source.todos()
+        val todos = prepared.todos
         cardState.setTodo(todos)
         return todos.isNotEmpty()
     }
@@ -963,3 +998,18 @@ private fun placeholderMain(
  * @return 占位副文案
  */
 private fun placeholderSub(missingKey: Boolean): String = if (missingKey) PLACEHOLDER_SUB else PLACEHOLDER_SUB_SYNC
+
+/** 后台装配的内容快照；可变命中几何仍由主线程的 CardState 独占。 */
+private data class PreparedCard(
+    val shelf: ShelfSnapshot? = null,
+    val book: com.inkread.weekread.kernel.ShelfBook? = null,
+    val week: PeriodSnapshot? = null,
+    val month: PeriodSnapshot? = null,
+    val note: NoteItem? = null,
+    val todos: List<TodoEntry> = emptyList(),
+    val slot: Int = 0,
+    val progress: IntArray? = null,
+    val cover: Bitmap? = null,
+    val appearance: WereadAppearance = WereadAppearance(),
+    val failed: Boolean = false,
+)

@@ -22,6 +22,7 @@ internal data class WebDocument(
     val resources: WebResources,
     val internalLinks: Set<String> = emptySet(),
     val styles: String = "",
+    val docxPreview: Boolean = false,
 )
 
 internal data class WebPosition(

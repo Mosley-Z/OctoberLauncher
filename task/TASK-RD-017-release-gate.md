@@ -4,7 +4,7 @@
 - 优先级/阶段：P0 / R5
 - 执行者/集成者：未分配
 - 分支/工作树/源码基线：执行时填写；保留已有修改
-- 依赖：[011](TASK-RD-011-docx.md)、[012](TASK-RD-012-sheets.md)、[013](TASK-RD-013-slides.md)、[014](TASK-RD-014-search.md)、[015](TASK-RD-015-integration.md)、[016](TASK-RD-016-resources.md)
+- 依赖：[011](TASK-RD-011-docx.md)、[012](TASK-RD-012-sheets.md)、[013](TASK-RD-013-slides.md)、[014](TASK-RD-014-search.md)、[015](TASK-RD-015-integration.md)、[016](TASK-RD-016-resources.md)、[FIX001](TASK-FIX-001-reader-review.md)、[FIX002](TASK-FIX-002-single-bookshelf.md)、[FIX003](TASK-FIX-003-special-icons.md)、[FIX004](TASK-FIX-004-shelf-controls-refresh.md)（最新书架行为交付）、[FIX006](TASK-FIX-006-shared-shelf-refresh.md)（覆盖独立自动模式）
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
 - 允许修改：集成者共享注册/设置/许可/README/版本文件；本轮发布范围由实际授权决定；验收报告及证据。
@@ -42,3 +42,15 @@
 - 下一步：按依赖分配执行者；先读实际源码及git差异
 - 接收方/集成点：待分配
 - 提交/合并/发布：未执行
+
+## 2026-10-22 审查整改关联（最新排期）
+
+最终验收显式纳入三张 FIX：忙碌重排、最近阅读独立；旧配置迁移、唯一负一屏书架与旧路由兼容；设置/文件换图、恢复默认及主题持久化。以最终同一 APK 在 S4/P4 覆盖，Office 未集成不能据此关闭 017。原“不改图标和书架重构”仍限制本卡重新实施功能，但允许对 FIX 交付做必要集成回归，问题回原卡修。各旧验收仅作历史参考。
+
+## FIX004 最新关联
+
+书架行为以[FIX004](TASK-FIX-004-shelf-controls-refresh.md)及其验收为准：标题同行、默认手动快照、前台自动到期。资源审计不得恢复进入/切源自动扫描；最终设备门禁补P4、长间隔及断网矩阵，保留最近阅读正常写入。
+
+## FIX006最新关联（覆盖旧FIX004计时要求）
+
+使用[FIX006](TASK-FIX-006-shared-shelf-refresh.md)共享微信读书缓存/book刷新/dataVersion通知；不要恢复独立微信读书快照与计时器。RD016审计共享读写/并发/前后台资源；RD017补P4和真实网络失败，旧自动长间隔矩阵已取消。本地手动目录快照保留。

@@ -23,6 +23,9 @@ internal class TextEngine(
     private val encoding: String? = null,
 ) : ReaderEngine {
     private val channel = handle.openChannel()
+
+    /** 稀疏块索引只用于定位与字符边界对齐，页面读取仍走固定64KiB窗口。 */
+    private val index = SparseTextIndex(channel)
     private val paint =
         TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply {
             color = Color.BLACK
@@ -40,6 +43,9 @@ internal class TextEngine(
     private var lastQuery: String? = null
     private var lastMatch: Long? = null
 
+    /** 当前查询词；渲染每页时重算页内区间，用于在翻页与重排后继续显示高亮。 */
+    private var highlightQuery: String? = null
+
     override suspend fun page(locator: ReaderLocator?): ReaderFrame {
         val prefix = java.nio.ByteBuffer.allocate(3)
         channel.position(0)
@@ -56,7 +62,10 @@ internal class TextEngine(
         charset = Charset.forName(encoding ?: saved?.charset ?: detected.first)
         start = detected.second
         val restore = if (encoding == null || encoding == saved?.charset) saved?.byteOffset else null
-        return render((restore ?: start).coerceIn(start, channel.size().coerceAtLeast(start)))
+        val requested = (restore ?: start).coerceIn(start, channel.size().coerceAtLeast(start))
+        // 恢复的锚点可能来自旧编码或旧版本文档，先对齐到字符起点再分页。
+        val anchor = if (restore == null) requested else index.alignToCharBoundary(requested, charset)
+        return render(anchor)
     }
 
     override suspend fun turn(delta: Int): ReaderFrame =
@@ -86,8 +95,9 @@ internal class TextEngine(
         context.ensureActive()
         lastQuery = query
         lastMatch = found
+        highlightQuery = query
         history.clear()
-        return render(found)
+        return render(index.alignToCharBoundary(found, charset))
     }
 
     private fun previousOffset(): Long {
@@ -113,17 +123,20 @@ internal class TextEngine(
         val text = window.text.substring(0, end)
         next = anchor + text.toByteArray(charset).size
         val percent = if (channel.size() == 0L) 100 else (anchor * 100L / channel.size()).toInt()
+        // 高亮只作用于当前页文本；翻页与重排后按新页重算，不保留跨页 span。
+        val query = highlightQuery
+        val pageRanges = if (query.isNullOrEmpty()) emptyList() else findTextRanges(text, query)
         return ReaderFrame(
             ReaderLocator.Text(anchor, charset.name()),
             "$percent% · ${charset.name()}",
-            layout(text),
+            layout(if (pageRanges.isEmpty()) text else highlightRanges(text, pageRanges)),
         ).also {
             current =
                 it
         }
     }
 
-    private fun layout(text: String): StaticLayout =
+    private fun layout(text: CharSequence): StaticLayout =
         StaticLayout.Builder
             .obtain(text, 0, text.length, paint, width.coerceAtLeast(1))
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
@@ -133,6 +146,9 @@ internal class TextEngine(
 
     override fun close() {
         current = null
+        highlightQuery = null
+        lastQuery = null
+        lastMatch = null
         history.clear()
         channel.close()
     }

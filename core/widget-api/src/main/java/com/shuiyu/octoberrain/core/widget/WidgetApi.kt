@@ -132,6 +132,9 @@ interface WidgetView :
     /** 桌面配置变化时回调。 */
     fun onConfigChanged(config: LauncherConfig) {}
 
+    /** 宿主进入或离开前台，组件可暂停轮播。 */
+    fun onHostVisible(visible: Boolean) {}
+
     /** 数据刷新完成后回调，参数 force 表示忽略缓存。 */
     fun onRefresh(force: Boolean = false) {}
 

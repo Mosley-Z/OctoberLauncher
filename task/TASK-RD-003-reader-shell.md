@@ -1,9 +1,9 @@
 # TASK-RD-003 阅读宿主、工具栏与按键
 
-- 状态：TODO（规划卡，未执行）
+- 状态：IN_PROGRESS
 - 优先级/阶段：P0 / R1
-- 执行者/集成者：未分配
-- 分支/工作树/源码基线：执行时填写；保留已有修改
+- 执行者/集成者：Codex（本聊天）
+- 分支/工作树/源码基线：master / 1379e8b + PERF-001、RD-001差异
 - 依赖：[001](TASK-RD-001-contracts.md)
 - READY条件：依赖交付经集成者确认，接口与文件所有权完成交接，收到本卡执行指令
 - 设计依据：[34总方案](../docs/design/34-files-reader-upgrade-plan.md)、[协作流程](../docs/design/35-development-workflow.md)、[契约草案](CONTRACTS.md)
@@ -34,11 +34,35 @@
 
 ## 执行与接力记录
 
-- 开始/最近更新：未开始
-- 已改文件/接口决定：无
-- 验证命令及结果/证据：无
-- 未覆盖/阻塞/解除条件：尚未执行
-- 构建进程/设备占用/恢复：未使用
+- 开始/最近更新：2026-10-22 03:22
+- 已改文件/接口决定：见本卡下方原生首轮进展及task/CONTRACTS.md
+- 验证命令及结果/证据：见本卡增量与docs/acceptance/2026-10-22-reader-native-first.md
+- 未覆盖/阻塞/解除条件：依赖001原生接口编译通过并冻结v1；Office支持不在本卡宣称
+- 构建进程/设备占用/恢复：最终构建已退出；S4 debug/P4 release，探针正常收尾后卸载
 - 下一步：按依赖分配执行者；先读实际源码及git差异
-- 接收方/集成点：待分配
+- 接收方/集成点：Codex（本聊天）
 - 提交/合并/发布：未执行
+
+
+### 2026-10-22 原生首轮进展（Codex）
+
+原生ReaderScreen/Chrome、无动画翻页、音量键、全刷节奏、generation失效和取消释放落地。全量门禁通过；PDF/Web能力工具栏与旋转重排等仍需补齐。
+
+验证：`check :app:assembleDebug :app:assembleRelease --offline --console=plain`退出0（1556 tasks）；日志`_analysis/reader-probe/native-gate.log`。未提交、未发布。下一步按本卡未完成项接力，不能把原生探针当产品PDF验收。
+
+### 2026-10-22 向DSH交接增量
+
+能力工具栏已随PDF/Web/ZIP/EPUB接入，单WebView/隔离PDF退出释放有S4证据。旋转/窗口尺寸变化和完整双机按键矩阵仍待验，保持IN_PROGRESS，交DSH继续。
+
+### 2026-10-22 DSH 旋转重排与书签接线增量
+
+- `ReaderChrome.kt`：`ReaderPageView` 新增 `sizeListener`，布局尺寸变化时回调；底栏三按钮单行截断，避免窄屏换行挤压正文。
+- `ReaderScreen.kt`：记录最近一次正文可用宽高 `openedWidth/openedHeight`；`onPageSize` 在尺寸变化、可见且存在会话时按 `frame.locator` 重开，动作执行中置 `relayoutPending` 并在 finally 补一次；`open` 成功时记录当前正文尺寸。`MainActivity` 自行处理配置变化，旋转不重建 Activity，故不依赖 `onResume`。
+- 书签对话框改用 `bookmarkRows()`，条目支持跳转、重命名与删除；重命名预填标题、上限 80，删除二次确认，操作不删除源文件。
+- 验证：`:feature:reader:testDebugUnitTest` 70 用例 0 失败；`:feature:reader:detekt`、`:feature:reader:ktlintCheck` 退出 0；`check :app:assembleDebug :app:assembleRelease` 通过（1564 tasks，debug 5,853,173B SHA-256 `6d0bfa9f…`，release SHA-256 `5213b458…`）。
+- 设备：S4 于 13:13 恢复连接后执行矩阵，六项全部通过（480×800 打开、音量键前后翻页、正文左右点按、运行中 `wm size 552x768` 重排与复位，552×768 下状态 3% 保持且正文行宽变化）。系统旋转设置写入后读回 `user_rotation=0`、display rotation 0，设备为固定竖屏且第三方 Rotation 应用接管方向，旋转路径以尺寸变化覆盖同一 `ReaderPageView.sizeListener`→`ReaderScreen.onPageSize` 入口。音量键验证期间临时将 `tray.volumeKeyFlip` 置 true，测毕恢复 false。驱动脚本 `_analysis/verify/reader-003/check_reader003_device.py`。
+- 最近阅读入口留待 RD-015 集成。
+
+## 2026-10-22 审查整改关联（最新排期）
+
+重排调度缺陷统一由 [FIX001](TASK-FIX-001-reader-review.md) 修复，ReaderScreen 在该批由 DSH 串行持有；本卡不重复实现。关闭本卡前关联其忙碌期间尺寸变化和退出取消的证据，既有空闲尺寸模拟不能覆盖该用例。

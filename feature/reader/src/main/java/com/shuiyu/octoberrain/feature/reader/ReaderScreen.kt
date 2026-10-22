@@ -2,9 +2,11 @@ package com.shuiyu.octoberrain.feature.reader
 
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.res.Configuration
 import android.os.SystemClock
 import android.text.InputFilter
 import android.text.InputType
@@ -13,14 +15,13 @@ import android.widget.EditText
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.InkLog
-import com.shuiyu.octoberrain.core.common.ReaderFailure
 import com.shuiyu.octoberrain.core.common.ReaderFormat
 import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.VolumeKeySink
+import com.shuiyu.octoberrain.core.render.RefreshScheduler
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfAdjustment
-import com.shuiyu.octoberrain.feature.reader.source.ReaderSourceException
 import com.shuiyu.octoberrain.feature.reader.source.openExternalDocument
 import com.shuiyu.octoberrain.feature.reader.web.OfflineWebHost
 import kotlinx.coroutines.CancellationException
@@ -42,7 +43,8 @@ import java.util.Locale
 internal class ReaderScreen(
     private val ref: DocumentRef,
 ) : Screen,
-    VolumeKeySink {
+    VolumeKeySink,
+    BookmarkHost {
     private lateinit var chrome: ReaderChrome
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var action: Job? = null
@@ -54,13 +56,96 @@ internal class ReaderScreen(
     private var charset: String? = null
     private var frame: ReaderFrame? = null
     private var position: ReaderLocator? = null
-    private var turns = 0
+    private val refresh = ReaderRefresh()
+    private lateinit var preferences: ReaderPreferences
+    private var trimPending = false
+    private val memoryCallbacks =
+        object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            override fun onLowMemory() = requestTrim()
+
+            @Suppress("DEPRECATION") // Android 11目标机仍会派发运行中内存压力等级。
+            override fun onTrimMemory(level: Int) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) requestTrim()
+            }
+        }
+    private var openedWidth = 0
+    private var openedHeight = 0
+    private var targetWidth = 0
+    private var targetHeight = 0
+    private var relayoutPending = false
     private var format = ReaderFormat.UNKNOWN
     private var webHost: OfflineWebHost? = null
+    private val bookmarks = ReaderBookmarks(this)
+
+    override val context: Context get() = chrome.context
+
+    override val bookmarkSession: ReaderSession? get() = session
+
+    override val bookmarkVisible: Boolean get() = visible
+
+    override val bookmarkGeneration: Int get() = generation
+
+    override val bookmarkScope: CoroutineScope get() = scope
+
+    override fun bookmarkBusy(): Boolean = action?.isActive == true
+
+    override fun setBookmarkCharset(value: String?) {
+        charset = value
+    }
+
+    override fun openBookmark(locator: ReaderLocator) {
+        open(locator)
+    }
+
+    override fun setBookmarkAction(job: Job?) {
+        action = job
+        val mark = generation
+        job?.invokeOnCompletion { finishAction(mark) }
+    }
+
+    override fun showBookmarkError(error: Exception) {
+        showError(error)
+    }
 
     override fun createView(context: Context): View {
+        preferences = ReaderPreferences(context)
+        context.applicationContext.registerComponentCallbacks(memoryCallbacks)
         chrome = ReaderChrome(context, { AppServices.router.back() }, ::turn, ::options)
+        chrome.page.sizeListener = ::onPageSize
         return chrome
+    }
+
+    /**
+     * 旋转或窗口尺寸变化后按当前定位重排。
+     *
+     * 每次变化都更新目标尺寸，打开中的变化留给打开完成回调消费；会话就绪且空闲时
+     * 立即重排，有动作进行中则登记待重排标记，由 [finishAction] 统一消费。
+     */
+    private fun onPageSize(
+        width: Int,
+        height: Int,
+    ) {
+        targetWidth = width
+        targetHeight = height
+        if (!visible) return
+        traceLayout("resize")
+        val decision =
+            ReaderRelayout.onSizeChanged(
+                visible = true,
+                sessionReady = session != null,
+                busy = action?.isActive == true,
+                targetWidth = width,
+                targetHeight = height,
+                openedWidth = openedWidth,
+                openedHeight = openedHeight,
+            )
+        when (decision) {
+            ReaderRelayout.Decision.NONE -> Unit
+            ReaderRelayout.Decision.QUEUE -> relayoutPending = true
+            ReaderRelayout.Decision.RELAYOUT -> relayoutNow()
+        }
     }
 
     override fun onResume() {
@@ -70,7 +155,11 @@ internal class ReaderScreen(
 
     override fun onPause() {
         visible = false
+        trimPending = false
         generation++
+        relayoutPending = false
+        targetWidth = 0
+        targetHeight = 0
         webHost?.close()
         webHost = null
         val pending = action
@@ -93,6 +182,7 @@ internal class ReaderScreen(
     }
 
     override fun onDestroy() {
+        chrome.context.applicationContext.unregisterComponentCallbacks(memoryCallbacks)
         onPause()
         scope.cancel()
     }
@@ -103,22 +193,30 @@ internal class ReaderScreen(
     }
 
     private fun open(anchor: ReaderLocator?) {
+        // 打开前保留最新目标尺寸：onPause 会清空待调度状态，重排时仍按目标尺寸构造。
+        val wantedWidth = targetWidth
+        val wantedHeight = targetHeight
         onPause()
         visible = true
+        targetWidth = wantedWidth
+        targetHeight = wantedHeight
         val mark = ++generation
         val startedAt = SystemClock.elapsedRealtime()
         chrome.busy(true)
         chrome.status.text = "正在打开…"
-        action =
+        val job =
             scope.launch {
                 cleanup?.join()
                 val page = chrome.page
+                // 使用打开前的目标尺寸构造引擎，打开期间视图再变化时不会掩盖本次尺寸。
+                val engineWidth = if (targetWidth > 0) targetWidth else page.width
+                val engineHeight = if (targetHeight > 0) targetHeight else page.height
                 val reader =
                     ReaderSession(
                         chrome.context,
                         ref,
-                        (page.width - page.inset * 2).coerceAtLeast(1),
-                        (page.height - page.inset * 2).coerceAtLeast(1),
+                        (engineWidth - page.inset * 2).coerceAtLeast(1),
+                        (engineHeight - page.inset * 2).coerceAtLeast(1),
                         font,
                         charset,
                     )
@@ -130,6 +228,8 @@ internal class ReaderScreen(
                         retained = true
                         font = reader.fontSp
                         format = reader.format
+                        openedWidth = engineWidth
+                        openedHeight = engineHeight
                         chrome.title.text = reader.name
                         publish(ready)
                         if (chrome.context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
@@ -150,22 +250,87 @@ internal class ReaderScreen(
                     if (visible && mark == generation) chrome.busy(false)
                 }
             }
+        action = job
+        job.invokeOnCompletion { finishAction(mark) }
     }
 
-    private fun turn(delta: Int) = perform { turn(delta) }
+    /**
+     * 动作完成后的统一收尾：消费动作期间登记的尺寸变化。
+     *
+     * 回调在动作结束之后执行，避免动作自身的完成回调再次触发重排；旧 generation
+     * 的回调直接丢弃，避免离开页面后又被旧任务重新打开。
+     */
+    private fun finishAction(mark: Int) {
+        if (!visible || mark != generation) return
+        scope.launch {
+            if (!visible || mark != generation || session == null) return@launch
+            val queued =
+                ReaderRelayout.afterAction(
+                    visible = true,
+                    sessionReady = true,
+                    queued = relayoutPending,
+                )
+            val sizeChanged =
+                targetWidth > 0 &&
+                    (targetWidth != openedWidth || targetHeight != openedHeight)
+            if (queued || sizeChanged) {
+                relayoutPending = false
+                relayoutNow()
+            } else if (trimPending) {
+                trimPending = false
+                perform {
+                    trimMemory()
+                    null
+                }
+            }
+        }
+    }
 
-    private fun perform(operation: suspend ReaderSession.() -> ReaderFrame?) {
+    /** Debug 验收只记录调度、尺寸和文本字节锚点，不记录正文或来源 URI。 */
+    private fun traceLayout(stage: String) {
+        if (chrome.context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            val anchor = (position as? ReaderLocator.Text)?.byteOffset
+            InkLog.d(
+                "ReaderLayout",
+                "$stage busy=${action?.isActive == true} target=${targetWidth}x$targetHeight " +
+                    "opened=${openedWidth}x$openedHeight anchor=$anchor",
+            )
+        }
+    }
+
+    /** 按最新目标尺寸重开当前会话；会话未就绪或尺寸未变化时不动作。 */
+    private fun relayoutNow() {
+        val ready = visible && session != null && action?.isActive != true
+        val sizeChanged =
+            targetWidth > 0 &&
+                targetHeight > 0 &&
+                (targetWidth != openedWidth || targetHeight != openedHeight)
+        if (ready && sizeChanged) open(frame?.locator)
+    }
+
+    private fun requestTrim() {
+        if (!visible) return
+        trimPending = true
+        if (action?.isActive != true) finishAction(generation)
+    }
+
+    private fun turn(delta: Int) = perform(pageTurn = true) { turn(delta) }
+
+    private fun perform(
+        pageTurn: Boolean = false,
+        operation: suspend ReaderSession.() -> ReaderFrame?,
+    ) {
         val reader = session ?: return
         if (action?.isActive == true || !visible) return
         val startedAt = SystemClock.elapsedRealtime()
         chrome.busy(true)
         val mark = generation
-        action =
+        val job =
             scope.launch {
                 try {
                     val next = withContext(Dispatchers.IO) { reader.operation() }
                     if (visible && mark == generation && next != null) {
-                        publish(next)
+                        publish(next, pageTurn)
                         if (chrome.context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
                             InkLog.d("ReaderTiming", "actionMs=${SystemClock.elapsedRealtime() - startedAt}")
                         }
@@ -179,9 +344,14 @@ internal class ReaderScreen(
                     if (visible && mark == generation) chrome.busy(false)
                 }
             }
+        action = job
+        job.invokeOnCompletion { finishAction(mark) }
     }
 
-    private suspend fun publish(next: ReaderFrame) {
+    private suspend fun publish(
+        next: ReaderFrame,
+        pageTurn: Boolean = false,
+    ) {
         val web = next.web
         val shown =
             if (web == null) {
@@ -203,16 +373,17 @@ internal class ReaderScreen(
                 }
                 checkNotNull(session).acceptWeb(checkNotNull(event.position))
             }
+        val turned = pageTurn && frame?.locator != shown.locator
         frame = shown
         position = shown.locator
         session?.remember(shown)
         chrome.page.frame = shown
         chrome.status.text = shown.status
-        turns++
-        if (turns % 6 == 0) {
-            AppServices.refresh.requestFullRefresh(RefreshReason.CONTENT)
+        traceLayout("frame")
+        if (refresh.needsFull(preferences.refreshPages, RefreshScheduler.fullRefreshVersion, turned)) {
+            RefreshScheduler.requestFullRefresh(RefreshReason.CONTENT)
         } else {
-            AppServices.refresh.requestPartial()
+            RefreshScheduler.notifyContentChanged()
         }
     }
 
@@ -328,9 +499,10 @@ internal class ReaderScreen(
         }
         addArchiveOptions(actions)
         addEpubOptions(actions)
+        addDocxOptions(actions)
         if (format == ReaderFormat.MARKDOWN) {
             if (frame?.locator !is ReaderLocator.Text) {
-                actions += "纯文本阅读（从头）" to {
+                actions += "纯文本阅读（从头，不显示图片和表格排版）" to {
                     charset = "UTF-8"
                     open(ReaderLocator.Text())
                 }
@@ -345,9 +517,11 @@ internal class ReaderScreen(
         if (capabilities?.zoom == true) addPdfOptions(actions)
         if (capabilities?.bookmark == true) {
             actions += "添加书签" to ::addBookmark
-            actions += "查看书签" to ::showBookmarks
+            actions += "查看书签" to { bookmarks.show() }
         }
         if (capabilities?.search == true) actions += "搜索下一个" to ::search
+        actions += "翻页全刷" to ::chooseRefresh
+        if (ref is DocumentRef.ContentUri) actions += "重新选择文档" to ::chooseDocument
         actions += "其他应用打开" to { openExternalDocument(chrome.context, ref) }
         AlertDialog
             .Builder(chrome.context)
@@ -371,12 +545,50 @@ internal class ReaderScreen(
         }
     }
 
+    private fun addDocxOptions(actions: MutableList<Pair<String, () -> Unit>>) {
+        if (format != ReaderFormat.DOCX) return
+        val current = frame?.locator as? ReaderLocator.Docx ?: ReaderLocator.Docx()
+        actions += (if (current.preview) "正文阅读" else "原版式预览") to {
+            open(current.copy(preview = !current.preview, page = -1))
+        }
+    }
+
+    private fun chooseRefresh() {
+        val choices = listOf(0, 6, 12)
+        AlertDialog
+            .Builder(chrome.context)
+            .setTitle("翻页全刷")
+            .setSingleChoiceItems(
+                arrayOf("关闭", "每6页", "每12页"),
+                choices.indexOf(preferences.refreshPages),
+            ) { dialog, index ->
+                preferences.refreshPages = choices[index]
+                refresh.reset()
+                dialog.dismiss()
+            }.setNegativeButton("返回", null)
+            .show()
+    }
+
+    private fun chooseDocument() {
+        val started =
+            AppServices.picker.pick(emptyArray()) { uri ->
+                if (uri != null) AppServices.reader?.open(DocumentRef.ContentUri(uri.toString()))
+            }
+        if (!started) AppServices.router.toast("系统文件选择器不可用，请从文件管理器重新打开")
+    }
+
     private fun jumpPage() {
         val input =
             EditText(chrome.context).apply {
                 inputType = InputType.TYPE_CLASS_NUMBER
                 filters = arrayOf(InputFilter.LengthFilter(8))
-                setText(String.format(Locale.ROOT, "%d", (frame?.locator as? ReaderLocator.Pdf)?.page?.plus(1) ?: 1))
+                val page =
+                    when (val locator = frame?.locator) {
+                        is ReaderLocator.Pdf -> locator.page
+                        is ReaderLocator.Docx -> locator.page
+                        else -> 0
+                    }
+                setText(String.format(Locale.ROOT, "%d", page + 1))
                 selectAll()
             }
         AlertDialog
@@ -429,7 +641,7 @@ internal class ReaderScreen(
                 .setNegativeButton("取消") { _, _ -> cancelSearch() }
                 .setOnCancelListener { cancelSearch() }
                 .show()
-        action =
+        val job =
             scope.launch {
                 try {
                     val found = withContext(Dispatchers.IO) { reader.findNext(query) }
@@ -450,13 +662,15 @@ internal class ReaderScreen(
                     if (visible && mark == generation) chrome.busy(false)
                 }
             }
+        action = job
+        job.invokeOnCompletion { finishAction(mark) }
     }
 
     private fun addBookmark() {
         val reader = session ?: return
         if (action?.isActive == true) return
         val mark = generation
-        action =
+        val job =
             scope.launch {
                 try {
                     withContext(Dispatchers.IO) { reader.bookmark() }
@@ -468,64 +682,12 @@ internal class ReaderScreen(
                     if (visible && mark == generation) AppServices.router.toast("书签保存失败")
                 }
             }
+        action = job
+        job.invokeOnCompletion { finishAction(mark) }
     }
 
-    private fun showBookmarks() {
-        val reader = session ?: return
-        if (action?.isActive == true) return
-        val mark = generation
-        action =
-            scope.launch {
-                try {
-                    val marks = withContext(Dispatchers.IO) { reader.bookmarks() }
-                    if (visible && mark == generation) {
-                        if (marks.isEmpty()) {
-                            AppServices.router.toast("暂无书签")
-                        } else {
-                            AlertDialog
-                                .Builder(
-                                    chrome.context,
-                                ).setTitle("书签")
-                                .setItems(marks.map { it.first }.toTypedArray()) { _, index ->
-                                    val locator = marks[index].second
-                                    charset = (locator as? ReaderLocator.Text)?.charset
-                                    open(locator)
-                                }.show()
-                        }
-                    }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    if (visible && mark == generation) showError(failure)
-                }
-            }
-    }
-
-    private fun unsupportedMessage(): String =
-        if (format == ReaderFormat.EPUB) {
-            "当前仅支持无加密资源的 UTF-8 重排版 EPUB，可使用其他应用打开"
-        } else {
-            "暂不支持此文档类型，可使用其他应用打开"
-        }
-
+    /** 把异常转换为状态栏文案。 */
     private fun showError(error: Exception) {
-        chrome.status.text =
-            when {
-                error is java.util.zip.ZipException -> "ZIP损坏、超出预算或使用不支持的加密/压缩格式，可使用其他应用打开"
-                error is java.io.FileNotFoundException -> "源文件不存在或读取授权已失效"
-                error is SecurityException -> "文档授权已失效，请从文件选择器重新打开"
-                error is java.nio.charset.CharacterCodingException -> "编码无法识别，请在阅读设置中选择正确编码"
-                error is ReaderSourceException ->
-                    when (error.failure) {
-                        ReaderFailure.MISSING -> "源文件不存在"
-                        ReaderFailure.PERMISSION -> "无法读取文档，请重新授权"
-                        ReaderFailure.UNSUPPORTED -> unsupportedMessage()
-                        ReaderFailure.LIMIT -> "文档超出当前阅读预算，请在阅读设置中选择其他打开方式"
-                        ReaderFailure.PASSWORD -> "PDF受密码保护，当前系统引擎不支持解密，可用其他应用打开"
-                        ReaderFailure.RENDERER -> "文档显示已中断或超时，请返回后重新打开"
-                        else -> "文档无法解析"
-                    }
-                else -> "文档读取失败，可返回后重新打开"
-            }
+        chrome.status.text = ReaderErrors.message(error, format)
     }
 }

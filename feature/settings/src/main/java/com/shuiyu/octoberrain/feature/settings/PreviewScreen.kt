@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.SortMode
@@ -451,7 +452,11 @@ class PreviewScreen : Screen {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
             }
-        if (key.removePrefix("app:") in appPackages) {
+        val entryKey = IconTargets.entryKeyOf(key)
+        val knownEntry =
+            IconTargets.specialEntryOf(key) != null ||
+                (entryKey.startsWith("app:") && entryKey.removePrefix("app:") in appPackages)
+        if (knownEntry) {
             val icon =
                 ImageView(context).apply {
                     scaleType = ImageView.ScaleType.FIT_CENTER
@@ -462,6 +467,7 @@ class PreviewScreen : Screen {
             )
             loadIcon(key, icon, iconSize)
         } else {
+            // 库外键保持占位图形，避免为未知条目请求不存在的图标。
             column.addView(
                 InkGlyphs.view(context, InkGlyphs.Kind.FOLDER, iconSize),
                 LinearLayout.LayoutParams(iconSize, iconSize),
@@ -534,29 +540,26 @@ class PreviewScreen : Screen {
         }
     }
 
-    /** 异步加载条目图标：优先覆盖图，其次应用图标。 */
+    /** 异步加载条目图标：优先覆盖图，其次应用图标或内置字形。 */
     private fun loadIcon(
         key: String,
         target: ImageView,
         sizePx: Int,
     ) {
-        // 应用条目键形如 app:<包名>，图标接口只接受包名；特殊条目另行绘制占位图形。
-        val packageName = key.removePrefix("app:")
+        // 键可能是 app:<包名> 或 special:<名称>，统一归一为目标标识后再按类型取图标。
+        val targetId = IconTargets.normalizeStoredKey(key)
         scope.launch {
             val bitmap =
                 withContext(Dispatchers.IO) {
-                    // 覆盖图按原比例采样解码，交给 FIT_CENTER 完整呈现，避免被裁成正方形。
-                    val overridePath =
-                        runCatching {
-                            AppServices.iconOverrides.overrides()[packageName]
+                    AppServices.iconOverrides.loadOverride(targetId, sizePx)
+                        ?: runCatching {
+                            val special = IconTargets.specialEntryOf(targetId)
+                            if (special != null) {
+                                AppServices.catalog.loadSpecialIcon(special, sizePx)
+                            } else {
+                                AppServices.catalog.loadIcon(targetId, sizePx)
+                            }
                         }.getOrNull()
-                    val overridden =
-                        overridePath?.let { path ->
-                            ImageDirectoryStore.decodeSampled(target.context, path, sizePx)
-                        }
-                    overridden ?: runCatching {
-                        AppServices.catalog.loadIcon(packageName, sizePx)
-                    }.getOrNull()
                 }
             if (bitmap != null && target.isAttachedToWindow) {
                 target.setImageBitmap(bitmap)

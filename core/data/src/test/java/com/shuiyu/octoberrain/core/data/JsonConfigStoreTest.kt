@@ -214,4 +214,23 @@ class JsonConfigStoreTest {
         assertTrue(store.newerVersionDetected.value)
         assertEquals(raw, memory.snapshot())
     }
+
+    @Test
+    fun explicitShelfSourceSurvivesRealConfigLoad() {
+        val raw =
+            """
+            {"version":10,"desktop":{"negativePage":{"shelfSource":"weread","shelfRows":5}},
+            "integrations":{"bookshelfLocalEnabled":true,"bookshelfWereadEnabled":false}}
+            """.trimIndent()
+        val store = JsonConfigStore(MemoryPersistence(raw))
+        assertEquals("weread", store.state.value.desktop.negativePage.shelfSource)
+        assertEquals(5, store.state.value.desktop.negativePage.shelfRows)
+    }
+
+    @Test
+    fun missingShelfSourceUsesLegacySelectionOnRealLoad() {
+        val raw = """{"version":10,"integrations":{"bookshelfLocalEnabled":true,"bookshelfWereadEnabled":false}}"""
+        val store = JsonConfigStore(MemoryPersistence(raw))
+        assertEquals("local", store.state.value.desktop.negativePage.shelfSource)
+    }
 }

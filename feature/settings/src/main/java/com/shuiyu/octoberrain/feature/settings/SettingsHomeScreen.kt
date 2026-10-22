@@ -25,8 +25,8 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
  * 设置中心首页。
  *
  * 版式对齐图墨桌面设置页：不设标题栏与返回箭头，页面顶部为齿轮徽标与「十雨」字样，
- * 下方 2 列系统设置卡片。第一行固定为「书架设置」与「桌面偏好」，
- * 第二行为「美化与图标」与「网络与互联网」，其后为系统设置卡片。
+ * 下方 2 列系统设置卡片。首行为「微读墨记」与「阅读与数据」，
+ * 其后为「桌面偏好」「美化与图标」「网络与互联网」等系统设置卡片。
  * 卡片尺寸、描边与圆角全部取自设计令牌，页面内容位于 InkPage 的滚动容器内。
  * 返回操作由系统返回键承担。
  */
@@ -40,7 +40,9 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         page.content.addView(buildCards(context))
         SettingsUi.note(
             page,
-            "「书架设置」管理书籍来源与微信读书；「桌面偏好」集中外观、桌面、托盘、锁屏与权限等十雨桌面专属设置；「美化与图标」按桌面顺序整理应用并更换图标；其余卡片直接跳转系统设置页。",
+            "书架设置位于负一屏设置；书源与行数在书架标题行调整。" +
+                "「桌面偏好」集中外观、桌面、托盘、锁屏与权限等十雨桌面专属设置；" +
+                "「美化与图标」按桌面顺序整理应用并更换图标；其余卡片直接跳转系统设置页。",
         )
     }
 
@@ -267,14 +269,6 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
             ) {
                 runCatching { AppServices.router.navigate(Destination.WereadApp) }
                     .onFailure { error -> SettingsUi.toast(it, "无法打开微读墨记：${error.message ?: "未知错误"}") }
-            },
-            CardSpec(
-                label = "书架设置",
-                hint = "本地目录与微信读书",
-                icon = glyph(InkGlyphs.Kind.BOOK),
-            ) {
-                runCatching { AppServices.router.navigate(Destination.BookshelfSettings) }
-                    .onFailure { error -> SettingsUi.toast(it, "无法打开书架设置：${error.message ?: "未知错误"}") }
             },
             CardSpec(
                 label = "桌面偏好",

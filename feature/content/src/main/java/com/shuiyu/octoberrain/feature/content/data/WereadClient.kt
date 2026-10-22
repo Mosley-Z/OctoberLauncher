@@ -58,7 +58,6 @@ class WereadClient internal constructor(
         private const val MAX_HIGHLIGHT_BOOKS = 3
         private const val MAX_NOTE_BOOKS = 5
         private const val IMAGE_TIMEOUT_MS = 5000
-        private const val SHELF_LIMIT_HINT = 40
 
         private val BOOK_SCHEMES = listOf("com.tencent.weread.eink", "com.tencent.weread")
     }
@@ -108,17 +107,25 @@ class WereadClient internal constructor(
         }
 
     /** 读取书架，返回书籍与专辑条目。 */
-    suspend fun shelf(limit: Int = 20): List<WereadShelfItem> =
+    suspend fun shelf(
+        limit: Int = 20,
+        force: Boolean = false,
+        requireFresh: Boolean = false,
+        recentReadTimes: Map<String, Long> = emptyMap(),
+    ): List<WereadShelfItem> =
         withContext(Dispatchers.IO) {
             val config = config()
+            if (requireFresh) check(config.wereadEnabled && isConfigured())
             if (!config.wereadEnabled) return@withContext emptyList()
             val key = apiKey() ?: return@withContext emptyList()
             val now = System.currentTimeMillis()
-            if (cachedShelf.isNotEmpty() && now - cachedShelfAt < CACHE_TTL_MS) {
+            if (!force && cachedShelf.isNotEmpty() && now - cachedShelfAt < CACHE_TTL_MS) {
                 return@withContext cachedShelf.take(limit)
             }
-            val payload = callGateway(key, "/shelf/sync", JSONObject()) ?: return@withContext cachedShelf.take(limit)
-            val parsed = parseShelf(payload)
+            val payload = callGateway(key, "/shelf/sync", JSONObject())
+            if (requireFresh && payload == null) throw IOException("Shelf refresh failed")
+            if (payload == null) return@withContext cachedShelf.take(limit)
+            val parsed = parseShelf(payload, recentReadTimes, limit)
             if (parsed.isEmpty()) {
                 cachedShelf = emptyList()
                 cachedShelfAt = now
@@ -374,22 +381,26 @@ class WereadClient internal constructor(
     }
 
     /** 解析书架响应中的 books 与 albums 数组，并按最近阅读时间降序排序。 */
-    private fun parseShelf(payload: JSONObject): List<WereadShelfItem> {
-        val entries = ArrayList<ShelfEntry>()
+    private fun parseShelf(
+        payload: JSONObject,
+        recentReadTimes: Map<String, Long>,
+        limit: Int,
+    ): List<WereadShelfItem> {
+        val entries = ArrayList<WereadShelfCandidate>()
         val books = payload.optJSONArray("books")
         if (books != null) {
-            for (index in 0 until minOf(books.length(), SHELF_LIMIT_HINT)) {
+            for (index in 0 until books.length()) {
                 val item = books.optJSONObject(index) ?: continue
                 val bookId = item.optString("bookId").ifBlank { item.optString("book_id") }
                 if (bookId.isBlank()) continue
                 entries.add(
-                    ShelfEntry(
+                    WereadShelfCandidate(
                         item =
                             WereadShelfItem(
                                 bookId = bookId,
                                 title = item.optString("title").ifBlank { "未命名书籍" },
                                 author = item.optString("author"),
-                                coverPath = downloadCover(item.optString("cover"), bookId),
+                                coverPath = item.optString("cover"),
                                 progress = readProgress(item),
                                 deepLink = deepLink(bookId),
                             ),
@@ -398,9 +409,17 @@ class WereadClient internal constructor(
                 )
             }
         }
+        entries.addAll(parseShelfAlbums(payload))
+        return selectWereadShelf(entries, recentReadTimes, limit).map { item ->
+            item.copy(coverPath = downloadCover(item.coverPath.orEmpty(), item.bookId))
+        }
+    }
+
+    private fun parseShelfAlbums(payload: JSONObject): List<WereadShelfCandidate> {
+        val entries = ArrayList<WereadShelfCandidate>()
         val albums = payload.optJSONArray("albums")
         if (albums != null) {
-            for (index in 0 until minOf(albums.length(), SHELF_LIMIT_HINT)) {
+            for (index in 0 until albums.length()) {
                 val item = albums.optJSONObject(index) ?: continue
                 val info = item.optJSONObject("albumInfo")
                 val extra = item.optJSONObject("albumInfoExtra") ?: info?.optJSONObject("albumInfoExtra")
@@ -412,7 +431,7 @@ class WereadClient internal constructor(
                         .ifBlank { item.optString("bookId") }
                 if (albumId.isBlank()) continue
                 entries.add(
-                    ShelfEntry(
+                    WereadShelfCandidate(
                         item =
                             WereadShelfItem(
                                 bookId = albumId,
@@ -429,11 +448,7 @@ class WereadClient internal constructor(
                                         .orEmpty()
                                         .ifBlank { item.optString("authorName") }
                                         .ifBlank { item.optString("author") },
-                                coverPath =
-                                    downloadCover(
-                                        info?.optString("cover").orEmpty().ifBlank { item.optString("cover") },
-                                        albumId,
-                                    ),
+                                coverPath = info?.optString("cover").orEmpty().ifBlank { item.optString("cover") },
                                 progress = readProgress(item),
                                 deepLink = deepLink(albumId),
                             ),
@@ -444,20 +459,8 @@ class WereadClient internal constructor(
                 )
             }
         }
-        // 有阅读或收听记录的条目按时间降序排在前面，无记录的排最后，同一时间按书名排序。
         return entries
-            .sortedWith(
-                compareByDescending<ShelfEntry> { it.sortKey > 0L }
-                    .thenByDescending { it.sortKey }
-                    .thenBy { it.item.title },
-            ).map { it.item }
     }
-
-    /** 书架解析中间结果：条目与最近阅读/收听时间，仅用于排序。 */
-    private data class ShelfEntry(
-        val item: WereadShelfItem,
-        val sortKey: Long,
-    )
 
     /**
      * 为书架前若干本缺少进度的书籍补齐进度。

@@ -101,9 +101,6 @@ class LauncherPrefsScreen : SettingsBaseScreen("桌面偏好") {
                         PrefEntry("内容与数据", PrefGlyph.CONTENT, integrationsStatus(config)) {
                             showContentData()
                         },
-                        PrefEntry("书架设置", PrefGlyph.SHELF, bookshelfStatus(config)) {
-                            navigate(Destination.BookshelfSettings)
-                        },
                         PrefEntry("备份与恢复", PrefGlyph.BACKUP, "本地备份") {
                             navigate(Destination.Backup)
                         },
@@ -277,15 +274,11 @@ class LauncherPrefsScreen : SettingsBaseScreen("桌面偏好") {
     private fun integrationsStatus(config: LauncherConfig): String {
         val integrations = config.integrations
         var count = 0
-        if (integrations.bookshelfLocalEnabled) count += 1
-        if (integrations.bookshelfWereadEnabled) count += 1
         if (integrations.koreaderEnabled) count += 1
         if (integrations.weatherEnabled) count += 1
         if (integrations.usageEnabled) count += 1
-        return if (count == 0) "未启用" else "$count 个来源"
+        return if (count == 0) "未启用" else "$count 项已启用"
     }
-
-    private fun bookshelfStatus(config: LauncherConfig): String = "${config.integrations.bookshelfRows} 行/页"
 
     /**
      * 打开内容与数据子页。
@@ -301,7 +294,7 @@ class LauncherPrefsScreen : SettingsBaseScreen("桌面偏好") {
 
     /** 填充内容与数据子页。 */
     private fun buildContentData(page: InkPage) {
-        val sources = SettingsUi.section(page, "阅读来源", "本地书籍与微信读书的开关位于书架设置")
+        val sources = SettingsUi.section(page, "阅读来源", "书源位于负一屏的书架分区，此处管理统计与联网开关")
         sources.toggle(
             "KOReader 统计",
             get = { SettingsUi.settings().integrations.koreaderEnabled },

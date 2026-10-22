@@ -7,7 +7,9 @@ import com.shuiyu.octoberrain.core.common.ReaderFormat
 import com.shuiyu.octoberrain.core.common.ReaderLocator
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfAdjustment
 import com.shuiyu.octoberrain.feature.reader.pdf.PdfEngine
+import com.shuiyu.octoberrain.feature.reader.session.BookmarkRow
 import com.shuiyu.octoberrain.feature.reader.session.ReadingRepository
+import com.shuiyu.octoberrain.feature.reader.session.mergeAliases
 import com.shuiyu.octoberrain.feature.reader.source.DocumentHandle
 import com.shuiyu.octoberrain.feature.reader.source.DocumentKinds
 import com.shuiyu.octoberrain.feature.reader.source.SourceResolver
@@ -54,6 +56,7 @@ internal class ReaderSession(
                 null
             }
         format = DocumentKinds.detect(opened.metadata.name, opened.metadata.mime, header, container)
+        store.mergeAliases(opened.metadata)
         val saved = store.load(opened.metadata)
         fontSp = fontOverride ?: saved.fontSp
         val created =
@@ -89,12 +92,23 @@ internal class ReaderSession(
 
     suspend fun turn(delta: Int): ReaderFrame = checkNotNull(engine).turn(delta)
 
-    suspend fun locatePdf(page: Int): ReaderFrame = checkNotNull(engine).page(ReaderLocator.Pdf(page))
+    suspend fun locatePdf(page: Int): ReaderFrame =
+        checkNotNull(engine).page(
+            if (format == ReaderFormat.DOCX) {
+                ReaderLocator.Docx(preview = true, page = page)
+            } else {
+                ReaderLocator.Pdf(page)
+            },
+        )
 
     suspend fun adjustPdf(mode: PdfAdjustment): ReaderFrame? =
         if (Build.VERSION.SDK_INT >= 27) (engine as? PdfEngine)?.adjust(mode) else null
 
     suspend fun findNext(query: String): ReaderFrame? = checkNotNull(engine).findNext(query)
+
+    fun trimMemory() {
+        engine?.trimMemory()
+    }
 
     /** 主线程确认显示后才接受定位，后台取消的未显示帧不覆盖进度。 */
     fun remember(next: ReaderFrame) {
@@ -107,6 +121,18 @@ internal class ReaderSession(
     }
 
     fun bookmarks(): List<Pair<String, ReaderLocator>> = store.bookmarks(checkNotNull(handle).metadata.id)
+
+    /** 读取书签行，id 供改名与删除使用；宿主切到 IO 线程调用。 */
+    fun bookmarkRows(): List<BookmarkRow> = store.bookmarkRows(checkNotNull(handle).metadata.id)
+
+    /** 修改书签标题；空白标题与未命中的主键都返回 false。 */
+    fun renameBookmark(
+        id: Long,
+        label: String,
+    ): Boolean = store.updateBookmark(id, label)
+
+    /** 删除书签；未命中的主键返回 false。 */
+    fun deleteBookmark(id: Long): Boolean = store.deleteBookmark(id)
 
     fun bookmark() {
         store.bookmark(checkNotNull(handle).metadata.id, checkNotNull(frame).locator, checkNotNull(frame).status)

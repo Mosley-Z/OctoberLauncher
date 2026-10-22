@@ -149,4 +149,4 @@ toolchain.path          工具链位置，换机器只改这一行
 
 ## 许可与来源
 
-本工程代码为自有实现，未复制上游源码。上游对照材料（`_tools/upstream/` 中的 APK 与逆向产物）仅用于行为对照，不参与构建与运行；第三方许可文本汇总在 `feature/settings/.../ThirdPartyLicenses.kt`，融合来源与边界见 `docs/design/17-weread-fusion.md`。
+本工程业务代码为自有实现。阅读器原样打包固定版本docx-preview与JSZip资源，来源和摘要见 `feature/reader/src/main/assets/reader/licenses/docx-assets.json`，完整许可随包保留；没有复制Gander业务Kotlin代码。其他上游对照材料（`_tools/upstream/` 中的 APK 与逆向产物）仅用于行为对照，不参与构建与运行；第三方许可入口为 `feature/settings/.../ThirdPartyLicenses.kt`，微信读书融合来源与边界见 `docs/design/17-weread-fusion.md`。

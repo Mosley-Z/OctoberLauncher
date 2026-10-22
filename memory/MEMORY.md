@@ -4,6 +4,9 @@
 
 | 结论/经验 | 来源与边界 |
 | --- | --- |
+| DOCX正文/原版式采用固定docx-preview0.4.0与JSZip3.10.1；原版式按宽适配/页内滚动，禁止将长页整屏缩到不可读。Docx定位器保存模式与锚点；复杂Word排版/P4仍待 | 2026-10-23-reader-docx-and-entry验收，S4/WebView83及release首轮 |
+| 自有FileProvider files_share URI与规范路径共用身份，旧别名在事务中保留较新进度与全部书签；归档需继承父别名和编码/路径/CRC。不可将任意第三方URI或同名副本直接合并 | SourceResolver/OwnedDocumentPath/ReaderIdentity，2026-10-23入口迁移设备证据；通用摘要关联未做 |
+| 负一屏微信读书与桌面本书共用weread缓存及book刷新入口，不独立计时/复制快照；本地书源仍手动。先排序后限量，以同一目标书对照所有入口的成员和排名 | FIX005/006、2026-10-22-shared-shelf-refresh验收；取代FIX004独立自动模式，P4待补 |
 | 十雨是 Android 墨水屏 Launcher，Kotlin + View，包名 com.shuiyu.octoberrain；feature 不横向依赖 | README、settings.gradle.kts、现有模块；新增阅读器沿用此边界 |
 | 本目录已经是 Git 仓库，旧规范的“无 Git”过时；不要清理其他人未提交改动 | 2026-10-22 git status；分支和版本每轮重查 |
 | 本机无 Gradle Wrapper，构建入口 scripts/build.ps1；环境取 toolchain.path，不依赖全局 JAVA_HOME | 实读脚本；任意任务环境初始化见开发流程 |
@@ -22,6 +25,11 @@
 | ZIP 容器按内部标记判定格式，扩展名只作回退；先经条目预算与归档路径规范化 | 2026-10-22 ZipContainerProbeTest 9 例、DocumentKindsTest 5 例；Office 仅识别容器，未渲染 |
 | 外部入口只接受带读授权的 content URI；VIEW 取 data 与 ClipData，SEND 取 EXTRA_STREAM 与 ClipData；多 URI 与 SEND_MULTIPLE 拒绝；持久授权仅在 persistable 时写入 | 2026-10-22-reader-sources-002；S4 七例，与真实 SAF 重选边界见记录 |
 | 导出 Provider 的 openFile 在该设备未见系统按 URI 授权拦截；撤销用例需探针显式拒绝读取，以产品 reject= 日志为可观察证据；uiautomator dump 在 S4 滞后于渲染 | 2026-10-22-reader-sources-002 与探针日志；设备与合成 Provider 范围内成立 |
+| 界面观测用 android CLI：标准 View 走 layout/find/click，桌面自绘元素走 screen capture --annotate 加 resolve 与 tap -Label；脚本 scripts/android-ui.ps1，输出 _ui-out/ | docs/design/33 §10；2026-10-22 在 S4 验证 layout、annotate、resolve、tap、find、click、key 七个动作 |
+| 最近阅读通过 core 契约 `RecentDocument` 与 `RecentGateway` 暴露，阅读器模块注册、书架只读契约；书架本地书打开走 ReaderGateway，不再交外部应用 Intent | 2026-10-22-reader-entry-integration-dsh；S4 验证书架最近阅读点击与三国演义.epub 打开，文件页入口未重跑 |
+| CLI 的 annotate 需要可写的 TMP/TEMP；系统 TEMP 被拒时报 `Can't create cache file!`，脚本已把 TMP/TEMP 与 ANDROID_USER_HOME 默认指到工作区 `_ui-out/` | 2026-10-22 S4 实测；无标注截图不受影响，bundles lock 拒绝访问同源 |
+| 跨卡整改先固定最终入口/位置/显示归属，再逐调用点核对；规则单测不替代忙碌设备触发。原始字段存在性与默认值必须区分 | [36 需求对接约定](../docs/design/36-demand-handoff-contract.md)、FIX 接管；源码与 S4 范围，P4 待验 |
+
 
 原始深入经验保存在 [DSH 工作手册](../docs/design/33-dsh-development-playbook.md)，不在本文件复制长案例。遇到结论被新证据推翻，更新本表并链接新旧证据，禁止将推测直接升级为事实。
 

@@ -30,6 +30,10 @@ object RefreshScheduler {
     /** 最近一次整屏刷新完成的时刻，0 表示尚未完成过整屏刷新。 */
     private var lastFullAt: Long = 0L
 
+    /** 已完成全刷的版本，阅读翻页计数据此跟随定时/手动全刷重置。 */
+    var fullRefreshVersion: Long = 0L
+        private set
+
     private val fullRefreshTask = Runnable { requestFullRefresh(RefreshReason.INTERVAL) }
 
     private val partialTask =
@@ -104,6 +108,7 @@ object RefreshScheduler {
      * 本次完成后按当前间隔重新投递，使各类触发共享同一完成时刻。
      */
     fun onFullRefreshPerformed() {
+        fullRefreshVersion++
         lastFullAt = System.currentTimeMillis()
         handler.removeCallbacks(fullRefreshTask)
         if (intervalMinutes > 0) {

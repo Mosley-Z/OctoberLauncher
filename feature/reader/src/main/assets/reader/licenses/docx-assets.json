@@ -1,0 +1,16 @@
+[
+  {
+    "path": "lib/jszip3.min.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/jszip3.min.js",
+    "bytes": 97630,
+    "sha256": "acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e",
+    "asset": "reader/web/jszip3.min.js"
+  },
+  {
+    "path": "lib/docx-preview.min.js",
+    "url": "https://raw.githubusercontent.com/mokshablr/gander/efa4ea9fa615dd9f523b43dcd282cbd51b6d8797/app/src/main/assets/viewer/lib/docx-preview.min.js",
+    "bytes": 75297,
+    "sha256": "051ef503f2677d53159a388b7384e950eda41ea4e47a103e5e36f124d7faea40",
+    "asset": "reader/web/docx-preview.min.js"
+  }
+]

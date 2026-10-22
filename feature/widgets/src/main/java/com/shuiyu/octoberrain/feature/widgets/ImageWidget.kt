@@ -153,7 +153,7 @@ class ImageWidget(
 
     /** 启动轮播定时，图片少于两张或已在运行时直接返回。 */
     private fun startTicker() {
-        if (ticking || images.size <= 1) return
+        if (!hostVisible || ticking || images.size <= 1) return
         ticking = true
         handler.postDelayed(tick, intervalMillis())
     }
@@ -165,6 +165,11 @@ class ImageWidget(
             return
         }
         handler.postDelayed(tick, intervalMillis())
+    }
+
+    override fun onHostVisible(visible: Boolean) {
+        super.onHostVisible(visible)
+        if (visible) startTicker() else stopTicker()
     }
 
     /** 停止轮播定时。 */

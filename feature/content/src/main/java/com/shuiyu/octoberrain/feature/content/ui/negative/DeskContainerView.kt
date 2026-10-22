@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.DeskModulePolicy
+import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.NegativeHost
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -60,6 +61,8 @@ internal class DeskContainerView(
     private var builtConfig: DeskContainerConfig? = null
 
     private var sectionsResumed = false
+
+    private var screenForeground = false
 
     private var settingsActive = false
 
@@ -114,7 +117,7 @@ internal class DeskContainerView(
         post {
             if (builtConfig == null) {
                 rebuildSections()
-            } else if (!sectionsResumed && isAttachedToWindow) {
+            } else if (screenForeground && !sectionsResumed && isAttachedToWindow) {
                 onResumeSections()
             }
         }
@@ -262,7 +265,7 @@ internal class DeskContainerView(
         refreshUpdateLabel()
         // 分区在首帧之后才装配，首帧的 onResume 早于装配完成；装配结束后补一次恢复回调，
         // 让书架与最近图片分区立即读取数据而不是停留在空抬头。
-        if (isAttachedToWindow) {
+        if (isAttachedToWindow && screenForeground && !settingsActive) {
             sections.forEach { it.onResume() }
             sectionsResumed = true
         }
@@ -283,9 +286,11 @@ internal class DeskContainerView(
                 kernelSection(moduleId)
             MODULE_BOOKSHELF -> {
                 val shelf =
-                    ShelfDeskSection(context) { item ->
-                        showBook(item.title, item.author, item.progress, item.coverPath, item.deepLink)
-                    }
+                    ShelfDeskSection(
+                        context = context,
+                        onOpen = { entry -> openShelfEntry(entry) },
+                        onOpenRecent = { document -> openDocument(document.ref) },
+                    )
                 DeskSectionHolder(shelf, shelf::onResume, shelf::onPause, shelf::release)
             }
             MODULE_RECENT -> {
@@ -294,6 +299,38 @@ internal class DeskContainerView(
             }
             else -> null
         }
+
+    /**
+     * 打开书架条目。
+     *
+     * 微信读书条目仍在页内展开浮层，本地书籍交给阅读器；负一屏不做页面跳转，
+     * 阅读器自行入栈，因此打开失败时只给提示。
+     *
+     * @param entry 被点击的书架条目。
+     */
+    private fun openShelfEntry(entry: ShelfEntry) {
+        when (entry) {
+            is ShelfEntry.Weread ->
+                showBook(
+                    entry.item.title,
+                    entry.item.author,
+                    entry.item.progress,
+                    entry.item.coverPath,
+                    entry.item.deepLink,
+                )
+            is ShelfEntry.Local -> openDocument(DocumentRef.LocalPath(entry.item.path))
+        }
+    }
+
+    /**
+     * 用阅读器打开文档，未装配阅读器或打开失败时给出提示。
+     *
+     * @param ref 文档引用。
+     */
+    private fun openDocument(ref: DocumentRef) {
+        val opened = runCatching { AppServices.reader?.open(ref) == true }.getOrDefault(false)
+        if (!opened) AppServices.router.toast("无法打开该文档，文件可能已移动或缺少权限")
+    }
 
     /**
      * 构造内核分区。
@@ -341,9 +378,20 @@ internal class DeskContainerView(
     /** 打开设置态。 */
     private fun openSettings() {
         settingsActive = true
+        sections.forEach { it.onPause() }
+        sectionsResumed = false
         settingsView.render()
         findViewWithTag<ScrollView>(SETTINGS_TAG)?.visibility = View.VISIBLE
         listScroll.visibility = View.GONE
+    }
+
+    /** 旧阅读与数据路由的兼容目标，定位到唯一书架设置分组。 */
+    fun showShelfSettings() {
+        openSettings()
+        settingsView.post {
+            val group = settingsView.findViewWithTag<View>("bookshelf-settings") ?: return@post
+            group.requestRectangleOnScreen(android.graphics.Rect(0, 0, group.width, group.height), true)
+        }
     }
 
     /** 关闭设置态回到列表态。 */
@@ -351,14 +399,13 @@ internal class DeskContainerView(
         settingsActive = false
         findViewWithTag<ScrollView>(SETTINGS_TAG)?.visibility = View.GONE
         listScroll.visibility = View.VISIBLE
+        if (screenForeground) onResumeSections()
     }
 
     /** 设置写入后的刷新：重设分区内容并重建列表。 */
     private fun refreshAfterSettings() {
         sections.forEach { it.onPause() }
         rebuildSections()
-        sections.forEach { it.onResume() }
-        sectionsResumed = true
     }
 
     /** 打开阅读指纹选书对话框。 */
@@ -390,6 +437,8 @@ internal class DeskContainerView(
 
     /** 页面回到前台时转发给各分区。 */
     fun onResumeSections() {
+        screenForeground = true
+        if (settingsActive) return
         val current = DeskContainerConfig.from(AppServices.config.state.value)
         if (builtConfig != current) {
             rebuildSections()
@@ -401,6 +450,7 @@ internal class DeskContainerView(
 
     /** 页面离开前台时转发给各分区。 */
     fun onPauseSections() {
+        screenForeground = false
         sections.forEach { it.onPause() }
         sectionsResumed = false
     }

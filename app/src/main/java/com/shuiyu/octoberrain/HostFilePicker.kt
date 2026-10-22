@@ -109,6 +109,19 @@ object HostFilePicker : FilePicker {
             return false
         }
         val uri = if (resultCode == Activity.RESULT_OK) data?.data else null
+        if (requestCode == REQUEST_PICK && uri != null && data != null) {
+            val flags = data.flags
+            val persistent = flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0
+            val readable = flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+            if (persistent && readable) {
+                runCatching {
+                    activityRef?.get()?.contentResolver?.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                    )
+                }
+            }
+        }
         val callback = pending
         pending = null
         callback?.invoke(uri)

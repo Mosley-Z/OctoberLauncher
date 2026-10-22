@@ -37,6 +37,13 @@ abstract class InkWidgetView(
     private var loadFailed = false
     private var released = false
 
+    @Volatile protected var hostVisible = true
+        private set
+
+    override fun onHostVisible(visible: Boolean) {
+        hostVisible = visible
+    }
+
     /** 当前配置；尚未收到配置回调时读取全局快照。 */
     protected val config: LauncherConfig
         get() =

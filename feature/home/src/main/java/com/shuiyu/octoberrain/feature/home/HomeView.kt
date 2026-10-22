@@ -13,6 +13,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.InstalledApp
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LauncherEntry
@@ -153,6 +154,11 @@ internal class HomeView(
         apps: List<InstalledApp>,
         config: LauncherConfig,
     ) {
+        val oldConfig = this.config
+        val iconsChanged = oldConfig?.appearance?.iconOverrides != config.appearance.iconOverrides
+        if (apps == appsByPackage.values.toList() && !homeConfigChanged(oldConfig, config) && !iconsChanged) return
+        // 图标覆盖变化时清空位图缓存，使新图片与恢复默认都能立即生效。
+        if (iconsChanged) iconStore.clear()
         val previousKey = entries.getOrNull(dragIndex)?.key
         // 首次启用桌面时把入口顺序固定为安装时间升序；预览模式只读，不写入配置。
         var effective = config
@@ -188,8 +194,9 @@ internal class HomeView(
         this.appsByPackage = apps.associateBy { it.packageName }
         this.config = effective
         this.entries = DesktopEntries.build(apps, effective.desktop)
+        val previousWidget = widget
         ensureWidget(effective)
-        widget?.onConfigChanged(effective)
+        if (previousWidget !== widget || homeConfigChanged(oldConfig, effective)) widget?.onConfigChanged(effective)
         recomputeMetrics()
         clampPage()
         if (editing) {
@@ -288,6 +295,11 @@ internal class HomeView(
         if (!editing) return false
         exitEditMode()
         return true
+    }
+
+    /** 桌面可见性传给自绘组件，暂停后台轮播。 */
+    fun setHostVisible(visible: Boolean) {
+        widget?.onHostVisible(visible)
     }
 
     /** 页面销毁时释放组件、计时器与协程。 */
@@ -413,7 +425,6 @@ internal class HomeView(
         val created = runCatching { WidgetRegistry.create(id, context) }.getOrNull()
         if (created != null) {
             (created as? BaseWidgetView)?.host = this
-            created.onConfigChanged(cfg)
             widget = created
             widgetId = id
             widgetPolicy = WidgetRegistry.get(id)?.refreshPolicy ?: WidgetRefreshPolicy.MANUAL
@@ -1230,16 +1241,17 @@ internal class HomeView(
     private fun showEntryMenu(index: Int) {
         val entry = entries.getOrNull(index) ?: return
         val app = entry.packageName?.let { appsByPackage[it] }
+        val targetId = IconTargets.normalizeStoredKey(entry.key)
         val labels = ArrayList<CharSequence>()
         val actions = ArrayList<() -> Unit>()
+        labels.add("更换图标")
+        actions.add { pickEntryIcon(targetId) }
+        // 仅在已设置自定义图标时提供恢复入口，避免出现无效选项。
+        if (hasCustomIcon(targetId)) {
+            labels.add("恢复默认图标")
+            actions.add { restoreDefaultIcon(targetId) }
+        }
         if (app != null) {
-            labels.add("更换图标")
-            actions.add { pickEntryIcon(app.packageName) }
-            // 仅在已设置自定义图标时提供恢复入口，避免出现无效选项。
-            if (hasCustomIcon(app.packageName)) {
-                labels.add("恢复默认图标")
-                actions.add { restoreDefaultIcon(app.packageName) }
-            }
             labels.add("应用信息")
             actions.add { runCatching { AppServices.router.navigate(Destination.AppInfo(app.packageName)) } }
         }
@@ -1325,42 +1337,42 @@ internal class HomeView(
     }
 
     /**
-     * 打开图标选择页为指定应用更换图标。
+     * 打开图标选择页为指定入口更换图标。
      *
-     * 图标来源由设置模块的图标选择页提供，选中后写入图标覆盖存储并递增覆盖版本，
-     * 桌面通过版本收集器清空缓存并重绘。图标存储或路由器缺失时给出提示。
+     * 参数 targetId 为应用包名或 special:<名称>；图标来源由设置模块的图标选择页提供，
+     * 选中后写入图标覆盖存储并递增覆盖版本，桌面通过版本收集器清空缓存并重绘。
      */
-    private fun pickEntryIcon(packageName: String) {
+    private fun pickEntryIcon(targetId: String) {
         if (!AppServices.hasIconOverrides()) {
             runCatching { AppServices.router.toast("图标存储不可用") }
             return
         }
-        runCatching { AppServices.router.navigate(Destination.IconPicker(packageName)) }
+        runCatching { AppServices.router.navigate(Destination.IconPicker(targetId)) }
             .onFailure {
                 runCatching { AppServices.router.toast("无法打开图标选择页") }
             }
     }
 
-    /** 判断指定应用是否已设置自定义图标。 */
-    private fun hasCustomIcon(packageName: String): Boolean =
+    /** 判断指定入口是否已设置自定义图标。 */
+    private fun hasCustomIcon(targetId: String): Boolean =
         runCatching {
             AppServices.hasIconOverrides() &&
-                AppServices.iconOverrides.overrides().containsKey(packageName)
+                AppServices.iconOverrides.overrides().containsKey(IconTargets.normalizeStoredKey(targetId))
         }.getOrDefault(false)
 
     /**
-     * 恢复指定应用的默认图标。
+     * 恢复指定入口的默认图标。
      *
-     * 清除图标覆盖记录并失效该应用的图标缓存，随后局部重绘，
-     * 使桌面从应用目录重新读取系统图标，无需整屏刷新。
+     * 清除图标覆盖记录并失效该入口的图标缓存，随后局部重绘，
+     * 使桌面从应用目录或内置字形重新读取图标，无需整屏刷新。
      */
-    private fun restoreDefaultIcon(packageName: String) {
+    private fun restoreDefaultIcon(targetId: String) {
         if (!AppServices.hasIconOverrides()) {
             runCatching { AppServices.router.toast("图标存储不可用") }
             return
         }
-        runCatching { AppServices.iconOverrides.clearOverride(packageName) }
-        iconStore.invalidate(packageName)
+        runCatching { AppServices.iconOverrides.clearOverride(targetId) }
+        iconStore.invalidate(targetId)
         runCatching { AppServices.router.toast("已恢复默认图标") }
         invalidate()
         requestPartial()

@@ -1,9 +1,7 @@
 package com.shuiyu.octoberrain.feature.content.ui
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.drawable.GradientDrawable
-import android.os.Looper
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -18,16 +16,9 @@ import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkGlyphs
 import com.shuiyu.octoberrain.core.design.InkWidgets
-import com.shuiyu.octoberrain.core.render.ImageDecoder
-import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
-import com.shuiyu.octoberrain.core.render.WereadCoverStore
-import com.shuiyu.octoberrain.core.render.loadOrDecode
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 private val MATCH_PARENT = ViewGroup.LayoutParams.MATCH_PARENT
 private val WRAP_CONTENT = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -40,17 +31,6 @@ private val WRAP_CONTENT = ViewGroup.LayoutParams.WRAP_CONTENT
  */
 object ContentUi {
     private const val MAX_BITMAP_SIDE = 320
-
-    /**
-     * 封面解码线程。
-     *
-     * 单线程串行执行，避免多个视图同时读写缩略图缓存目录；线程为守护线程，
-     * 进程退出时随之结束。解码完成后由视图自身 post 回主线程绑定位图。
-     */
-    private val coverLoader: ExecutorService =
-        Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "content-cover").apply { isDaemon = true }
-        }
 
     /**
      * 添加加载提示并返回该视图。
@@ -278,19 +258,15 @@ object ContentUi {
             }
         frame.addView(placeholder)
         if (!coverPath.isNullOrBlank()) {
-            val appContext = context.applicationContext
-            coverLoader.execute {
-                val bitmap = decodeCover(appContext, coverPath, sidePx) ?: return@execute
-                frame.post {
-                    frame.removeAllViews()
-                    frame.addView(
-                        ImageView(appContext).apply {
-                            setImageBitmap(bitmap)
-                            scaleType = ImageView.ScaleType.CENTER_CROP
-                            layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                        },
-                    )
-                }
+            ContentCoverLoader.bind(frame, coverPath, sidePx) { bitmap ->
+                frame.removeAllViews()
+                frame.addView(
+                    ImageView(context).apply {
+                        setImageBitmap(bitmap)
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                    },
+                )
             }
         }
         return frame
@@ -408,12 +384,9 @@ object ContentUi {
             placeholder.text = title.trim().take(1)
             placeholder.visibility = VISIBLE
             if (coverPath.isNullOrBlank()) return
-            val appContext = context.applicationContext
             val sidePx = DesignRuntime.tokens.dp(160f)
-            coverLoader.execute {
-                val bitmap = decodeCover(appContext, coverPath, sidePx) ?: return@execute
-                post {
-                    if (token != bindToken) return@post
+            ContentCoverLoader.bind(this, coverPath, sidePx) { bitmap ->
+                if (token == bindToken) {
                     image.setImageBitmap(bitmap)
                     image.visibility = VISIBLE
                     placeholder.visibility = GONE
@@ -526,47 +499,4 @@ object ContentUi {
         strokeWidthPx: Int,
         strokeColor: Int,
     ): GradientDrawable = InkWidgets.background(radiusPx, InkColors.PAPER, strokeWidthPx, strokeColor)
-
-    /**
-     * 解码封面缩略图，按目标边长取样并写入缩略图缓存。
-     *
-     * 参数 context 用于定位缓存目录，coverPath 为封面地址或本地路径，sidePx 为目标边长；
-     * 网络地址先查书封缓存目录，缺失时在后台线程内下载，已缓存文件经 [ImageDecoder]
-     * 解码后写入缩略图缓存并返回量化位图，调用方不得回收该位图。
-     */
-    private fun decodeCover(
-        context: Context,
-        coverPath: String?,
-        sidePx: Int,
-    ): Bitmap? {
-        val file =
-            coverPath
-                ?.takeIf { it.isNotBlank() }
-                ?.let { coverFile(context, Integer.toHexString(it.hashCode()), it) }
-        return file?.let { source ->
-            ThumbCacheRegistry.get(context, sidePx).loadOrDecode(source) {
-                ImageDecoder.decode(source.absolutePath, sidePx)
-            }
-        }
-    }
-
-    /**
-     * 取封面本地文件，网络地址在后台线程内下载。
-     *
-     * 主线程不发起网络请求，未缓存时返回空，下一次绑定再取。
-     *
-     * @param context 应用上下文
-     * @param key 缓存键
-     * @param coverPath 封面地址或本地路径
-     * @return 可读的本地文件，缺失时为空
-     */
-    private fun coverFile(
-        context: Context,
-        key: String,
-        coverPath: String,
-    ): File? {
-        val cached = WereadCoverStore.local(context, key, coverPath)
-        val canFetch = cached == null && Looper.myLooper() != Looper.getMainLooper()
-        return cached ?: if (canFetch) WereadCoverStore.ensure(context, key, coverPath) else null
-    }
 }

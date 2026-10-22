@@ -5,157 +5,214 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.BookItem
 import com.shuiyu.octoberrain.core.common.NegativePageConfig
+import com.shuiyu.octoberrain.core.common.RecentDocument
 import com.shuiyu.octoberrain.core.common.WereadShelfItem
 import com.shuiyu.octoberrain.core.design.DesignRuntime
+import com.shuiyu.octoberrain.feature.content.data.ContentPaths
+import com.shuiyu.octoberrain.feature.content.ui.RecentBooksSection
 import com.shuiyu.octoberrain.feature.content.ui.shelf.ShelfBookCard
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+
+/**
+ * 书架分区中的一本条目。
+ *
+ * 负一屏书架按配置的书源只展示一侧数据，本地书籍与微信读书书目在此统一为同一种条目，
+ * 卡片的书名、作者、封面与进度从条目读取，点击交由宿主区分处理。
+ */
+internal sealed interface ShelfEntry {
+    /** 书名。 */
+    val title: String
+
+    /** 作者。 */
+    val author: String
+
+    /** 封面文件路径，可为空。 */
+    val coverPath: String?
+
+    /** 阅读进度，取值 0 到 1；本地书籍未接入进度时按 0 处理。 */
+    val progress: Float
+
+    /**
+     * 微信读书书目。
+     *
+     * @param item 微信读书书架条目
+     */
+    data class Weread(
+        val item: WereadShelfItem,
+    ) : ShelfEntry {
+        override val title: String get() = item.title
+        override val author: String get() = item.author
+        override val coverPath: String? get() = item.coverPath
+        override val progress: Float get() = item.progress
+    }
+
+    /**
+     * 本地书籍。
+     *
+     * @param item 书架条目
+     */
+    data class Local(
+        val item: BookItem,
+    ) : ShelfEntry {
+        override val title: String get() = item.title
+        override val author: String get() = item.author
+        override val coverPath: String? get() = item.coverPath
+        override val progress: Float get() = 0f
+    }
+}
 
 /**
  * 墨台的书架分区。
  *
- * 分区以双列封面卡片展示最近阅读的书目：封面铺满卡片并按圆角裁切，书名与作者压在
- * 封面中下部的腰封内，卡片底边覆盖进度条与状态图标，右上角为百分比角标。
- * 卡片宽度由容器宽度均分得出，高度按封面比例从宽度推导，因此任意屏宽下同行卡片等高。
+ * 分区以双列封面卡片展示书目：封面铺满卡片并按圆角裁切，书名与作者压在封面中下部的
+ * 腰封内，卡片底边覆盖进度条与状态图标，右上角为百分比角标。卡片宽度由容器宽度均分
+ * 得出，高度按封面比例从宽度推导，因此任意屏宽下同行卡片等高。
  *
- * 分区只负责取数与分列排版，单张卡片的绘制由 [ShelfBookCard] 承担。点击卡片不跳转页面，
- * 由 [onOpen] 交给宿主在当前页面展开浮层。数据取微信读书书架，与负一屏其余分区共用同一份
- * 配置与刷新时机。
+ * 展示哪一侧数据由负一屏配置的书源决定：微信读书书源读取微信读书书架，本地书源读取
+ * 配置目录中的书籍；本地书源在卡片网格之后附「最近阅读」。展示行数由 [NegativePageConfig.shelfRows]
+ * 决定，每行两本，取满时不超过 [LIMIT] 本；行数与书源在墨台设置页调整后由宿主重建分区。
  *
- * 展示行数由负一屏配置的 [NegativePageConfig.shelfRows] 决定，每行两本，取满时不超过
- * [LIMIT] 本；行数在墨台设置页调整后由宿主重建分区，分区按新行数重新排版。
+ * 分区只负责取数与分列排版，单张卡片的绘制由 [ShelfBookCard] 承担，点击不跳转页面，
+ * 由宿主决定展开浮层还是交给阅读器。
  *
  * @param context 页面上下文。
- * @param onOpen 卡片点击回调，参数为被点击的书目。
+ * @param onOpen 书目点击回调。
+ * @param onOpenRecent 最近阅读点击回调。
  */
 internal class ShelfDeskSection(
     context: Context,
-    private val onOpen: (WereadShelfItem) -> Unit,
+    private val onOpen: (ShelfEntry) -> Unit,
+    private val onOpenRecent: (RecentDocument) -> Unit,
 ) : LinearLayout(context) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-
     private val tokens = DesignRuntime.tokens
-
-    private val header: LinearLayout = DeskSectionStyle.buildHeader(context, TITLE, ACTION_REFRESH) { reload() }
-
-    private val body: LinearLayout =
+    private var active = false
+    private var state = ShelfDisplayState()
+    private var header: LinearLayout = buildShelfHeader(context, ::rebind, ::refresh)
+    private val body =
         LinearLayout(context).apply {
             orientation = VERTICAL
-            setPadding(
-                DeskSectionStyle.paddingXPx(resources.displayMetrics.widthPixels),
-                0,
-                DeskSectionStyle.paddingXPx(resources.displayMetrics.widthPixels),
-                tokens.gap,
-            )
+            val inset = DeskSectionStyle.paddingXPx(resources.displayMetrics.widthPixels)
+            setPadding(inset, 0, inset, tokens.gap)
         }
-
-    private var loadJob: Job? = null
-
-    private var loaded = false
+    private val recentHost = LinearLayout(context).apply { orientation = VERTICAL }
+    private val loader: ShelfLoader =
+        ShelfLoader(context) { next ->
+            state = next
+            header
+                .findViewById<android.widget.TextView>(
+                    com.shuiyu.octoberrain.feature.content.R.id.shelf_refresh,
+                ).apply {
+                    isEnabled = !next.busy
+                    text = if (next.busy) "刷新中" else "刷新"
+                }
+            val saved = next.snapshot
+            val entries =
+                if (page().effectiveShelfSource == ShelfSourceSupport.LOCAL) {
+                    if (ContentPaths.hasStorageAccess()) {
+                        saved?.local.orEmpty().map {
+                            ShelfEntry.Local(
+                                it,
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
+                } else {
+                    saved?.weread.orEmpty().map { ShelfEntry.Weread(it) }
+                }
+            render(entries, next.recent)
+        }
 
     init {
         orientation = VERTICAL
-        addView(
-            header,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
-        )
-        addView(
-            body,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
-        )
+        addView(header)
+        addView(body, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
-    /** 页面回到前台时读取一次数据，已读取过则跳过重复请求。 */
     fun onResume() {
-        if (!loaded) reload()
+        active = true
+        rebind()
     }
 
-    /** 页面离开前台时取消读取任务。 */
     fun onPause() {
-        loadJob?.cancel()
-        loadJob = null
+        active = false
+        loader.pause()
     }
 
-    /** 释放协程作用域。 */
     fun release() {
-        scope.cancel()
+        active = false
+        loader.release()
     }
 
-    /** 重新读取书架并渲染卡片网格。 */
-    fun reload() {
-        loadJob?.cancel()
-        renderLoading()
-        loadJob =
-            scope.launch {
-                // 书架条目来自原盘读盘与解析，数据量大时在主线程执行会阻塞输入事件，
-                // 因此取数切到 IO 线程，渲染仍回到主线程。
-                val items =
-                    withContext(Dispatchers.IO) {
-                        runCatching { AppServices.content.wereadShelf(LIMIT) }.getOrDefault(emptyList())
-                    }
-                loaded = true
-                render(items)
-            }
+    private fun refresh() {
+        loader.refresh()
     }
 
-    /** 渲染读取中的占位行。 */
-    private fun renderLoading() {
-        body.removeAllViews()
-        body.addView(DeskSectionStyle.buildEmpty(context, LOADING))
+    /** 行数与书源变更只重读保存的展示，不触发数据获取。 */
+    private fun rebind() {
+        post {
+            if (!active) return@post
+            loader.pause()
+            removeView(header)
+            header = buildShelfHeader(context, ::rebind, ::refresh)
+            addView(header, 0)
+            loader.resume()
+        }
     }
 
     /**
-     * 渲染卡片网格。
+     * 渲染卡片网格与最近阅读。
      *
-     * 只展示配置行数范围内的书目，行数由负一屏配置给出并夹取到合法区间，因此调整行数后
-     * 内容区高度随行数变化，滚动容器结构保持不变。
+     * 只展示配置行数范围内的书目；本地书源追加最近阅读，无记录时不占位。
      *
-     * @param items 微信读书书架条目，按服务端返回顺序，每两本组成一行。
+     * @param entries 当前书源的书目，按各自来源的顺序排列。
+     * @param recent 最近阅读记录，与书源无关，可为空。
      */
-    private fun render(items: List<WereadShelfItem>) {
+    private fun render(
+        entries: List<ShelfEntry>,
+        recent: List<RecentDocument>,
+    ) {
         body.removeAllViews()
-        val visible = items.take(AppServices.config.state.value.desktop.negativePage.shelfVisibleLimit)
-        if (visible.isEmpty()) {
-            body.addView(DeskSectionStyle.buildEmpty(context, EMPTY))
-            return
+        state.message?.let {
+            body.addView(
+                com.shuiyu.octoberrain.core.design.InkWidgets
+                    .caption(context, it),
+            )
         }
-        // 卡片宽度按分区内容宽显式二等分，高度按封面三比四换算后直接下发，
-        // 避免权重测量与自定义测量互相覆盖导致行内溢出或高度偏差。
-        val contentWidth =
-            resources.displayMetrics.widthPixels -
-                2 * DeskSectionStyle.paddingXPx(resources.displayMetrics.widthPixels)
-        val cardWidth = (contentWidth - tokens.gap) / COLUMNS
-        val cardHeight = cardWidth * CARD_RATIO_HEIGHT / CARD_RATIO_WIDTH
-        visible.chunked(COLUMNS).forEachIndexed { rowIndex, chunk ->
-            body.addView(buildRow(chunk, rowIndex, cardWidth, cardHeight))
+        if (entries.isEmpty()) {
+            body.addView(DeskSectionStyle.buildEmpty(context, emptyText()))
+        } else {
+            val visible = entries.take(page().shelfVisibleLimit)
+            // 卡片宽度按分区内容宽显式二等分，高度按封面三比四换算后直接下发，
+            // 避免权重测量与自定义测量互相覆盖导致行内溢出或高度偏差。
+            val contentWidth =
+                resources.displayMetrics.widthPixels -
+                    2 * DeskSectionStyle.paddingXPx(resources.displayMetrics.widthPixels)
+            val cardWidth = (contentWidth - tokens.gap) / COLUMNS
+            val cardHeight = cardWidth * CARD_RATIO_HEIGHT / CARD_RATIO_WIDTH
+            visible.chunked(COLUMNS).forEachIndexed { rowIndex, chunk ->
+                body.addView(buildRow(chunk, rowIndex, cardWidth, cardHeight))
+            }
         }
+        if (recent.isEmpty()) return
+        body.addView(recentHost)
+        RecentBooksSection.attach(recentHost, recent, onOpenRecent)
     }
 
     /**
      * 构造一行封面卡片。
      *
-     * 行内卡片按等权重均分容器可用宽度，列间距取设计令牌的常规间距，因此单张卡片宽度恒为
-     * 容器宽度减去左右留白与列间距后的二分之一。条目数为奇数时补一个同权重占位视图，
-     * 占位视图没有内容，仅用于阻止末行唯一卡片被拉伸至整行宽度。
+     * 条目数为奇数时补一个同宽度占位视图，阻止末行唯一卡片被拉伸至整行宽度。
      *
      * @param chunk 本行书目，长度不超过 [COLUMNS]。
      * @param rowIndex 行序，首行之外的行在顶部追加一个常规间距。
+     * @param cardWidth 单张卡片宽度。
+     * @param cardHeight 单张卡片高度。
      * @return 可直接加入分区内容区的卡片行。
      */
     private fun buildRow(
-        chunk: List<WereadShelfItem>,
+        chunk: List<ShelfEntry>,
         rowIndex: Int,
         cardWidth: Int,
         cardHeight: Int,
@@ -172,7 +229,7 @@ internal class ShelfDeskSection(
                             if (rowIndex > 0) topMargin = tokens.gap
                         }
             }
-        chunk.forEachIndexed { column, item -> row.addView(buildCard(item, column, cardWidth, cardHeight)) }
+        chunk.forEachIndexed { column, entry -> row.addView(buildCard(entry, column, cardWidth, cardHeight)) }
         repeat(COLUMNS - chunk.size) {
             row.addView(
                 View(context).apply {
@@ -186,15 +243,14 @@ internal class ShelfDeskSection(
     /**
      * 构造单本书的封面卡片。
      *
-     * 卡片宽度由行容器的权重分配决定，高度在卡片自身的测量阶段按封面比例从宽度推导；
-     * 首列在右侧保留一个常规间距作为列间距。
-     *
-     * @param item 书架条目。
+     * @param entry 书架条目。
      * @param column 列序，零为左列。
+     * @param cardWidth 卡片宽度。
+     * @param cardHeight 卡片高度。
      * @return 可点击的封面卡片。
      */
     private fun buildCard(
-        item: WereadShelfItem,
+        entry: ShelfEntry,
         column: Int,
         cardWidth: Int,
         cardHeight: Int,
@@ -202,11 +258,11 @@ internal class ShelfDeskSection(
         val card =
             ShelfBookCard.create(
                 context = context,
-                title = item.title,
-                author = item.author,
-                coverPath = item.coverPath,
-                progress = item.progress,
-                onClick = { onOpen(item) },
+                title = entry.title,
+                author = entry.author,
+                coverPath = entry.coverPath,
+                progress = entry.progress,
+                onClick = { onOpen(entry) },
             )
         card.layoutParams =
             LinearLayout.LayoutParams(cardWidth, cardHeight).apply {
@@ -214,6 +270,25 @@ internal class ShelfDeskSection(
             }
         return card
     }
+
+    /**
+     * 空态文案，按书源与存储权限区分原因。
+     *
+     * 负一屏内不做页面跳转，权限缺失只以文字说明，引导用户到系统设置授权。
+     */
+    private fun emptyText(): String =
+        if (state.busy && state.snapshot == null) {
+            LOADING
+        } else if (state.snapshot?.updatedAt == null || state.snapshot?.updatedAt == 0L) {
+            "点击刷新加载书架"
+        } else if (ShelfSourceSupport.of(page()) == ShelfSourceSupport.LOCAL) {
+            if (ContentPaths.hasStorageAccess()) EMPTY_LOCAL else EMPTY_PERMISSION
+        } else {
+            EMPTY_WEREAD
+        }
+
+    /** 当前负一屏配置。 */
+    private fun page(): NegativePageConfig = AppServices.config.state.value.desktop.negativePage
 
     private companion object {
         /** 分区标题。 */
@@ -240,7 +315,13 @@ internal class ShelfDeskSection(
         /** 读取中的占位文案。 */
         const val LOADING = "正在读取书架…"
 
-        /** 空态文案。 */
-        const val EMPTY = "书架暂无可展示的书目"
+        /** 微信读书书源的空态文案。 */
+        const val EMPTY_WEREAD = "书架暂无可展示的书目"
+
+        /** 本地书源的空态文案。 */
+        const val EMPTY_LOCAL = "本地目录暂无书籍"
+
+        /** 缺少存储权限时的提示文案。 */
+        const val EMPTY_PERMISSION = "未授予存储权限，无法读取本地书籍"
     }
 }

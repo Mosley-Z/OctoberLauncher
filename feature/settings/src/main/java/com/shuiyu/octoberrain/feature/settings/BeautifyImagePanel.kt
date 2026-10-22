@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
@@ -250,15 +251,15 @@ private fun BeautifyScreen.directoryCells(): List<ImageCell> =
         .images(imageDir, ImageDirectoryStore.MAX_IMAGES)
         .map { file -> ImageCell(file.path, file.path, file.name, null) }
 
-/** 已设置的图标覆盖，按应用名排序。 */
+/** 已设置的图标覆盖，按入口名排序。 */
 private fun BeautifyScreen.overrideCells(overrides: Map<String, String>): List<ImageCell> =
     overrides.entries
-        .sortedBy { SettingsUi.appLabel(it.key).lowercase() }
+        .sortedBy { IconTargets.labelOf(it.key, SettingsUi::appLabel).lowercase() }
         .map { entry ->
             ImageCell(
                 entry.key,
                 entry.value,
-                SettingsUi.appLabel(entry.key),
+                IconTargets.labelOf(entry.key, SettingsUi::appLabel),
                 File(entry.value).name,
             )
         }

@@ -11,6 +11,7 @@ import android.util.LruCache
 import com.shuiyu.octoberrain.core.common.AppCatalog
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.InstalledApp
 import com.shuiyu.octoberrain.core.common.Router
 import com.shuiyu.octoberrain.core.common.SpecialEntry
@@ -118,9 +119,15 @@ class AppCatalogImpl(
         entry: SpecialEntry,
         sizePx: Int,
     ): Bitmap? {
+        // 单入口覆盖优先：桌面长按菜单或美化模式为特殊入口指定的图片直接作为图标。
+        val override =
+            if (AppServices.hasIconOverrides()) {
+                AppServices.iconOverrides.loadOverride(IconTargets.specialKey(entry), sizePx)
+            } else {
+                null
+            }
         val key = "special:${entry.name}@$sizePx"
-        memoryCache.get(key)?.let { return it }
-        return withContext(Dispatchers.Default) {
+        return override ?: memoryCache.get(key) ?: withContext(Dispatchers.Default) {
             val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             canvas.drawColor(Color.WHITE)
@@ -163,7 +170,7 @@ class AppCatalogImpl(
         val router: Router? = if (AppServices.hasRouter()) AppServices.router else null
         val destination =
             when (entry) {
-                SpecialEntry.BOOKSHELF -> Destination.Bookshelf
+                SpecialEntry.BOOKSHELF -> Destination.Negative
                 SpecialEntry.FILES -> Destination.Files()
                 SpecialEntry.KOREADER -> Destination.Koreader
                 SpecialEntry.SEARCH -> Destination.Search

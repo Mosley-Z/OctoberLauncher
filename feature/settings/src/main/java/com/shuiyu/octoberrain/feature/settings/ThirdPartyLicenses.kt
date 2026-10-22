@@ -10,10 +10,11 @@ internal data class LicenseEntry(
     val license: String,
     val year: String,
     val author: String,
+    val asset: String? = null,
 ) {
     /** 单行摘要，形如「名称 — 许可 — 年份 — 作者」。 */
     val summary: String
-        get() = "$name — $license — $year — $author"
+        get() = listOf(name, license, year, author).filter { it.isNotBlank() }.joinToString(" — ")
 }
 
 /**
@@ -33,5 +34,34 @@ internal object ThirdPartyLicenses {
     val entries: List<LicenseEntry> =
         listOf(
             LicenseEntry(name = "WereadMoji", license = "MIT", year = "2026", author = "Mosley-Z"),
+            LicenseEntry(
+                "AndroidX WebKit 1.12.1",
+                "Apache-2.0",
+                "",
+                "Android Open Source Project",
+                "reader/licenses/androidx-webkit.txt",
+            ),
+            LicenseEntry(
+                "commonmark-java 0.21.0 / GFM tables",
+                "BSD-2-Clause",
+                "2015",
+                "Atlassian Pty Ltd",
+                "reader/licenses/commonmark.txt",
+            ),
+            LicenseEntry("jsoup 1.23.2", "MIT", "2009–2026", "Jonathan Hedley", "reader/licenses/jsoup.txt"),
+            LicenseEntry(
+                "docx-preview 0.4.0 / JSZip 3.10.1",
+                "Apache-2.0 / MIT",
+                "",
+                "Volodymyr Baydalka / Stuart Knightley / pako contributors",
+                "reader/licenses/docx.txt",
+            ),
+            LicenseEntry(
+                "desugar_jdk_libs 2.1.3",
+                "GPL-2.0 + Classpath Exception",
+                "",
+                "OpenJDK / Google",
+                "reader/licenses/desugar-jdk.txt",
+            ),
         )
 }

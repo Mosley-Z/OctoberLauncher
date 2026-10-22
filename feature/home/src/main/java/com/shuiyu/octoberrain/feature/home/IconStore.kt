@@ -2,6 +2,7 @@ package com.shuiyu.octoberrain.feature.home
 
 import android.graphics.Bitmap
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.LauncherEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -91,13 +92,13 @@ internal class IconStore(
     }
 
     /**
-     * 使指定应用的图标缓存失效。
+     * 使指定入口的图标缓存失效。
      *
-     * 参数 packageName 为应用包名。清除该应用在所有目标尺寸下的缓存与加载记录，
-     * 下次绘制时会重新向应用目录请求图标，用于更换图标后的立即重载。
+     * 参数 targetId 为应用包名或 special:<名称>；应用补 app: 前缀后按入口键清除
+     * 该入口在所有目标尺寸下的缓存与加载记录，下次绘制时重新请求图标。
      */
-    fun invalidate(packageName: String) {
-        val prefix = "app:$packageName@"
+    fun invalidate(targetId: String) {
+        val prefix = "${IconTargets.entryKeyOf(targetId)}@"
         synchronized(cache) {
             // 递增代际，使失效前发起的在途请求完成后不写回缓存。
             generation++

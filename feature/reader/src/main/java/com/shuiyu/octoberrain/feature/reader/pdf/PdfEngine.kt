@@ -79,8 +79,12 @@ internal class PdfEngine private constructor(
         }
     }
 
-    override fun close() {
+    override fun trimMemory() {
         cache.evictAll()
+    }
+
+    override fun close() {
+        trimMemory()
         client.close()
     }
 

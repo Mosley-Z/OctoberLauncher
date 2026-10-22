@@ -58,20 +58,11 @@ internal object SettingsCatalog {
     /** 系统设置页系统分组。 */
     const val GROUP_SYSTEM_SYSTEM = "system.system"
 
-    /** 书架设置页书籍来源分组。 */
-    const val GROUP_BOOKSHELF_SOURCE = "bookshelf.source"
-
-    /** 书架设置页微信读书分组。 */
+    /** 阅读与数据页微信读书分组。 */
     const val GROUP_BOOKSHELF_WEREAD = "bookshelf.weread"
 
-    /** 书架设置页书架行数分组。 */
-    const val GROUP_BOOKSHELF_ROWS = "bookshelf.rows"
-
-    /** 书架设置页本地目录分组。 */
+    /** 阅读与数据页本地目录分组。 */
     const val GROUP_BOOKSHELF_LOCAL = "bookshelf.local"
-
-    /** 书架设置页书架入口分组。 */
-    const val GROUP_BOOKSHELF_ENTRY = "bookshelf.entry"
 
     /** 负一屏页卡片分组。 */
     const val GROUP_NEGATIVE_CARDS = "negative.cards"
@@ -93,7 +84,7 @@ internal object SettingsCatalog {
     /** 负一屏页的分组，声明位于 [NegativeSpecs]。 */
     val negativeGroups: List<SettingsGroupSpec> = NegativeSpecs.groups
 
-    /** 书架设置页的分组，声明位于 [BookshelfSpecs]。 */
+    /** 阅读与数据页的分组，声明位于 [BookshelfSpecs]。 */
     val bookshelfGroups: List<SettingsGroupSpec> = BookshelfSpecs.groups
 
     /**
