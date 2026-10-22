@@ -9,6 +9,7 @@
 - 原片实际PTS/摄影配准光学P95：S4翻页116.5/软件manualFull902.6ms，P4 90.7/489.6ms；各20，5%ROI定义/3%敏感性及帧误差明列，不含触点等待/厂商波形控制。
 - S4/P4均最终包/HOME、全刷6、原生480×800/552×768、auto1/user0与原网络恢复，ReaderPerf回空。P4新增probe/临时主题PNG已清，S4旧probe保留、仅清14已知合成文件；设备已释放，无活跃测试/Gradle。
 - 局部未测保留：厂商DocumentsUI不存在、PIN凭据锁未动、P4桌面BOOK双向未单测、本次S4锁屏未覆盖、实体/模拟宽视口未改变Main；历史S4和P4尺寸证据独立。有限样本非全格式保真或长期无泄漏。
+- 推送阻塞：b4ee37f/0d242dd已到origin/master；1ca51be与4b0390f本地已提交，最终git push多次443超时/连接重置，尚未上传。网络恢复后执行git push origin master；不重复设备测试。
 - 权威：[最终收口](../docs/acceptance/2026-10-23-reader-final-closure.md)、双机/光学报告及[本轮交接](sessions/2026-10-23-reader-final-closure-codex.md)。交付目标GitHub origin/master；原始视频/APK/夹具只存_analysis/verify/final-reader。
 
 ## 当前：Office/统一搜索与入口修复已交付双机（2026-10-23）

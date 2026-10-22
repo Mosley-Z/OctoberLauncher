@@ -52,3 +52,5 @@ P4 1.0.31已完成相同失败链对照：失败提示后强停仍保留有效�
 最终源码1ca51be/1.0.31，双机实际base.apk摘要与297846最终包一致。S4全刷6重新CHECKED、原480×800/219dpi无override、auto1/user0、wifi1/mobile1、HOME无阅读状态与绑定renderer；ReaderPerf原空恢复，仅清本轮14个已知合成文件，原readerprobe保留。P4全刷6、552×768、方向/网络/原WEEK/weread2行及原图标主题保持，本轮新增probe已卸，两合成PNG/临时主题清理。两机均释放，根无活跃构建。
 
 未做正式签名/Release，后置扩展搁置。局部未覆盖：不存在的厂商DocumentsUI界面、凭据PIN锁、P4桌面BOOK双向刷新、本次S4锁屏及实际宽视口改变；不将其他机型或历史模拟证据冒称这些组合通过。性能已知限制为PDF/PPTX冷首屏，数值及定位见上表；有限Office、有限光学ROI与离散PSS均不扩大为全格式保真、整屏最慢像素或长期无泄漏。
+
+提交与推送：b4ee37f/0d242dd已成功推送origin/master；1ca51be修复及4b0390f验收已本地提交，最终推送遇GitHub443超时/连接重置未成功。网络恢复后重试git push origin master；本地验收结论及设备恢复不受影响，没有创建正式Release。
