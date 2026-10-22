@@ -1,5 +1,7 @@
 # 阅读器任务看板与执行入口
 
+2026-10-23最终收口：1.0.31/51、源码1ca51be；RD000–017/FIX001–006 DONE，RD018–020 DEFERRED。双机最终包与字段恢复/释放完成，完整门禁reader137/data128每变体零失败。PDF/PPTX冷首屏仍超目标及局部未测如实保留；详见[最终收口](../docs/acceptance/2026-10-23-reader-final-closure.md)。无正式签名/Release，设备与构建均无占用。
+
 2026-10-23续接：0a1534c、7d8a680及2da644b已提交；RD012/013/014已集成Office与统一搜索，最终门禁reader各132例0失败。477包P4工作簿/S4 PPTX各200有效翻页完成；2da644b仅修外部入口任务复用，fbd4包双机各30真实隐式开关与必要smoke完成，设备已恢复并释放。详见[集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)，RD016/017保留真实SAF/物理EPD及完整状态矩阵未覆盖，设备租用以STATUS为准。
 
 最新阅读器批次（2026-10-23）：用户批准接手剩余开发。RD016第一批、RD015入口/已知同源身份增量已验证；RD011 DOCX双模式READY_FOR_REVIEW。见[DOCX与入口验收](../docs/acceptance/2026-10-23-reader-docx-and-entry.md)、[接力](../memory/sessions/2026-10-23-reader-resources-docx-codex.md)。后续RD012→RD013→RD014及资源/最终门禁；P4、真实SAF和复杂格式矩阵仍待，未关闭全方案。

@@ -17,6 +17,8 @@
 
 当前仓库根就是本目录，已经存在 Git；2026-10-22 接手时分支是 `master`，工作区有大量未提交代码和资源修改。不要按旧文档“未启用 Git”操作，也不要直接切换分支丢失现场。
 
+阅读器本轮最终1.0.31/51、测试签名交付，RD000–017及FIX001–006已验收关闭；PDF/PPTX冷启动未达目标和局部未测边界见[最终收口](docs/acceptance/2026-10-23-reader-final-closure.md)，RD018–020搁置。没有正式签名或Release。
+
 微信读书的当前产品边界是十雨独立使用数据，原 App 不是运行前提。文件阅读器已有原生文本/PDF、ZIP、Markdown与EPUB首轮；DOCX正文/原版式、CSV/XLSX/XLS/ODS原生窗口及PPTX单页/提纲已接入，统一搜索见[集成交付](docs/acceptance/2026-10-23-reader-office-search-integration.md)。各引擎的实际完成状态与兼容边界以任务卡和验收为准，不能因方案或目录存在而宣称全部格式支持。
 
 目录分工：`docs/design/` 保存设计与规格；`docs/acceptance/` 保存评审、实施、验收结论；`task/` 保存任务卡；`memory/` 保存短记忆和交接；`_analysis/verify/` 等原有目录继续保存证据产物，不随本次整理迁移。

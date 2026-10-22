@@ -4,6 +4,13 @@
 
 | 文件 | 主题 | 使用边界 |
 | --- | --- | --- |
+| [2026-10-23-reader-optical.md](2026-10-23-reader-optical.md) | S4/P4原片逐帧光学阶段测量 | 各20翻页/20手动全刷；实际PTS、摄影配准与阈值敏感性，不含触点等待 |
+| [2026-10-23-reader-final-closure.md](2026-10-23-reader-final-closure.md) | 1.0.29–1.0.31开发与最终验收收口 | 双机恢复/卡关闭；性能未达和局部未测明列 |
+| [2026-10-23-reader-final-s4.md](2026-10-23-reader-final-s4.md) | S4最终候选性能、复杂样本与状态 | 802b/215b基线和4e98最终包分列；光学视频另行分析 |
+| [2026-10-23-reader-final-p4.md](2026-10-23-reader-final-p4.md) | P4真实授权、同源、状态与压力 | 系统授权机制与合成picker边界、逐APK结果分列 |
+| [2026-10-23-reader-uri-identity.md](2026-10-23-reader-uri-identity.md) | 第三方PFD与本地路径身份核对 | 不按同名/内容猜测，不绕过原URI授权读取 |
+| [2026-10-23-reader-upstream-fixtures.md](2026-10-23-reader-upstream-fixtures.md) | 官方复杂Office输入来源与许可 | 夹具结构不代表实机渲染通过 |
+| [2026-10-23-reader-card-audit.md](2026-10-23-reader-card-audit.md) | RD000–017与FIX001–006关闭审计 | 审计时点缺口；不代替最终设备验证 |
 | [2026-10-23-reader-search-s4.md](2026-10-23-reader-search-s4.md) | 最终统一搜索版S4回归与PPTX压力 | 最终477包；执行计数、恢复及未覆盖见报告 |
 | [2026-10-23-reader-search-p4.md](2026-10-23-reader-search-p4.md) | P4搜索、CSV升级与工作簿压力 | 逐项区分中间包与最终477包 |
 | [2026-10-23-reader-office-search-integration.md](2026-10-23-reader-office-search-integration.md) | Office、统一搜索、旧CSV迁移与系统入口集成 | 最终门禁132例及双机报告汇总；物理刷新/真实SAF等边界单列 |

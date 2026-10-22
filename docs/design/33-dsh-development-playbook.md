@@ -260,3 +260,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Acti
 ## 14. 跨卡整改后的需求回读
 
 按 [36](36-demand-handoff-contract.md) 固定最终入口、控件位置和显示归属，并对所有异步动作入口核对完成回调；不要用辅助规则单测或不匹配触发条件的设备回归替代目标用例。Canvas 长按可用 `scripts/android-ui.ps1 -Action tap -Label "#编号" -HoldMs 650 -Screenshot <当前标注图> -Serial <serial>`；标号在图片替换/导航后可能变化，必须重新 annotate。
+
+2026-10-23补充：自绘区域横向导航可用 `scripts/android-ui.ps1 -Action swipe -Label "#起点" -EndLabel "#终点" -Screenshot <当前标注图> -Serial <serial>`，两端均由同一张当前截图resolve，随后回读实际页面；禁止沿用导航前标号或裸坐标。P4最终SAF最近阅读导航已实测此动作。

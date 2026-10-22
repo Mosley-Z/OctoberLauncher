@@ -1,5 +1,16 @@
 # 当前状态与接力
 
+## 阅读器最终收口完成（2026-10-23）
+
+- 用户授权剩余1–4与第5任务卡关闭已执行；RD000–017及FIX001–006 DONE，RD018–020 DEFERRED。最终1.0.31/51沿测试签名，不正式签名/Release；其他UX001/网站/Wrapper差异保留。
+- 源码1ca51be（前序b4ee37f/0d242dd）；最终reader-1.0.31-icon-release.apk2172584B，SHA29784637149498aa00814b4dcf2af60bc4f09b3a1da5986eb58eeb0427b40005；154源码摘要零差异，两机实际base.apk相同。gate7 check/debug/release成功，reader137/data128每变体零失败，Android Debug签名有效。
+- 已补真实OS持久授予/强停最近重开/撤销重选、同源与副本移动、版本变化、官方Office及50MiB、状态网络/renderer恢复、图标主题；真实PPTX扩展节点误索引及坏图破坏旧图两缺陷修复并实机前后对照。
+- 性能主体4e98各20冷启P95：TXT1.748s、PDF2.173s、DOCX4.481s、XLSX4.800s、PPTX6.335s。PDF2s/PPTX5s目标未达，分段定位保留，不因卡DONE宣称达标。P4 TXT/CSV与S4 DOCX各200/30通过；历史包与最终专项归属分列。
+- 原片实际PTS/摄影配准光学P95：S4翻页116.5/软件manualFull902.6ms，P4 90.7/489.6ms；各20，5%ROI定义/3%敏感性及帧误差明列，不含触点等待/厂商波形控制。
+- S4/P4均最终包/HOME、全刷6、原生480×800/552×768、auto1/user0与原网络恢复，ReaderPerf回空。P4新增probe/临时主题PNG已清，S4旧probe保留、仅清14已知合成文件；设备已释放，无活跃测试/Gradle。
+- 局部未测保留：厂商DocumentsUI不存在、PIN凭据锁未动、P4桌面BOOK双向未单测、本次S4锁屏未覆盖、实体/模拟宽视口未改变Main；历史S4和P4尺寸证据独立。有限样本非全格式保真或长期无泄漏。
+- 权威：[最终收口](../docs/acceptance/2026-10-23-reader-final-closure.md)、双机/光学报告及[本轮交接](sessions/2026-10-23-reader-final-closure-codex.md)。交付目标GitHub origin/master；原始视频/APK/夹具只存_analysis/verify/final-reader。
+
 ## 当前：Office/统一搜索与入口修复已交付双机（2026-10-23）
 
 - 0a1534c基线、7d8a680 Office/统一全文搜索、2da644b重复外部入口任务affinity修复均已提交并按用户2026-10-23指令推送GitHub origin/master（含验收4bccccc），未升版/发布。无关网站、Wrapper/工具链偏好及原始日志保留。

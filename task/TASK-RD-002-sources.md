@@ -1,6 +1,6 @@
 # TASK-RD-002 文件来源、类型识别与外部授权
 
-- 状态：IN_PROGRESS
+- 状态：DONE（2026-10-23 根集成者按实际证据关闭）
 - 优先级/阶段：P0 / R1
 - 执行者/集成者：Codex（本聊天）
 - 分支/工作树/源码基线：master / 1379e8b + PERF-001、RD-001差异
@@ -26,11 +26,11 @@
 
 ## 验收标准
 
-- [ ] 错误MIME、无扩展名、不可seek URI、权限撤销、缺失文件均有可观察结果；不接受外部任意绝对路径。
-- [ ] 本地打开不默认整文件复制；文件描述符、Stream和缓存生命周期有行为验证；对接008归档来源接口。
+- [x] 错误MIME、无扩展名、不可seek URI、权限撤销、缺失文件均有可观察结果；不接受外部任意绝对路径。
+- [x] 本地打开不默认整文件复制；文件描述符、Stream和缓存生命周期有行为验证；对接008归档来源接口。
 
-- [ ] 自测命令/退出码和证据已记录；相关模块检查通过，最终整包与设备门禁由017统筹。
-- [ ] 未验证项、原有失败、外部阻塞及下一步清晰；没有把代码完成写成设备验收完成。
+- [x] 自测命令/退出码和证据已记录；相关模块检查通过，最终整包与设备门禁由017统筹。
+- [x] 未验证项、原有失败、外部阻塞及下一步清晰；没有把代码完成写成设备验收完成。
 
 ## 执行与接力记录
 
@@ -69,3 +69,9 @@ ArchiveEntry已接入；统一128MiB缓存预约与启动时清理自身遗留�
 - 验证：`:feature:reader:testDebugUnitTest` 53 用例 0 失败（`ExternalEntryPolicyTest` 11）；`:feature:reader:detekt` 与 `:feature:reader:ktlintCheck` 通过；`check :app:assembleDebug :app:assembleRelease` 退出 0（52s），debug 5,846,784 字节 SHA-256 `77bd08bfae2d604edc0a15476c4f7074ef4665ee87f542f031d1dad4d327b03d`，release 1,434,377 字节 SHA-256 `308fc6eb0c6648c30a2145f8f005d03b326b2c2beffce4562d34455ffd8b6a35`，apksigner 验证通过。
 - 设备复核：非 Uri 类型的 `EXTRA_STREAM` 得到 `reject=MISSING` 且产品进程存活；sample.md 加父目录 ClipData 打开为 `reader_title=sample.md`、`reader_status=42/47`，未按多文件拒绝。
 - 仍属边界：真实 SAF 系统撤销后的重选流程、Office 内容渲染、release 沿用 debug 签名配置；不把设备复核当整包发布验收。
+
+## 2026-10-23 根集成者最终验收关闭
+
+P4已完成Android真实持久授权→强停由最近阅读重开→真实撤销失败→产品重选恢复。合成DocumentsProvider/picker与不存在的厂商DocumentsUI界面明确区分。历史类型/ZIP识别、VIEW/SEND、不可seek/缺失/权限错误及来源生命周期证据保留；本轮私有DOCX关闭后三项实际缓存计数零、声明超预算拒绝。
+
+证据：[P4最终增量](../docs/acceptance/2026-10-23-reader-final-p4.md)、[前轮集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)、[本轮收口](../docs/acceptance/2026-10-23-reader-final-closure.md)。身份链802b、版本变更215b、状态/缓存4e98分别注明，不冒充同包重复。最终源码b4ee37f、版本1.0.29/49，gate-4 check/debug/release退出0，reader各136项零失败。DONE不等于正式发布；完整资源/状态余项继续归RD016/017。

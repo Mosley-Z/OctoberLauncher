@@ -1,6 +1,6 @@
 # TASK-RD-014 跨引擎搜索与能力收口
 
-- 状态：READY_FOR_REVIEW（7d8a680已集成，最终门禁与S4核心回归通过；压力归RD017）
+- 状态：DONE（统一搜索已集成并完成本卡验收）
 - 优先级/阶段：P1 / R4
 - 执行者/集成者：Codex；sheets子智能体负责CSV/Workbook专属适配
 - 分支/工作树/源码基线：master / D:/DSHStation/OctoberLauncher / 0a1534c+Office批次；保留已有修改
@@ -57,3 +57,9 @@
 - 迁移：既有Locator/书签/SQLite不变，showHit定位成功并显示后才保存；取消/换词/退出沿唯一动作队列与generation。
 - 验收：跨未加载块/章节/sheet/幻灯片及DOCX末段；上下个和计数对照、取消/尺寸/换书、最终双机构建。Office旧包设备验收单独标版本，不冒充搜索版。
 - 所有权：根修改search公共契约/UI与Text/EPUB/Markdown/DOCX及公共Web协议；sheets仅自己包和专属脚本/测试；PPTX由原执行者设备结束后接适配。根独占Gradle。
+
+## 2026-10-23 根集成者最终验收关闭
+
+全部本卡标准已有真实集成及设备证据；477跨未加载内容计数/高亮/取消换书、CSV自然升级和PDF无假搜索入口见reader-search-s4/p4及reader-office-search-integration。P4最终4e98忙碌横屏/退出无旧回填见reader-final-p4。全格式资源与复杂样本由RD016/017统筹，不扩大本卡。
+
+最终源码b4ee37f、版本1.0.29/49，gate-4 check/debug/release退出0，reader各136例零失败。详细证据与边界见[收口记录](../docs/acceptance/2026-10-23-reader-final-closure.md)及[卡片审计](../docs/acceptance/2026-10-23-reader-card-audit.md)。本卡DONE仅表示任务集成交付，不表示正式签名或发布；后置RD018–020继续搁置。
