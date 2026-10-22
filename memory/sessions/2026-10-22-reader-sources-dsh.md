@@ -67,4 +67,4 @@ Markdown 复核样本通过 `adb push` 到 `/data/local/tmp` 后由 `run-as ... 
 
 ## 下一步
 
-本轮已提交并推送 `origin/master`，等待用户最终确认；通过后按 `task/README.md` 依赖继续下一张卡，整包与设备门禁由 017 统筹。
+本轮已提交为 `8ca69db` 并推送 `origin/master`，等待用户最终确认；通过后按 `task/README.md` 依赖继续下一张卡，整包与设备门禁由 017 统筹。

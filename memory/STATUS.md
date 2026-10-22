@@ -9,7 +9,7 @@
 - 设备复核：非 Uri 的 `EXTRA_STREAM` 得到 `reject=MISSING` 且产品进程存活；sample.md 加父目录 ClipData 打开为 `reader_title=sample.md`、`reader_status=42/47`，未按多文件拒绝。
 - 证据与边界：[RD-002 验收](../docs/acceptance/2026-10-22-reader-sources-002.md)；[本轮交接](sessions/2026-10-22-reader-sources-dsh.md)。
 - 未覆盖：真实 SAF 系统撤销后的重选流程、Office 内容渲染、release 签名配置仍为 debug；不把设备复核当整包发布验收。
-- 本轮已提交并推送 `origin/master`；下一步等待用户确认，通过后按 task/README 依赖继续下一张卡。
+- 本轮已提交为 `8ca69db` 并推送 `origin/master`；下一步等待用户确认，通过后按 task/README 依赖继续下一张卡。
 
 ## 已交DSH：RD010完成，停止开启新任务（2026-10-22）
 

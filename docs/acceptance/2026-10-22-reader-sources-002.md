@@ -1,7 +1,7 @@
 # 2026-10-22 RD-002 文件来源、类型识别与外部授权 验收记录
 
 - 范围/验收者：RD-002 增量（ZIP 内部标记鉴别、ACTION_SEND 入口、授权与缺失矩阵），DSH 集成者执行
-- 源码提交或基线+差异范围：master 1379e8b 加本轮未提交差异；新增 ZipContainerProbe.kt、ExternalEntry.kt、ExternalEntryPolicyTest.kt，修改 DocumentKinds.kt、ReaderSession.kt、DocumentEntryActivity.kt、SourceResolver.kt、feature/reader/src/main/AndroidManifest.xml；审查修复后 DocumentEntryActivity.kt 与 ExternalEntry.kt 二次修改（类型安全、主文档与附带授权、日志脱敏）
+- 源码提交或基线+差异范围：提交 `8ca69db`，基于 master `1379e8b`；新增 ZipContainerProbe.kt、ExternalEntry.kt、ExternalEntryPolicyTest.kt，修改 DocumentKinds.kt、ReaderSession.kt、DocumentEntryActivity.kt、SourceResolver.kt、feature/reader/src/main/AndroidManifest.xml；审查修复后 DocumentEntryActivity.kt 与 ExternalEntry.kt 二次修改（类型安全、主文档与附带授权、日志脱敏）
 - APK路径/版本/摘要（如适用）：debug `app/build/outputs/apk/debug/app-debug.apk`，5,846,784 字节，SHA-256 `77bd08bfae2d604edc0a15476c4f7074ef4665ee87f542f031d1dad4d327b03d`，2026-10-22 09:41:19；release `app/build/outputs/apk/release/app-release.apk`，1,434,377 字节，SHA-256 `308fc6eb0c6648c30a2145f8f005d03b326b2c2beffce4562d34455ffd8b6a35`，09:42:00，apksigner 验证通过（CN=Android Debug，沿用项目既有签名配置）
 - 环境/工具链/WebView/设备serial（如适用）：JDK 17.0.20_12、Android SDK 35、Gradle 8.11.1 `--offline`；设备 S4，serial SA4B03CN2608081096X，Android 版本以 `inspect_adb_device` 记录为准
 - 关联任务/设计：[TASK-RD-002](../../task/TASK-RD-002-sources.md)、[34 总方案](../design/34-files-reader-upgrade-plan.md)、[35 协作流程](../design/35-development-workflow.md)
