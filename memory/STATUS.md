@@ -2,7 +2,7 @@
 
 ## 当前：Office/统一搜索与入口修复已交付双机（2026-10-23）
 
-- 0a1534c基线、7d8a680 Office/统一全文搜索、2da644b重复外部入口任务affinity修复均已提交，未推送/升版/发布。无关网站、Wrapper/工具链偏好及原始日志保留。
+- 0a1534c基线、7d8a680 Office/统一全文搜索、2da644b重复外部入口任务affinity修复均已提交并按用户2026-10-23指令推送GitHub origin/master（含验收4bccccc），未升版/发布。无关网站、Wrapper/工具链偏好及原始日志保留。
 - 最终fbd4包entry-affinity-release.apk、2,170,000B，SHA256 fbd4bebc2e593fc413ea77b03f1f2f5b2125b748080a35d1fbcab2d8fe2878e9。check/debug/release退出0，reader debug/release各132例0失败；entry-affinity-confirm-gate.log。146源码摘要仅Manifest相对477变化，所有引擎/资源不变。
 - 历史477包双机200有效翻页已完成：P4工作簿行1→4001、S4 PPTX页1→200→199。P4该包30开关亦通过并曾恢复释放；补丁后两机自然覆盖同URI隐式重复VIEW及fbd4各30完整开关均通过，未清旧任务/未用显式Main旁路；跨格式及真实SEND小回归已过。
 - 资源已释放：S4/P4均全刷6、原生480×800/552×768、HOME；P4新增probe卸载且临时文件删除。根构建已退出，无本批活跃测试/Gradle/ADB。两机保持最终fbd4安装。
