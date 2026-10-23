@@ -10,6 +10,7 @@
 | 开发、集成、验收、交接流程 | [开发流程](docs/design/35-development-workflow.md) |
 | 全部设计和历史验收索引 | [docs/README.md](docs/README.md) |
 | 设备、状态与性能问题的具体经验 | [DSH 工作手册](docs/design/33-dsh-development-playbook.md) |
+| 双机硬件实测、性能预算与优化经验 | [S4/P4 性能设计参考](docs/design/38-device-performance-reference.md) |
 | 本轮文件阅读器总方案 | [阅读器升级方案](docs/design/34-files-reader-upgrade-plan.md) |
 | 构建脚本与产品介绍 | [README.md](README.md)、[scripts/build.ps1](scripts/build.ps1) |
 

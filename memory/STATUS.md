@@ -1,5 +1,12 @@
 # 当前状态与接力
 
+## 双机硬件与性能经验已整理（2026-10-23）
+
+- 用户要求重试推送并沉淀性能设计参考；本轮首次push仍超时，随后用户选择手动推送。本地origin/master已到e198d2e，原待推送提交已同步到远端跟踪记录；新参考文档提交后由用户再执行git push origin master。
+- 新文档：[38 双机硬件与性能参考](../docs/design/38-device-performance-reference.md)，硬件表、软件/光学端点、冷启优化对照、缓存/PSS/磁盘预算及后续设计检查表齐全。只读补采两机技术字段，未改设置/业务/版本、未跑新压力或Gradle。
+- 新确认：S4/P4均rk3326、4逻辑CPU、CPU0最高频率字段1.512GHz、32位ABI；内核MemTotal分别2021820/3050936KiB（约1.928/2.910GiB）。两机lowRam=true/memoryClass128MiB，不能把P4整机约3GiB当更大Java堆预算。
+- 原始白名单采集仅本地_analysis/verify/device-performance-reference/hardware-2026-10-23.json；未读取正文/凭据/全偏好。无新设备租约或后台进程；其他UX001/网站/工具链差异保留。
+
 ## 阅读器最终收口完成（2026-10-23）
 
 - 用户授权剩余1–4与第5任务卡关闭已执行；RD000–017及FIX001–006 DONE，RD018–020 DEFERRED。最终1.0.31/51沿测试签名，不正式签名/Release；其他UX001/网站/Wrapper差异保留。

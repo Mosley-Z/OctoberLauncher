@@ -4,6 +4,7 @@
 
 | 结论/经验 | 来源与边界 |
 | --- | --- |
+| S4/P4均rk3326、4逻辑CPU、最高频率字段1.512GHz，应用ABI为32位；内核RAM分别约1.928/2.910GiB，但lowRam均true、memoryClass均128MiB，不能按P4整机RAM直接扩大Java堆 | 2026-10-23白名单只读硬件采集及双机探针；[硬件与性能参考](../docs/design/38-device-performance-reference.md)区分sysfs上限、应用预算和实测性能 |
 | PPTX页面仅取presentation直属sldIdLst的直接sldId；扩展p14区有同名无r:id元数据，全树按localName搜会把预算内正常文件误判损坏 | 0d242dd、官方master-slides修前harness与P4实机失败/修后1.0.30通过，SlideIndex专属回归 |
 | 换图先写独立副本、验证且配置读回确认后再删旧图；失败不能直接覆盖旧确定路径，ConfigStore.edit静默拒绝也需确认 | 1ca51be、IconOverrideSwap六例与P4坏图修前/修后强停对照；不扩为所有媒体事务保证 |
 | 外部转交Activity与长期Main不能共用任务affinity：NEW_TASK首次打开后task可能保留Entry baseIntent，重复同URI仅前置HOME、无任何回调。Entry空affinity后两机自然覆盖重复隐式VIEW恢复正常 | 2da644b、reader-office-search-integration及search-s4/p4；保留原flags/读授权，仅隔开临时任务，不把显式Main旁路当修复 |

@@ -4,6 +4,7 @@
 
 | 文件 | 主题 | 使用边界 |
 | --- | --- | --- |
+| [38-device-performance-reference.md](38-device-performance-reference.md) | S4/P4硬件与性能设计参考 | 实机硬件、测量口径、预算与优化案例；非新增开发授权 |
 | [00-overview.md](<00-overview.md>) | 桌面应用开发方案 | 历史设计/规格，使用时核实当前源码 |
 | [01-feature-inventory.md](<01-feature-inventory.md>) | 功能清单 | 历史设计/规格，使用时核实当前源码 |
 | [02-current-architecture.md](<02-current-architecture.md>) | 上游实现结构剖析 | 历史设计/规格，使用时核实当前源码 |
@@ -30,7 +31,7 @@
 | [25-weread-internalization-plan.md](<25-weread-internalization-plan.md>) | 微读墨记内化实施计划 | 历史设计/规格，使用时核实当前源码 |
 | [32-weread-review-remediation-summary.md](<32-weread-review-remediation-summary.md>) | 微读墨记功能审查与修复：技术总结与 DSH 交接 | 历史技术总结与产品边界依据 |
 | [33-dsh-development-playbook.md](<33-dsh-development-playbook.md>) | 给 DSH 的开发工作手册：从功能对照到双机交付 | 当前可复用工作方法，案例按原批次理解 |
-| [34-files-reader-upgrade-plan.md](<34-files-reader-upgrade-plan.md>) | 十雨桌面文件阅读器升级方案 | 阅读器目标方案，未实施 |
+| [34-files-reader-upgrade-plan.md](<34-files-reader-upgrade-plan.md>) | 十雨桌面文件阅读器升级方案 | 设计目标；实际进度与边界见方案顶部及验收 |
 | [35-development-workflow.md](<35-development-workflow.md>) | 开发、协作与跨会话流程 | 当前开发协作流程 |
 | [书架重构任务目标.md](<书架重构任务目标.md>) | 书架重构任务目标 | 历史设计/规格，使用时核实当前源码 |
 | [开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播.md](<开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播.md>) | 开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播 | 历史设计/规格，使用时核实当前源码 |
