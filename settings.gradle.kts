@@ -16,7 +16,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "OctoberRain"
 
-// 模块划分见 docs/design/03-target-architecture.md 与 docs/design/35-development-workflow.md
+// app负责组装；feature通过core公共契约协作，模块依赖由各自构建脚本声明。
 include(":app")
 include(":core:common")
 include(":core:design")

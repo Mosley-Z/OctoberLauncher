@@ -1,7 +1,7 @@
 name: 构建 测试与静态检查
 
 # 推送与合并请求都会执行完整门禁；手工触发用于在分支上验证 Gradle 脚本与依赖变更。
-# 门禁顺序与 docs/design/15-V1.0开发计划.md 一致：构建检查 → 测试检查 → 静态检查。
+# 门禁顺序：构建检查 → 测试检查 → 静态检查。
 on:
   push:
     branches:
@@ -38,7 +38,7 @@ jobs:
         with:
           # 仓库未提交 local.properties，SDK 路径由该步骤写入环境变量；
           # 平台与构建工具显式声明，避免构建期间临时下载失败导致整次运行失败
-          packages: "platforms;android-35,build-tools;35.0.0"
+          packages: "platforms;android-35 build-tools;35.0.0"
 
       - name: 配置 Gradle
         uses: gradle/actions/setup-gradle@v4
