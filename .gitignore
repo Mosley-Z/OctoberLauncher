@@ -74,3 +74,29 @@ _analysis/verify/immersive-refinement/
 
 # 验收原始数据与设备快照只保留本地；既有历史由维护者另行清理。
 _analysis/
+
+# 内部协作与调试资料仅保留本地，不随公开源码分发。
+/docs/
+/task/
+/memory/
+/design/
+/website/
+/.codex/
+/_tools/
+/_shots/
+/probe-dir/
+/AGENTS.md
+/PROJECT.md
+/ICON.png
+/toolchain.path
+/.tmp*
+/scripts/agent-permissions.toml
+/scripts/project-agent-permission-arguments.ps1
+/scripts/run-project-agent.ps1
+/scripts/check-project-docs.py
+/scripts/assert-weread-fidelity.ps1
+/scripts/compare-weread-fidelity.ps1
+/scripts/snapshot.ps1
+/scripts/verify-*.ps1
+/libs/weread-kernel-1.3.2-k[1-5].jar
+/libs/weread-kernel-1.3.2-k[1-5].sha256

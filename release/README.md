@@ -6,6 +6,8 @@
 
 需要PowerShell7、项目工具链与仓库外正式签名配置。配置文件含storeFile、storePassword、keyAlias、keyPassword；不要提交、上传或打印口令。必须离线备份密钥和配置文件，并在后续所有正式版本中复用。
 
+本地脚本从toolchain.path读取工具链根目录，可复制toolchain.path.example后修改。根目录下应包含jdk/（其中为JDK17目录）、android-sdk/和gradle/gradle-8.11.1/。常规开发构建可直接使用Gradle Wrapper，无需此本地脚本布局。
+
 ```powershell
 $env:OCTOBER_SIGNING_PROPERTIES = 'C:/private/signing.properties'
 pwsh -NoProfile -File scripts/package-release.ps1 -Offline
