@@ -185,7 +185,7 @@ internal class KernelDataSourceImpl(
     }
 
     /**
-     * 读取轮播书目，顺序与书架快照一致。
+     * 读取最近阅读前十本轮播书目，完整书架不受截取影响。
      *
      * 进度取内核百分数；累计阅读秒数在内容服务路径下缺失，此时按逐书资产补齐，
      * 资产同样缺失的条目保留零值，由组件隐藏时长。
@@ -193,7 +193,7 @@ internal class KernelDataSourceImpl(
      * @return 轮播书目，无数据时为空
      */
     fun bookCards(): List<WereadBookCard> {
-        val books = orderedShelf()?.books.orEmpty()
+        val books = rawShelf()?.let { recentCarouselBooks(it, readTimes()) }.orEmpty()
         if (books.isEmpty()) return emptyList()
         val assets = if (books.any { it.readingSec <= 0 }) assetSeconds() else emptyMap()
         return books.map { book ->
@@ -592,3 +592,9 @@ internal fun preferredShelf(vararg providers: () -> ShelfSnapshot?): ShelfSnapsh
     }
     return null
 }
+
+/** 仅轮播使用最近阅读前十本，书架原快照与选中记忆均不改写。 */
+internal fun recentCarouselBooks(
+    snapshot: ShelfSnapshot,
+    readTimes: Map<String, Long>,
+): List<ShelfBook> = sortByRecentRead(snapshot.books, ShelfBook::bookId, readTimes).take(10)

@@ -14,7 +14,7 @@ import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
  *
  * 由 app 通过反射实例化并调用 [install]，安装时向 ScreenRegistry 注册
  * 设置中心、桌面偏好、外观、桌面布局、锁屏、权限、关于、更新、美化模式与各类选择器页面。
- * 快捷托盘设置由 feature:tray 提供，本模块不注册该 Destination。
+ * 自有设置分类统一在本模块注册，托盘模块负责实际托盘显示与交互。
  */
 class SettingsModule : LauncherModule {
     override fun install(context: Context) {
@@ -38,6 +38,10 @@ private class SettingsProvider : ScreenProvider {
             Destination.BeautifyPreview -> PreviewScreen()
             Destination.SystemSettings -> SettingsSystemScreen()
             Destination.LauncherPrefs -> LauncherPrefsScreen()
+            Destination.TrayPrefs -> TrayPrefsScreen()
+            Destination.ProjectRefresh -> TrayPrefsScreen(refreshOnly = true)
+            Destination.ProjectContent -> ProjectContentScreen()
+            Destination.ProjectAbout -> AboutScreen()
             Destination.Appearance -> AppearanceScreen()
             Destination.DesktopPrefs -> DesktopPrefsScreen()
             Destination.NegativeSettings -> NegativeSettingsScreen()
@@ -45,7 +49,6 @@ private class SettingsProvider : ScreenProvider {
             Destination.Permissions -> PermissionsScreen()
             Destination.About -> AboutScreen()
             Destination.Update -> UpdateScreen()
-            Destination.ThemePicker -> ThemePickerScreen()
             Destination.IconPackPicker -> IconPackPickerScreen()
             Destination.FontPicker -> FontPickerScreen()
             Destination.Backup -> BackupScreen()

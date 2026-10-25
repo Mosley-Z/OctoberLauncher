@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
+import com.shuiyu.octoberrain.feature.files.data.FileItem
 
 /**
  * 面板绘制公共操作。
@@ -40,6 +41,19 @@ internal object PaneDraw {
             else -> truncate(text, paint, maxWidth)
         }
 
+    /** Hide redundant visual-file suffixes and keep names subordinate to the thumbnail. */
+    fun gridName(item: FileItem): String {
+        val name = if (item.hasThumbnail) item.baseName() else item.name
+        if (name.codePointCount(0, name.length) <= 10) return name
+        return name.substring(0, name.offsetByCodePoints(0, 10)) + "…"
+    }
+
+    fun gridLabel(
+        item: FileItem,
+        paint: Paint,
+        thumbnailWidth: Int,
+    ): String = fit(gridName(item), paint, thumbnailWidth)
+
     /** 逐字符回退直到可容纳省略号，返回截断结果。 */
     private fun truncate(
         text: String,
@@ -48,7 +62,7 @@ internal object PaneDraw {
     ): String {
         var end = text.length
         while (end > 0 && paint.measureText(text, 0, end) + paint.measureText("…") > maxWidth) {
-            end -= 1
+            end = text.offsetByCodePoints(end, -1)
         }
         return if (end <= 0) "…" else text.substring(0, end) + "…"
     }

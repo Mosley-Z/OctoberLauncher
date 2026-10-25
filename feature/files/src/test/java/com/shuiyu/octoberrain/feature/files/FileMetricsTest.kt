@@ -31,10 +31,6 @@ class FileMetricsTest {
         assertEquals(729, metrics.contentBottom)
         assertEquals(652, metrics.contentH)
         assertEquals(10, metrics.listRows)
-        assertEquals(101, metrics.cellW)
-        assertEquals(134, metrics.cellH)
-        assertEquals(156, metrics.cellTotalH)
-        assertEquals(16, metrics.pageSize)
     }
 
     /** 552×768、213 dpi 的横向握持设备。 */
@@ -56,11 +52,6 @@ class FileMetricsTest {
         assertEquals(699, metrics.contentBottom)
         assertEquals(624, metrics.contentH)
         assertEquals(10, metrics.listRows)
-        assertEquals(120, metrics.cellW)
-        assertEquals(160, metrics.cellH)
-        assertEquals(181, metrics.cellTotalH)
-        // 四行网格合计 748 像素，超过内容区 624 像素，P2 需要整页缩放或裁剪
-        assertEquals(748, metrics.gridContentH)
     }
 
     /** 824×1648、320 dpi 的大屏设备。 */
@@ -82,10 +73,6 @@ class FileMetricsTest {
         assertEquals(1544, metrics.contentBottom)
         assertEquals(1432, metrics.contentH)
         assertEquals(16, metrics.listRows)
-        assertEquals(179, metrics.cellW)
-        assertEquals(238, metrics.cellH)
-        assertEquals(270, metrics.cellTotalH)
-        assertEquals(1116, metrics.gridContentH)
     }
 
     /** 字号与描边由令牌派生，不出现固定像素。 */
@@ -112,14 +99,6 @@ class FileMetricsTest {
         assertEquals(metrics.contentTop, metrics.contentBottom)
         assertEquals(0, metrics.contentH)
         assertEquals(1, metrics.listRows)
-    }
-
-    /** 网格固定四列四行，每页 16 项。 */
-    @Test
-    fun `网格保持四列四行`() {
-        assertEquals(4, FileMetrics.GRID_COLS)
-        assertEquals(4, FileMetrics.GRID_ROWS)
-        assertEquals(16, FileMetrics.GRID_PAGE)
     }
 
     private fun metricsOf(

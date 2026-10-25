@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.view.View
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.DesktopMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,7 +36,10 @@ class WallpaperView(
     /** 当前已加载的量化档位，档位变化时重新解码。 */
     private var loadedQuantize: Int = -1
 
-    private var whiteOverlay = false
+    private var loadedRotation = -1
+    private var loadedWidth = -1
+    private var loadedHeight = -1
+    private var requestGeneration = 0L
 
     private var dimRatio = 0f
 
@@ -47,10 +51,11 @@ class WallpaperView(
         super.onAttachedToWindow()
         val observing = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         scope = observing
+        loadedWidth = -1
         observing.launch {
             AppServices.config.state.collect { config ->
-                whiteOverlay = config.appearance.wallpaperWhiteOverlay
-                dimRatio = config.appearance.wallpaperDim.coerceIn(0f, 1f)
+                val immersive = config.desktop.mode == DesktopMode.IMMERSIVE
+                dimRatio = if (immersive) 0f else config.appearance.wallpaperDim.coerceIn(0f, 1f)
                 load(config.appearance.wallpaperPath, config.appearance.wallpaperQuantize)
                 invalidate()
             }
@@ -61,6 +66,17 @@ class WallpaperView(
         scope?.cancel()
         scope = null
         super.onDetachedFromWindow()
+    }
+
+    override fun onSizeChanged(
+        w: Int,
+        h: Int,
+        oldw: Int,
+        oldh: Int,
+    ) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val appearance = AppServices.config.state.value.appearance
+        load(appearance.wallpaperPath, appearance.wallpaperQuantize)
     }
 
     /**
@@ -74,10 +90,30 @@ class WallpaperView(
         path: String?,
         quantize: Int,
     ) {
-        if (path == loadedPath && quantize == loadedQuantize) return
+        if (scope == null) return
+        val targetWidth = width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val targetHeight = height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val rotation =
+            if (targetWidth >
+                targetHeight
+            ) {
+                AppServices.config.state.value.appearance.wallpaperLandscapeRotation
+            } else {
+                0
+            }
+        val sameImage = path == loadedPath && quantize == loadedQuantize && rotation == loadedRotation
+        val sameSize = targetWidth == loadedWidth && targetHeight == loadedHeight
+        if (sameImage && sameSize) {
+            return
+        }
+        loadedWidth = targetWidth
+        loadedHeight = targetHeight
+        loadedRotation = rotation
+        requestGeneration++
         loadedPath = path
         loadedQuantize = quantize
         if (path.isNullOrEmpty()) {
+            bitmap?.recycle()
             bitmap = null
             invalidate()
         } else {
@@ -91,9 +127,10 @@ class WallpaperView(
         quantize: Int,
     ) {
         val observing = scope ?: return
+        val generation = requestGeneration
+        val targetWidth = loadedWidth
+        val targetHeight = loadedHeight
         observing.launch {
-            val targetWidth = if (width > 0) width else resources.displayMetrics.widthPixels
-            val targetHeight = if (height > 0) height else resources.displayMetrics.heightPixels
             val loaded =
                 withContext(Dispatchers.IO) {
                     runCatching {
@@ -104,9 +141,13 @@ class WallpaperView(
                         )
                     }.getOrNull()
                 }
-            if (loadedPath == path && loadedQuantize == quantize) {
+            if (generation == requestGeneration && loadedPath == path && loadedQuantize == quantize) {
+                val previous = bitmap
                 bitmap = loaded
+                if (previous !== loaded) previous?.recycle()
                 invalidate()
+            } else {
+                loaded?.recycle()
             }
         }
     }
@@ -123,10 +164,6 @@ class WallpaperView(
         val target = Rect(0, 0, width, height)
         paint.alpha = 255
         canvas.drawBitmap(current, null, target, paint)
-        if (whiteOverlay) {
-            paint.color = Color.argb(0xE0, 0xFF, 0xFF, 0xFF)
-            canvas.drawRect(target, paint)
-        }
         if (dimRatio > 0f) {
             paint.color = Color.argb((dimRatio * 255f).toInt(), 0, 0, 0)
             canvas.drawRect(target, paint)

@@ -1,9 +1,7 @@
 package com.shuiyu.octoberrain.feature.home
 
 import android.content.Context
-import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.net.Uri
 import android.os.Build
 import android.view.View
 import com.shuiyu.octoberrain.core.common.AppServices
@@ -112,10 +110,6 @@ internal class AppInfoScreen(
 
     /** 打开系统卸载确认界面。 */
     private fun requestUninstall(context: Context) {
-        runCatching {
-            val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
+        AppUninstall.request(context, packageName)
     }
 }

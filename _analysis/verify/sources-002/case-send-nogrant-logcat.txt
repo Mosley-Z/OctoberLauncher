@@ -1,3 +1,0 @@
---------- beginning of main
---------- beginning of system
-10-22 08:32:39.972 21088 21088 I ReaderProbe: send={"fixture":"plain","action":"SEND","mime":"text/plain","authority":"com.shuiyu.octoberrain.readerprobe.fixture","readGrant":false,"persistable":false,"revokeAfter":false,"launched":true,"revoke":"skipped","revokeCheck":-2,"revokeError":""}

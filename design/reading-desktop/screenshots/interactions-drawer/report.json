@@ -1,0 +1,22 @@
+[
+  {
+    "file": "page-drawer.png",
+    "state": null,
+    "size": "480x800",
+    "zoom": 1,
+    "group": "drawer",
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "page-exit.png",
+    "state": null,
+    "size": "480x800",
+    "zoom": 1,
+    "group": "exit",
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  }
+]

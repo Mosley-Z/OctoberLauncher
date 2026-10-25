@@ -12,38 +12,8 @@
             column="30"/>
     </issue>
 
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="                File(&quot;/sdcard/koreader&quot;),"
-        errorLine2="                      ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/ContentPaths.kt"
-            line="46"
-            column="23"/>
-    </issue>
 
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="        if (path.startsWith(&quot;/sdcard/&quot;)) candidates.add(File(external, path.removePrefix(&quot;/sdcard/&quot;)))"
-        errorLine2="                             ~~~~~~~~">
-        <location
-            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/KoreaderRepository.kt"
-            line="247"
-            column="30"/>
-    </issue>
 
-    <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="        if (path.startsWith(&quot;/sdcard/&quot;)) candidates.add(File(external, path.removePrefix(&quot;/sdcard/&quot;)))"
-        errorLine2="                                                                                          ~~~~~~~~">
-        <location
-            file="src/main/java/com/shuiyu/octoberrain/feature/content/data/KoreaderRepository.kt"
-            line="247"
-            column="91"/>
-    </issue>
 
     <issue
         id="ViewConstructor"

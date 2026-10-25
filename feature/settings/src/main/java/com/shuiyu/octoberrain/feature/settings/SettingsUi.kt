@@ -510,6 +510,7 @@ class SettingsSection internal constructor(
         values: List<CharSequence>,
         selected: () -> Int,
         hint: CharSequence? = null,
+        normalize: (Int) -> Int = { it },
         onChange: (Int) -> Unit,
     ): SettingsRow {
         val tokens = DesignRuntime.tokens
@@ -526,7 +527,7 @@ class SettingsSection internal constructor(
         /** 按方向移动一档；到达边界时保持不动。 */
         fun step(delta: Int) {
             if (values.isEmpty()) return
-            val next = (current + delta).coerceIn(0, values.size - 1)
+            val next = normalize((current + delta).coerceIn(0, values.size - 1)).coerceIn(0, values.size - 1)
             if (next == current) return
             current = next
             valueView.text = values[next]
@@ -539,6 +540,76 @@ class SettingsSection internal constructor(
         row.addView(stepButton("+") { step(1) })
         add(row)
         return SettingsRow(row, valueView)
+    }
+
+    /** 首页/其他页各一行列×行；fit返回当前视口中实际可用值。 */
+    fun gridSize(
+        label: String,
+        initial: Pair<Int, Int>,
+        fit: (Int, Int) -> Pair<Int, Int>,
+        onChange: (Int, Int) -> Unit,
+    ) {
+        val row = rowContainer(label, null)
+        var current = initial
+        val values = listOf(0) + (1..12).toList()
+
+        fun valueTextFor(value: Int): String = if (value == 0) "自" else value.toString()
+        val columnView = valueText(valueTextFor(current.first))
+        val rowView = valueText(valueTextFor(current.second))
+        listOf(columnView, rowView).forEach {
+            it.minWidth = DesignRuntime.tokens.dp(22f)
+            it.gravity = Gravity.CENTER
+            it.setPadding(0, 0, 0, 0)
+        }
+        val controls = mutableListOf<Pair<TextView, () -> Pair<Int, Int>>>()
+
+        fun candidate(
+            axis: Int,
+            delta: Int,
+        ): Pair<Int, Int> {
+            val value = if (axis == 0) current.first else current.second
+            val index = values.indexOf(value).coerceAtLeast(0)
+            val next = values[(index + delta).coerceIn(0, values.lastIndex)]
+            return if (axis == 0) fit(next, current.second) else fit(current.first, next)
+        }
+
+        fun update() {
+            columnView.text = valueTextFor(current.first)
+            rowView.text = valueTextFor(current.second)
+            controls.forEach { (button, target) ->
+                button.isEnabled = target() != current
+                button.alpha = if (button.isEnabled) 1f else 0.45f
+            }
+        }
+
+        fun button(
+            axis: Int,
+            delta: Int,
+        ): TextView {
+            val target = { candidate(axis, delta) }
+            val view =
+                stepButton(if (delta < 0) "−" else "+") {
+                    val next = target()
+                    if (next != current) {
+                        current = next
+                        onChange(next.first, next.second)
+                        update()
+                        AppServices.refresh.requestPartial()
+                    }
+                }
+            view.contentDescription = label + listOf("列", "行")[axis] + mapOf(-1 to "减少", 1 to "增加").getValue(delta)
+            controls += view to target
+            return view
+        }
+        row.addView(button(0, -1))
+        row.addView(columnView)
+        row.addView(button(0, 1))
+        row.addView(valueText("×"))
+        row.addView(button(1, -1))
+        row.addView(rowView)
+        row.addView(button(1, 1))
+        add(row)
+        update()
     }
 
     /** 步进按钮：白底描边方块，用于加减档位。 */

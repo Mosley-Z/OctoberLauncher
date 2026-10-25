@@ -22,22 +22,15 @@ class PermissionCenter(
     /**
      * 采集当前权限状态。
      *
-     * 返回 map 中包含通知监听、无障碍、悬浮窗、通知运行时权限、电池白名单与精确闹钟。
+     * 返回 map 中包含通知监听、无障碍和存储访问。
      */
     override fun snapshot(): Map<String, Boolean> {
         val result = linkedMapOf<String, Boolean>()
         result[KEY_NOTIFICATION_LISTENER] = hasNotificationListener()
         result[KEY_ACCESSIBILITY] = hasAccessibility()
-        result[KEY_OVERLAY] = hasOverlay()
-        result[KEY_NOTIFICATION_PERMISSION] = hasNotificationPermission()
-        result[KEY_EXACT_ALARM] = hasExactAlarm()
-        result[KEY_USAGE_ACCESS] = hasUsageAccess()
         result[KEY_STORAGE] = hasAllFilesAccess()
         return result
     }
-
-    /** 是否具备使用情况访问权限，判定逻辑见 [UsageAccessChecker]。 */
-    fun hasUsageAccess(): Boolean = UsageAccessChecker.isGranted(context)
 
     /** 是否具备所有文件访问权限。 */
     fun hasAllFilesAccess(): Boolean =
@@ -78,29 +71,6 @@ class PermissionCenter(
         return services.split(':').any { it.startsWith(context.packageName) }
     }
 
-    /** 是否具备悬浮窗权限。 */
-    fun hasOverlay(): Boolean = Settings.canDrawOverlays(context)
-
-    /** 是否具备通知运行时权限，Android 12 以下视为已授予。 */
-    fun hasNotificationPermission(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-        return context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-    }
-
-    /** 是否具备精确闹钟权限。 */
-    fun hasExactAlarm(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                val alarm = context.getSystemService(android.app.AlarmManager::class.java)
-                alarm?.canScheduleExactAlarms() ?: false
-            } catch (e: Exception) {
-                false
-            }
-        } else {
-            true
-        }
-
     /** 打开通知监听设置。 */
     override fun openNotificationListenerSettings() {
         start(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
@@ -111,24 +81,9 @@ class PermissionCenter(
         start(Settings.ACTION_ACCESSIBILITY_SETTINGS)
     }
 
-    /** 打开悬浮窗设置。 */
-    override fun openOverlaySettings() {
-        start(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-    }
-
-    /** 打开应用通知设置。 */
-    override fun openAppNotificationSettings() {
-        start(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-    }
-
     /** 打开电池优化白名单设置。 */
     override fun openBatterySettings() {
         start(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-    }
-
-    /** 打开使用情况访问设置。 */
-    override fun openUsageSettings() {
-        start(Settings.ACTION_USAGE_ACCESS_SETTINGS)
     }
 
     /** 打开存储管理设置。 */
@@ -143,16 +98,6 @@ class PermissionCenter(
     /** 打开本应用设置页。 */
     override fun openAppSettings() {
         start(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
-    }
-
-    /** 申请通知运行时权限。 */
-    fun requestNotificationPermission(
-        activity: android.app.Activity,
-        requestCode: Int,
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), requestCode)
-        }
     }
 
     /**
@@ -187,10 +132,6 @@ class PermissionCenter(
     companion object {
         const val KEY_NOTIFICATION_LISTENER = "notification_listener"
         const val KEY_ACCESSIBILITY = "accessibility"
-        const val KEY_OVERLAY = "overlay"
-        const val KEY_NOTIFICATION_PERMISSION = "notification_permission"
-        const val KEY_EXACT_ALARM = "exact_alarm"
-        const val KEY_USAGE_ACCESS = "usage_access"
         const val KEY_STORAGE = "storage"
     }
 }

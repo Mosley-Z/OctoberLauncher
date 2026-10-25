@@ -8,13 +8,20 @@
 
 | 内容 | 权威位置 | 更新者 |
 | --- | --- | --- |
-| 设计、接口决策、产品边界 | docs/design/ | 设计负责人/集成者 |
+| 现存架构、职责、状态来源与边界 | docs/architecture/ | 主代理审定后派专职文档代理 |
+| 设计、接口决策、产品边界 | docs/design/ | 主代理审定后派专职文档代理 |
 | 任务范围、执行状态和交付 | 单张 task/TASK-*.md | 该卡执行者 |
 | 依赖、开工批次、共享文件所有权 | task/README.md | 集成者 |
 | 测试、评审、设备验收结论 | docs/acceptance/ | 验证者；补充结论用新记录关联旧记录 |
 | 原始日志、截图、APK摘要等 | _analysis/verify/<批次或版本>/ | 构建/设备负责人 |
 | 稳定经验与当前状态 | memory/MEMORY.md、memory/STATUS.md | 集成者汇总 |
 | 单轮接力现场 | memory/sessions/<日期>-<主题>-<执行者>.md | 执行者 |
+
+架构描述现存职责与边界，具体实现沿模块入口查源码；Git 保存改动历史，不把架构文档写成更新表。代码实现代理不得写 docs、根文档、memory、共享看板或权限配置，只向主代理提出文档建议。主代理核实并决定采纳后，另派有明确写入范围的专职文档代理执行。原生 spawn 继承父会话权限，不能宣称为独立角色硬隔离。
+
+上述代码代理边界也涵盖其任务卡；一般执行者写卡约定不能授权代码代理修改 task。代码卡由主代理根据交付和证据更新。独立可写代理必须通过 `scripts/run-project-agent.ps1 -Role code` 或 `-Role docs` 启动，入口显式加载 `scripts/agent-permissions.toml`。角色权限不写入自动加载的项目配置，避免影响主会话和工作区要求加载。代码角色可写源码，docs、task、memory、根文档和策略只读；文档角色可写授权文档位置，源码和策略只读。实际任务允许修改的文件仍以分派清单为限。
+
+本轮原生代码子代理仅只读检查或输出暂存建议，由主代理审核应用。独立 CLI 角色的允许写入与越权拒绝验证归 [UX121](../../task/TASK-UX-121-documentation-governance.md)记录；证据不外推为原生 spawn 隔离或插件全局锁。
 
 一项事实只维护一个主要位置，其他位置链接。任务卡保留依赖，不复制整份方案；短记忆只收结论，不堆命令输出。历史材料不是新任务的隐含承诺。
 
@@ -40,7 +47,7 @@
 - BLOCKED：遇到明确外部阻塞，记录原因、解除条件和可继续部分；恢复后回 IN_PROGRESS。
 - DEFERRED / CANCELLED：范围明确后置/取消，记录决定来源和下游影响。
 
-文档任务按文档验收完成；不强行跑 Android 构建。代码任务根据影响跑模块测试，集成/交付阶段执行完整门禁。
+文档任务按文档验收完成，不强行跑 Android 构建。一般代码任务按影响验证；UX120–132 遵从用户本轮明确要求：全部实现后统一测试，实施代理不分散运行 Gradle 或设备验收，由集成者在最终源码上组织门禁与双机验证。
 
 ## 4. 多 Agent 分工
 
@@ -56,7 +63,7 @@
 
 ## 5. 构建与验证
 
-先读 `scripts/build.ps1`、`toolchain.path` 及当前 Gradle 配置。无 Wrapper；Windows 工具链默认 JDK17 / Gradle8.11.1，但以文件实际配置为准。
+先读 `scripts/build.ps1`、`toolchain.path` 及当前 Gradle 配置。仓库已存在 gradlew、gradlew.bat 与 gradle/wrapper；scripts/build.ps1 仍显式调用 toolchain.path 下的 Gradle 8.11.1。Wrapper 文件存在不代表本轮已验证 Wrapper 可用。JDK、SDK 与实际调用路径以当前脚本和工具链文件为准。
 
 ```powershell
 # 整包构建：脚本自行设置环境；离线只适用于依赖已缓存

@@ -1,6 +1,5 @@
 package com.shuiyu.octoberrain.feature.widgets
 
-import android.graphics.RectF
 import com.shuiyu.octoberrain.core.widget.WidgetHitRegion
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -49,24 +48,11 @@ internal abstract class WereadBoardGestureHost {
     /** 分发内核命中区域的动作。 */
     open fun dispatch(action: String): Boolean = false
 
-    /** 隐藏菜单是否可见。 */
-    open val menuVisible: Boolean
-        get() = false
-
-    /** 处理隐藏菜单点击。 */
-    open fun menuClick(
-        x: Float,
-        y: Float,
-    ) = Unit
-
     /** 查询组件内命中区域。 */
     open fun hitRegion(
         x: Float,
         y: Float,
     ): WidgetHitRegion? = null
-
-    /** 打开隐藏菜单。 */
-    open fun showMenu(): Boolean = false
 
     /** 把纵向滚动量交给内核。 */
     open fun kernelScroll(step: Int): Boolean = false
@@ -98,6 +84,8 @@ internal class WereadBoardGestures(
     /** 上一次移动的横坐标。 */
     private var lastX: Float = 0f
 
+    private var bookDrag: Float = 0f
+
     /** 触摸序列是否已按下且尚未抬起。 */
     private var touchActive: Boolean = false
 
@@ -125,6 +113,7 @@ internal class WereadBoardGestures(
         pressY = y
         lastX = x
         dragging = false
+        bookDrag = 0f
         touchActive = true
         touchScrolling = false
         touchDownY = y
@@ -178,23 +167,6 @@ internal class WereadBoardGestures(
         }
 
     /**
-     * 长按：内核形态下抬头命中时打开隐藏菜单。
-     *
-     * @param x 组件内横坐标
-     * @param y 组件内纵坐标
-     * @return 是否已处理
-     */
-    fun longPress(
-        x: Float,
-        y: Float,
-    ): Boolean {
-        if (host.form == WereadBoardForm.BOOK) return false
-        val scale = host.scale
-        val zone = if (scale <= 0f) null else RectF(0f, 0f, BOARD_HEADER_TITLE_W * scale, BOARD_HEADER_H * scale)
-        return zone?.contains(x, y) == true && host.showMenu()
-    }
-
-    /**
      * 本书形态的横向拖动。
      *
      * @param x 组件局部横坐标
@@ -208,9 +180,8 @@ internal class WereadBoardGestures(
         val layout = host.frame ?: return false
         val consumed = startDrag(layout, x, y)
         if (consumed) {
-            host.carousel?.dragBy(-(x - lastX) / layout.coverWidth.coerceAtLeast(1f))
+            bookDrag += -(x - lastX) / layout.coverWidth.coerceAtLeast(1f)
             lastX = x
-            host.requestDraw()
         }
         return consumed
     }
@@ -254,7 +225,7 @@ internal class WereadBoardGestures(
         val horizontal = abs(dx) > slop && abs(dx) > abs(dy) * HORIZONTAL_BIAS
         return when {
             dragging -> true
-            !horizontal || !layout.coverArea.contains(pressX, pressY) || layout.coverWidth <= 0f -> false
+            !horizontal || layout.coverWidth <= 0f || !layout.coverArea.contains(pressX, pressY) -> false
             else -> {
                 dragging = true
                 lastX = pressX
@@ -273,7 +244,7 @@ internal class WereadBoardGestures(
         val started = dragging
         dragging = false
         if (!started || carousel == null) return false
-        host.settle(carousel.selectedIndex + swipeDirectionOf(carousel.drag))
+        host.settle(carousel.selectedIndex + swipeDirectionOf(bookDrag))
         return true
     }
 

@@ -1,6 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+}
+
+val signingPropertiesFile =
+    providers.environmentVariable("OCTOBER_SIGNING_PROPERTIES").orNull?.let { file(it) }
+        ?: rootProject.file("release-signing.properties")
+val releaseSigningProperties = Properties()
+if (signingPropertiesFile.isFile) {
+    signingPropertiesFile.inputStream().use { releaseSigningProperties.load(it) }
 }
 
 android {
@@ -20,9 +30,24 @@ android {
             libs.versions.targetSdk
                 .get()
                 .toInt()
-        // 1.0.29：文件阅读器、Office全文搜索与来源身份/验收收口，沿用内部测试签名。
-        versionCode = 51
-        versionName = "1.0.31"
+        versionCode =
+            rootProject
+                .file("VERSION_CODE")
+                .readText()
+                .trim()
+                .toInt()
+        versionName = rootProject.file("VERSION").readText().trim()
+    }
+
+    signingConfigs {
+        if (releaseSigningProperties.isNotEmpty()) {
+            create("production") {
+                storeFile = file(requireNotNull(releaseSigningProperties.getProperty("storeFile")))
+                storePassword = requireNotNull(releaseSigningProperties.getProperty("storePassword"))
+                keyAlias = requireNotNull(releaseSigningProperties.getProperty("keyAlias"))
+                keyPassword = requireNotNull(releaseSigningProperties.getProperty("keyPassword"))
+            }
+        }
     }
 
     buildTypes {
@@ -33,9 +58,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // V1.0 阶段沿用调试签名，使发布构建产物可直接安装到测试设备；
-            // 正式发布前替换为独立签名与密钥，调试签名只用于内部验证。
-            signingConfig = signingConfigs.getByName("debug")
+            // CI没有正式密钥时只构建未签名产物；正式打包脚本要求外部生产签名。
+            if (releaseSigningProperties.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("production")
+            }
         }
     }
 

@@ -2,7 +2,9 @@ package com.shuiyu.octoberrain.feature.widgets.kernel
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Typeface
 import com.inkread.weekread.kernel.BookProgress
 import com.inkread.weekread.kernel.CardKernel
 import com.inkread.weekread.kernel.CardState
@@ -13,8 +15,13 @@ import com.inkread.weekread.kernel.NoteItem
 import com.inkread.weekread.kernel.PeriodSnapshot
 import com.inkread.weekread.kernel.ShelfSnapshot
 import com.inkread.weekread.kernel.TodoEntry
+import com.inkread.weekread.kernel.render.HostNoteLayout
+import com.inkread.weekread.kernel.render.HostSwitchRenderer
 import com.shuiyu.octoberrain.core.common.WereadAchievement
 import com.shuiyu.octoberrain.core.common.WereadAppearance
+import com.shuiyu.octoberrain.core.widget.WidgetNoteContent
+import com.shuiyu.octoberrain.core.widget.WidgetNotePresentation
+import com.shuiyu.octoberrain.feature.widgets.ImmersiveReadingStats
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardDataSource
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardKernel
 import com.shuiyu.octoberrain.feature.widgets.WereadBoardKernelHost
@@ -143,15 +150,6 @@ private const val ZONE_NOTE_FILTER: String = "note:filter"
 /** 待办条目的动作前缀，后缀为条目序号。 */
 private const val ZONE_TODO_PREFIX: String = "todo:"
 
-/** 抬头形态切换热区宽度，单位为内核逻辑像素。 */
-private const val HEADER_TITLE_W: Float = 88f
-
-/** 抬头更新于热区宽度，单位为内核逻辑像素。 */
-private const val HEADER_REFRESH_W: Float = 128f
-
-/** 抬头热区高度，单位为内核逻辑像素。 */
-private const val HEADER_H: Float = 34f
-
 /**
  * 整体卡片内核实现：组件与 k3 内核之间的适配层。
  *
@@ -180,6 +178,13 @@ internal class KernelWereadBoard : WereadBoardKernel {
 
     /** 画布适配对象。 */
     private val surface = SurfaceAdapter()
+
+    private var switchRenderer: HostSwitchRenderer? = null
+    private val landscapeLayout = LandscapeCardLayout { checkNotNull(switchRenderer) }
+    private var landscapeHost: (() -> Boolean)? = null
+    private var refreshingHost: (() -> Boolean)? = null
+    private var landscapeFrame: Boolean = false
+    private var portraitRefreshArea = RectF()
 
     /** 最近一次渲染的形态编号，用于按形态选择滚动目标。 */
     private var lastForm: Int = FORM_NONE
@@ -276,6 +281,8 @@ internal class KernelWereadBoard : WereadBoardKernel {
         host: WereadBoardKernelHost,
         dataSource: WereadBoardDataSource,
     ) {
+        landscapeHost = { host.landscape }
+        refreshingHost = { host.refreshing }
         val hostImpl =
             KernelHostImpl(host) {
                 if (!rendering) host.requestDraw()
@@ -292,6 +299,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         this.host = hostImpl
         this.source = sourceImpl
         this.state = cardState
+        switchRenderer = HostSwitchRenderer(cardState)
         this.kernel = cardKernel
         this.filler = preparedSource
     }
@@ -326,15 +334,32 @@ internal class KernelWereadBoard : WereadBoardKernel {
     ) {
         val cardKernel = kernel ?: return
         val cardState = state ?: return
+        val form = formOf(formId)
+        landscapeFrame = landscapeHost?.invoke() == true && form != CardKernel.FORM_BOOK
         surface.target = canvas
         surface.frameWidth = width
         surface.frameHeight = height
-        val form = formOf(formId)
         val appearance = filler?.appearance() ?: WereadAppearance()
         rendering = true
         try {
             filler?.apply(cardState, form, appearance)
-            cardKernel.render(cardState, form)
+            if (landscapeFrame) {
+                landscapeLayout.localUpdatedLabel = filler?.localUpdatedLabel(form)
+                landscapeLayout.draw(
+                    canvas,
+                    width,
+                    height,
+                    formId,
+                    cardState,
+                    refreshingHost?.invoke() == true,
+                )
+            } else {
+                portraitRefreshArea = portraitRefreshBounds(width, height, cardState.titleText())
+                val saved = canvas.save()
+                if (form == CardKernel.FORM_TODO) canvas.clipOutRect(portraitRefreshArea)
+                cardKernel.render(cardState, form)
+                canvas.restoreToCount(saved)
+            }
         } finally {
             rendering = false
         }
@@ -364,7 +389,10 @@ internal class KernelWereadBoard : WereadBoardKernel {
     override fun hitTest(
         x: Float,
         y: Float,
-    ): Int = state?.hitTest(x, y) ?: HIT_NONE
+    ): Int {
+        val cardState = state ?: return HIT_NONE
+        return if (landscapeFrame) landscapeLayout.hitTest(x, y) else cardState.hitTest(x, y)
+    }
 
     /**
      * 处理内核命中区域。
@@ -435,11 +463,15 @@ internal class KernelWereadBoard : WereadBoardKernel {
      *
      * @return 可点区域列表，坐标采用内核逻辑坐标
      */
-    override fun zones(): List<WereadBoardZone> {
+    override fun zones(): List<WereadBoardZone> = if (landscapeFrame) landscapeLayout.zones else portraitZones()
+
+    private fun portraitZones(): List<WereadBoardZone> {
         val cardState = state ?: return emptyList()
         val zones = mutableListOf<WereadBoardZone>()
-        zones += zoneOf(0f, 0f, HEADER_TITLE_W, HEADER_H, ZONE_FORM_NEXT)
-        zones += zoneOf(HEADER_TITLE_W, 0f, HEADER_REFRESH_W, HEADER_H, ZONE_REFRESH)
+        zones += zoneOf(0f, 0f, portraitRefreshArea.left, portraitRefreshArea.bottom, ZONE_FORM_NEXT)
+        if (lastForm != CardKernel.FORM_TODO) {
+            addZone(zones, portraitRefreshArea, ZONE_REFRESH)
+        }
         when (lastForm) {
             CardKernel.FORM_BOOK -> {
                 addZone(zones, cardState.pickBox(), ZONE_BOOK_PICK)
@@ -473,7 +505,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         val source = source ?: return false
         val changed = source.previousNote()
         if (changed) {
-            filler?.prepare()
+            filler?.prepareNote()
             host?.requestRedraw()
         }
         return changed
@@ -488,7 +520,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         val source = source ?: return false
         val changed = source.nextNote()
         if (changed) {
-            filler?.prepare()
+            filler?.prepareNote()
             host?.requestRedraw()
         }
         return changed
@@ -517,6 +549,8 @@ internal class KernelWereadBoard : WereadBoardKernel {
      * @return 轮播书目
      */
     override fun bookCards(): List<WereadBookCard> = source?.bookCards().orEmpty()
+
+    override fun immersiveReadingStats(): ImmersiveReadingStats = filler?.readingStats() ?: ImmersiveReadingStats()
 
     /**
      * 读取指定书目的最近一条有效划线。
@@ -578,6 +612,164 @@ internal class KernelWereadBoard : WereadBoardKernel {
      *
      * @return 是否发生翻转
      */
+    private var overlayCacheKey: String? = null
+    private var overlayCache: WidgetNoteContent? = null
+
+    override fun currentNoteContent(): WidgetNoteContent? {
+        val note = filler?.noteContent() ?: return null
+        return if (landscapeFrame) landscapeNoteContent(note) else portraitNoteContent(note)
+    }
+
+    private fun landscapeNoteContent(note: WidgetNoteContent): WidgetNoteContent? =
+        state?.let { LandscapeNoteRenderer.presentation(landscapeLayout.noteGeometry, it) }?.let {
+            WidgetNoteContent(
+                note.identity,
+                note.title,
+                note.chapter,
+                note.body,
+                it.quoteSize * it.unit,
+                WidgetNotePresentation(
+                    it.left,
+                    it.top,
+                    it.quoteSize * 1.7f * it.unit,
+                    emptyList(),
+                    emptyList(),
+                    landscape = it,
+                ),
+                needsExpansion = state?.expandBox()?.isEmpty == false,
+            )
+        }
+
+    override fun renderExpandedNote(
+        canvas: Canvas,
+        width: Int,
+        height: Int,
+    ): Boolean {
+        val activeHost = host
+        val data = filler
+        if (activeHost == null || data == null) return false
+        val oldWidth = surface.frameWidth
+        val oldHeight = surface.frameHeight
+        val oldTarget = surface.target
+        val wasRendering = rendering
+        rendering = true
+        val overlayState =
+            object : CardState(surface) {
+                override fun noteProgress(): IntArray? = data.progress()
+            }
+        overlayState.setHost(activeHost)
+        try {
+            surface.frameWidth = width
+            surface.frameHeight = height
+            surface.target = canvas
+            data.apply(overlayState, CardKernel.FORM_NOTE, data.appearance())
+            LandscapeCardLayout { HostSwitchRenderer(overlayState) }
+                .apply {
+                    referenceWidth = oldWidth
+                    localUpdatedLabel = data.localUpdatedLabel(CardKernel.FORM_NOTE)
+                }.draw(canvas, width, height, "note", overlayState, false)
+        } finally {
+            surface.frameWidth = oldWidth
+            surface.frameHeight = oldHeight
+            surface.target = oldTarget
+            rendering = wasRendering
+        }
+        return true
+    }
+
+    private fun portraitNoteContent(note: WidgetNoteContent): WidgetNoteContent? {
+        val contentKey =
+            "${note.identity}:${note.body.hashCode()}:${note.textSizePx}:" +
+                "${note.title.hashCode()}:${note.chapter.hashCode()}"
+        val cacheKey = "$contentKey:${surface.frameWidth}:${surface.frameHeight}"
+        if (overlayCacheKey != cacheKey) {
+            overlayCache = state?.let { prepareNotePresentation(note, it) } ?: note
+            overlayCacheKey = cacheKey
+        }
+        return overlayCache
+    }
+
+    private fun isNoteBodyText(
+        text: String,
+        paint: Paint,
+        size: Float,
+    ): Boolean {
+        val bodyText = text.isNotBlank() && text != "“"
+        val bodyPaint = paint.typeface == Typeface.SERIF && kotlin.math.abs(paint.textSize - size) < 0.1f
+        return bodyText && bodyPaint
+    }
+
+    private fun prepareNotePresentation(
+        note: WidgetNoteContent,
+        cardState: CardState,
+    ): WidgetNoteContent {
+        val switchRenderer = cardState.note()
+
+        var firstX = Float.NaN
+        var firstY = 0f
+        var buttonTextSize = 17f
+        val capture =
+            object : Canvas() {
+                override fun drawText(
+                    text: String,
+                    x: Float,
+                    y: Float,
+                    paint: Paint,
+                ) {
+                    if (text == "上一条" || text == "换一条") buttonTextSize = paint.textSize
+                    if (firstX.isNaN() && isNoteBodyText(text, paint, note.textSizePx)) {
+                        firstX = x
+                        firstY = y
+                    }
+                }
+            }
+        val original = surface.target
+        surface.target = capture
+        try {
+            kernel?.render(cardState, CardKernel.FORM_NOTE)
+        } finally {
+            surface.target = original
+        }
+        if (firstX.isNaN() || switchRenderer == null) {
+            return note
+        }
+        val right = surface.frameWidth * (1f - cardState.padXRatio())
+        val lines =
+            HostNoteLayout.lines(
+                switchRenderer.markText,
+                switchRenderer.ideaText,
+                right - firstX,
+                note.textSizePx,
+            )
+        val tagBlock =
+            HostNoteLayout.tagBlock(
+                switchRenderer.markText,
+                switchRenderer.ideaText,
+                right - firstX,
+                note.textSizePx,
+            )
+        if (lines[0].isEmpty()) firstY -= tagBlock
+        val result =
+            WidgetNoteContent(
+                note.identity,
+                note.title,
+                note.chapter,
+                note.body,
+                note.textSizePx,
+                WidgetNotePresentation(
+                    firstX,
+                    firstY,
+                    cardState.noteLineH(),
+                    lines[0].toList(),
+                    lines[1].toList(),
+                    ideaTagBlock = tagBlock,
+                    buttonTextSize = buttonTextSize,
+                ),
+                needsExpansion = !cardState.expandBox().isEmpty,
+            )
+        return result
+    }
+
     override fun toggleNoteExpanded(): Boolean {
         val cardState = state ?: return false
         cardState.toggleNoteExpanded()
@@ -598,6 +790,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
             when (lastForm) {
                 CardKernel.FORM_NOTE -> noteScrollMaxCache.toInt()
                 CardKernel.FORM_MONTH -> monthScrollMaxCache.toInt()
+                CardKernel.FORM_TODO -> if (landscapeFrame) landscapeLayout.scrollMax else 0
                 else -> 0
             }
 
@@ -607,6 +800,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
             when (lastForm) {
                 CardKernel.FORM_NOTE -> noteViewHCache.toInt()
                 CardKernel.FORM_MONTH -> frameHeightCache
+                CardKernel.FORM_TODO -> if (landscapeFrame) landscapeLayout.scrollViewHeight else 0
                 else -> 0
             }
 
@@ -625,6 +819,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
             when (lastForm) {
                 CardKernel.FORM_NOTE -> scrollNote(cardState, delta)
                 CardKernel.FORM_MONTH -> scrollMonth(cardState, delta)
+                CardKernel.FORM_TODO -> landscapeFrame && landscapeLayout.scrollBy(delta)
                 else -> false
             }
         if (applied) host?.requestRedraw()
@@ -634,6 +829,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
     /** 复位当前形态的滚动位置。 */
     override fun resetScroll() {
         state?.resetScroll()
+        landscapeLayout.resetScroll()
         host?.requestRedraw()
     }
 
@@ -680,6 +876,8 @@ internal class KernelWereadBoard : WereadBoardKernel {
 
     /** 释放内核资源并清空绑定。 */
     override fun release() {
+        landscapeLayout.release()
+        switchRenderer = null
         kernel?.release()
         kernel = null
         state = null
@@ -732,7 +930,52 @@ private class KernelCardFiller(
                 cover = book?.let { host.coverBitmap(it.bookId, it.coverUrl) },
                 appearance = readAppearance(host.filesDir()),
                 failed = source.hasFailure(),
+                readingStats = readImmersiveReadingStats(host.filesDir()),
+                preparedAt = System.currentTimeMillis(),
             )
+    }
+
+    /** A local next/previous operation must not reload the shelf, covers, periods or todos. */
+    fun prepareNote() {
+        prepared =
+            prepared.copy(
+                note = source.notes(NOTE_LIMIT).firstOrNull(),
+                slot = source.noteSlot(),
+                progress = source.noteProgress(),
+            )
+    }
+
+    /** Notes use the retrieval time; local todos use the prepared snapshot time, never the draw clock. */
+    fun localUpdatedLabel(form: Int): String? {
+        val local = form == CardKernel.FORM_NOTE
+        val hasData = form != CardKernel.FORM_NOTE || prepared.note != null
+        return if (local && hasData && prepared.preparedAt > 0L) {
+            "更新于 " +
+                java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(prepared.preparedAt))
+        } else {
+            null
+        }
+    }
+
+    fun noteContent(): WidgetNoteContent? {
+        val snapshot = prepared
+        val note = snapshot.note ?: return null
+        val body =
+            listOf(
+                note.markText.orEmpty(),
+                note.ideaText.orEmpty(),
+            ).filter { it.isNotBlank() }.joinToString("\n\n")
+        return if (body.isBlank()) {
+            null
+        } else {
+            WidgetNoteContent(
+                identity = "${note.bookId}:${note.bookmarkId}:${note.createTime}:${snapshot.slot}",
+                title = note.title.orEmpty(),
+                chapter = note.chapterTitle.orEmpty(),
+                body = body,
+                textSizePx = snapshot.appearance.effectiveNoteSize.toFloat(),
+            )
+        }
     }
 
     fun bookId(): String? = prepared.book?.bookId
@@ -740,6 +983,8 @@ private class KernelCardFiller(
     fun progress(): IntArray? = prepared.progress
 
     fun appearance(): WereadAppearance = prepared.appearance
+
+    fun readingStats(): ImmersiveReadingStats = prepared.readingStats
 
     /** 最近一次渲染的形态编号，用于切换形态时重置滚动。 */
     private var renderedForm: Int = FORM_NONE
@@ -1012,4 +1257,6 @@ private data class PreparedCard(
     val cover: Bitmap? = null,
     val appearance: WereadAppearance = WereadAppearance(),
     val failed: Boolean = false,
+    val readingStats: ImmersiveReadingStats = ImmersiveReadingStats(),
+    val preparedAt: Long = 0L,
 )

@@ -25,8 +25,8 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
  * 设置中心首页。
  *
  * 版式对齐图墨桌面设置页：不设标题栏与返回箭头，页面顶部为齿轮徽标与「十雨」字样，
- * 下方 2 列系统设置卡片。首行为「微读墨记」与「阅读与数据」，
- * 其后为「桌面偏好」「美化与图标」「网络与互联网」等系统设置卡片。
+ * 下方前四项为2列圆角卡片：桌面偏好、美化与图标、微读墨记、检查更新；
+ * 其余系统设置以单列列表显示。
  * 卡片尺寸、描边与圆角全部取自设计令牌，页面内容位于 InkPage 的滚动容器内。
  * 返回操作由系统返回键承担。
  */
@@ -38,12 +38,6 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         val context = page.context
         page.content.addView(buildWordmark(context))
         page.content.addView(buildCards(context))
-        SettingsUi.note(
-            page,
-            "书架设置位于负一屏设置；书源与行数在书架标题行调整。" +
-                "「桌面偏好」集中外观、桌面、托盘、锁屏与权限等十雨桌面专属设置；" +
-                "「美化与图标」按桌面顺序整理应用并更换图标；其余卡片直接跳转系统设置页。",
-        )
     }
 
     /**
@@ -113,7 +107,8 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         val gap = tokens.dp(10f)
         val columnGap = tokens.dp(10f)
 
-        cards().chunked(2).forEachIndexed { rowIndex, rowCards ->
+        val specs = cards()
+        specs.take(4).chunked(2).forEachIndexed { rowIndex, rowCards ->
             if (rowIndex > 0) {
                 grid.addView(
                     View(context),
@@ -158,6 +153,11 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
                 ),
             )
             equalizeRow(row)
+        }
+        grid.addView(InkWidgets.spacer(context, gap))
+        specs.drop(4).forEach { spec ->
+            grid.addView(InkWidgets.row(context, spec.label) { spec.onClick(context) })
+            grid.addView(InkWidgets.divider(context))
         }
         return grid
     }
@@ -259,20 +259,12 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         }
     }
 
-    /** 十张卡片的定义与点击行为。 */
+    /** 首页入口定义，前四项为卡片，其余为系统列表行。 */
     private fun cards(): List<CardSpec> =
         listOf(
             CardSpec(
-                label = "微读墨记",
-                hint = "阅读、设置、实验室与待办",
-                icon = glyph(InkGlyphs.Kind.BOOK),
-            ) {
-                runCatching { AppServices.router.navigate(Destination.WereadApp) }
-                    .onFailure { error -> SettingsUi.toast(it, "无法打开微读墨记：${error.message ?: "未知错误"}") }
-            },
-            CardSpec(
                 label = "桌面偏好",
-                hint = "外观、桌面、托盘、锁屏与权限",
+                hint = "外观、桌面、状态栏、锁屏与权限",
                 icon = custom(CustomGlyph.DESKTOP),
             ) {
                 runCatching { AppServices.router.navigate(Destination.LauncherPrefs) }
@@ -280,12 +272,25 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
             },
             CardSpec(
                 label = "美化与图标",
-                hint = "更换图标、保存主题",
+                hint = "更换图标、调整顺序",
                 icon = custom(CustomGlyph.ICON),
             ) {
                 runCatching { AppServices.router.navigate(Destination.Beautify) }
                     .onFailure { error -> SettingsUi.toast(it, "无法打开美化模式：${error.message ?: "未知错误"}") }
             },
+            CardSpec(
+                label = "微读墨记",
+                hint = "阅读、设置与待办",
+                icon = glyph(InkGlyphs.Kind.BOOK),
+            ) {
+                runCatching { AppServices.router.navigate(Destination.WereadApp) }
+                    .onFailure { error -> SettingsUi.toast(it, "无法打开微读墨记：${error.message ?: "未知错误"}") }
+            },
+            CardSpec(
+                label = "检查更新",
+                hint = "版本检查与更新日志",
+                icon = glyph(InkGlyphs.Kind.REFRESH),
+            ) { AppServices.router.navigate(Destination.Update) },
             CardSpec("网络与互联网", icon = glyph(InkGlyphs.Kind.WIFI)) {
                 openSystem(it, Settings.ACTION_WIFI_SETTINGS)
             },

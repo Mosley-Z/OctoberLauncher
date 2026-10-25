@@ -7,16 +7,19 @@ import android.graphics.RectF
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.DesktopMode
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.WEREAD_BOARD_WIDGET_ID
 import com.shuiyu.octoberrain.core.common.WereadAppearance
 import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
+import com.shuiyu.octoberrain.core.common.editWidgetPage
 import com.shuiyu.octoberrain.core.common.effectiveWereadBoardPoolMask
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.widget.WidgetHitRegion
+import com.shuiyu.octoberrain.core.widget.WidgetNoteContent
+import com.shuiyu.octoberrain.core.widget.WidgetNoteOverlaySource
 import com.shuiyu.octoberrain.core.widget.WidgetTouchAction
 import com.shuiyu.octoberrain.core.widget.hitRegionAt
 import com.shuiyu.octoberrain.feature.widgets.kernel.KernelBridgeInstaller
@@ -25,7 +28,6 @@ import java.io.File
 import java.time.LocalDate
 import java.util.Calendar
 import java.util.concurrent.Executors
-import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -39,12 +41,71 @@ import kotlin.math.roundToInt
  *
  * 书目沿用现有备选书籍列表与顺序，选中状态以书目编号关联；切换书目时笔记、进度、
  * 时长与打开按钮同步更新。绘制集中在 [WereadBoardPainter]，几何集中在 [WereadBoardFrame]，
- * 封面缓存、内核整卡绘制与隐藏菜单分别由独立类承担。
+ * 封面缓存与内核整卡绘制分别由独立类承担。
  */
 @Suppress("TooManyFunctions")
 class WereadBoardWidget(
     context: Context,
-) : WereadCardWidget(context) {
+) : WereadCardWidget(context),
+    WidgetNoteOverlaySource {
+    private var immersiveBookMode = false
+    private var immersiveLandscape = false
+    private var remoteRefreshing = false
+
+    override fun setImmersiveLandscape(landscape: Boolean) {
+        immersiveLandscape = landscape
+    }
+
+    override fun setImmersiveBookMode(enabled: Boolean) {
+        if (immersiveBookMode == enabled) return
+        immersiveBookMode = enabled
+        onWidgetConfig(config)
+    }
+
+    override fun currentNoteContent(): WidgetNoteContent? =
+        kernel?.currentNoteContent()?.let { note ->
+            WidgetNoteContent(
+                note.identity,
+                note.title,
+                note.chapter,
+                note.body,
+                note.textSizePx * boardScaleOf(widthPx),
+                note.presentation?.let { p ->
+                    com.shuiyu.octoberrain.core.widget.WidgetNotePresentation(
+                        p.textX,
+                        p.firstBaseline,
+                        p.lineHeight,
+                        p.quote,
+                        p.idea,
+                        boardScaleOf(widthPx),
+                        p.ideaTagBlock,
+                        p.landscape,
+                        p.buttonTextSize,
+                    )
+                },
+                needsExpansion = note.needsExpansion,
+            )
+        }
+
+    override fun moveOverlayNote(previous: Boolean): Boolean = moveNote(previous)
+
+    override fun drawExpandedNoteCard(
+        canvas: Canvas,
+        width: Int,
+        height: Int,
+    ): Boolean {
+        val active = kernel
+        val scale = boardScaleOf(widthPx)
+        if (active == null || scale <= 0f) return false
+        val saved = canvas.save()
+        return try {
+            canvas.scale(scale, scale)
+            active.renderExpandedNote(canvas, (width / scale).roundToInt(), (height / scale).roundToInt())
+        } finally {
+            canvas.restoreToCount(saved)
+        }
+    }
+
     /** 当前形态，初值为本周，随桌面配置变化。 */
     private var form: WereadBoardForm = WereadBoardForm.WEEK
 
@@ -55,10 +116,12 @@ class WereadBoardWidget(
     private var preloaded: Boolean = false
 
     /** 轮播状态，包含书目总数、选中位置与拖动偏移。 */
-    private val carousel = WereadBoardCarousel()
+    private val carousel = WereadBoardCarousel().apply { looping = true }
 
     /** 绘制实现。 */
     private val painter = WereadBoardPainter()
+    private val immersivePainter = WereadImmersivePainter()
+    private var immersiveStats = ImmersiveReadingStats()
 
     /** 当前书目列表，顺序与书架快照一致。 */
     private var books: List<WereadBookCard> = emptyList()
@@ -74,9 +137,6 @@ class WereadBoardWidget(
 
     /** 内核整卡绘制的位图与画笔。 */
     private val surface = WereadBoardKernelSurface()
-
-    /** 长按抬头的隐藏菜单与隐藏状态。 */
-    private val overlay = WereadBoardOverlay { if (!destroyed) requestDraw() }
 
     /** 当前书目的划线正文，空串表示无笔记。 */
     private var noteText: String = ""
@@ -102,14 +162,8 @@ class WereadBoardWidget(
     /** 组件是否已销毁，销毁后到达的后台结果直接丢弃。 */
     private var destroyed: Boolean = false
 
-    /** 落位动画的起始位置。 */
-    private var settleFrom: Float = 0f
-
-    /** 落位动画的目标位置。 */
+    /** 松手后直切的目标位置。 */
     private var settleTarget: Int = 0
-
-    /** 落位动画的起始时刻。 */
-    private var settleStart: Long = 0L
 
     /** 刷新标记是否可见。 */
     private var refreshMarkVisible: Boolean = false
@@ -144,20 +198,10 @@ class WereadBoardWidget(
 
             override fun dispatch(action: String): Boolean = this@WereadBoardWidget.dispatch(action)
 
-            override val menuVisible: Boolean
-                get() = overlay.visible
-
-            override fun menuClick(
-                x: Float,
-                y: Float,
-            ) = overlay.click(overlay.rows(widthPx, heightPx, scale), x, y)
-
             override fun hitRegion(
                 x: Float,
                 y: Float,
             ): WidgetHitRegion? = hitRegionAt(x, y)
-
-            override fun showMenu(): Boolean = showHideMenu()
 
             override fun kernelScroll(step: Int): Boolean = kernel?.scrollBy(step) == true
         }
@@ -171,8 +215,16 @@ class WereadBoardWidget(
     /** 内核宿主适配，转发上下文与重绘请求。 */
     private val kernelHost =
         object : WereadBoardKernelHost {
+            override val refreshing: Boolean
+                get() = refreshMarkVisible
             override val context: Context
                 get() = this@WereadBoardWidget.context
+
+            override val landscape: Boolean
+                get() =
+                    AppServices.config.state.value.desktop.mode == DesktopMode.NORMAL &&
+                        context.resources.configuration.orientation ==
+                        android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
             override fun requestDraw() {
                 handler.post { this@WereadBoardWidget.requestDraw() }
@@ -183,23 +235,6 @@ class WereadBoardWidget(
     private val kernelDataSource =
         object : WereadBoardDataSource {
             override val content = AppServices.content.takeIf { AppServices.hasContent() }
-        }
-
-    /** 落位动画的单帧任务。 */
-    private val settleRunnable =
-        object : Runnable {
-            override fun run() {
-                val elapsed = (SystemClock.uptimeMillis() - settleStart).toFloat()
-                val progress = (elapsed / SETTLE_DURATION_MS).coerceIn(0f, 1f)
-                val eased = 1f - (1f - progress) * (1f - progress) * (1f - progress)
-                carousel.setPosition(settleFrom + (settleTarget - settleFrom) * eased)
-                if (progress >= 1f) {
-                    finishSettle()
-                    return
-                }
-                requestDraw()
-                handler.postDelayed(this, FRAME_INTERVAL_MS)
-            }
         }
 
     /** 刷新标记清除任务。 */
@@ -220,6 +255,7 @@ class WereadBoardWidget(
                 val today = LocalDate.now()
                 if (today != tickDay) {
                     tickDay = today
+                    if (immersiveBookMode) refreshImmersive(false)
                     reload(force = true)
                 }
                 requestDraw()
@@ -252,7 +288,14 @@ class WereadBoardWidget(
      * @param config 最新配置快照
      */
     override fun onWidgetConfig(config: LauncherConfig) {
-        val restored = WereadBoardForm.of(config.desktop.negativePage.forms[WEREAD_BOARD_WIDGET_ID])
+        val restored =
+            if (immersiveBookMode) {
+                WereadBoardForm.BOOK
+            } else {
+                WereadBoardForm.of(
+                    config.desktop.negativePage.forms[WEREAD_BOARD_WIDGET_ID],
+                )
+            }
         if (restored != form) {
             form = restored
             kernel?.setForm(form.id)
@@ -272,7 +315,10 @@ class WereadBoardWidget(
 
     override fun onHostVisible(visible: Boolean) {
         super.onHostVisible(visible)
+        covers.setVisible(visible)
         if (visible) {
+            requestCovers()
+            if (immersiveBookMode) refreshImmersive(false)
             startTicker()
         } else {
             ticking = false
@@ -296,15 +342,20 @@ class WereadBoardWidget(
         val active = ensureKernel() ?: return false
         if (!preloaded || force) active.preload()
         val cards = active.bookCards()
-        val note = cards.getOrNull(BOARD_FIRST_BOOK_INDEX)?.let { markTextOf(active.latestMark(it.bookId)) }.orEmpty()
+        val readingStats = active.immersiveReadingStats()
         noteToken++
         preloaded = true
         handler.post {
             if (destroyed) return@post
+            val selectedId = currentBook()?.bookId
+            val selectedIndex =
+                cards.indexOfFirst { it.bookId == selectedId }.takeIf { it >= 0 } ?: BOARD_FIRST_BOOK_INDEX
             books = cards
-            carousel.reset(cards.size, BOARD_FIRST_BOOK_INDEX)
-            noteText = note
+            immersiveStats = readingStats
+            carousel.reset(cards.size, selectedIndex)
+            noteText = ""
             requestCovers()
+            currentBook()?.let { requestNote(it) }
             requestDraw()
         }
         return true
@@ -322,7 +373,6 @@ class WereadBoardWidget(
         width: Int,
         height: Int,
     ) {
-        if (overlay.isHidden()) return
         if (form == WereadBoardForm.BOOK) {
             drawBookForm(canvas, width, height)
         } else {
@@ -350,7 +400,17 @@ class WereadBoardWidget(
                 WereadBoardFrame.spanFor(books.size),
                 if (noteText.isBlank()) 0 else WereadBoardFrame.AUTO_NOTE_LINES,
             )
-        frame = layout
+        val readingLayout =
+            if (immersiveBookMode) {
+                immersivePainter.layout(
+                    width,
+                    height,
+                    immersiveLandscape,
+                )
+            } else {
+                layout
+            }
+        frame = readingLayout
         when {
             resolveState(books.isNotEmpty()) != WereadWidgetState.READY -> {
                 chrome = null
@@ -373,15 +433,21 @@ class WereadBoardWidget(
                         date = dateText(),
                         cover = { bookId -> covers.bitmap(bookId) },
                     )
+                if (immersiveBookMode) {
+                    drawImmersiveBook(canvas, scene, readingLayout, width, height)
+                    chrome = null
+                    return
+                }
                 val current = painter.draw(canvas, scene, layout, boardScaleOf(width))
                 chrome = current
                 drawRefreshMark(canvas, layout, current)
             }
         }
+        if (immersiveBookMode) immersivePainter.drawRefresh(canvas, width, height, immersiveLandscape, remoteRefreshing)
     }
 
     /**
-     * 绘制内核整卡形态，并在右下角叠加动作按钮与隐藏菜单。
+     * 绘制内核整卡形态，并分发原有操作区域。
      *
      * 内核渲染失败时按内核对纸色的要求先铺底色，再绘制不可用占位。
      *
@@ -389,6 +455,32 @@ class WereadBoardWidget(
      * @param width 组件宽度，单位像素
      * @param height 组件高度，单位像素
      */
+    private fun drawImmersiveBook(
+        canvas: Canvas,
+        scene: WereadBoardScene,
+        layout: WereadBoardFrame,
+        width: Int,
+        height: Int,
+    ) {
+        immersivePainter.draw(
+            canvas,
+            scene,
+            layout,
+            width,
+            height,
+            currentImmersiveStats(),
+            immersiveLandscape,
+            remoteRefreshing,
+        )
+    }
+
+    private fun currentImmersiveStats(): ImmersiveReadingStats =
+        if (immersiveStats.dateKey == LocalDate.now().toString()) {
+            immersiveStats
+        } else {
+            immersiveStats.copy(todayMinutes = null, streakDays = null)
+        }
+
     private fun drawKernelForm(
         canvas: Canvas,
         width: Int,
@@ -403,8 +495,6 @@ class WereadBoardWidget(
         if (!rendered) {
             if (paperArgb != WereadBoardKernelSurface.PAPER_WHITE) canvas.drawColor(paperArgb)
             drawPlaceholder(canvas, width, height)
-        } else if (overlay.visible) {
-            overlay.draw(canvas, overlay.rows(width, height, scale), scale)
         }
         // 内核形态自带左上角的切换与刷新热区，右下角不再绘制按钮。
         frame = WereadBoardFrame.of(width.toFloat(), height.toFloat(), padX)
@@ -441,7 +531,14 @@ class WereadBoardWidget(
         val scale = boardScaleOf(widthPx)
         val current = chrome
         return when {
-            overlay.visible -> overlay.rows(widthPx, heightPx, scale).map { it.toRegion() }
+            immersiveBookMode && form == WereadBoardForm.BOOK ->
+                buildList {
+                    regionOf(
+                        immersivePainter.refreshBounds(widthPx, heightPx, immersiveLandscape),
+                        ACTION_REFRESH_BUTTON,
+                    )?.let { add(it) }
+                    frame?.coverArea?.let { regionOf(it, ACTION_COVER)?.let { region -> add(region) } }
+                }
             form == WereadBoardForm.BOOK -> current?.let(::boardRegions).orEmpty()
             else -> kernelRegions(scale)
         }
@@ -536,10 +633,15 @@ class WereadBoardWidget(
     override fun onClick(
         x: Float,
         y: Float,
-    ): Boolean = taps.click(x, y)
+    ): Boolean =
+        if (immersiveBookMode && immersivePainter.refreshBounds(widthPx, heightPx, immersiveLandscape).contains(x, y)) {
+            refreshBoard()
+        } else {
+            taps.click(x, y)
+        }
 
     /**
-     * 长按：内核形态下抬头命中时打开隐藏菜单，其余位置交回默认处理。
+     * 标题长按只消费事件，避免回退到组件选择；其余位置沿用默认处理。
      *
      * @param x 组件内横坐标
      * @param y 组件内纵坐标
@@ -548,7 +650,7 @@ class WereadBoardWidget(
     override fun handleLongPress(
         x: Float,
         y: Float,
-    ): Boolean = gestures.longPress(x, y)
+    ): Boolean = hitRegionAt(x, y)?.action == ACTION_FORM_NEXT
 
     /** 组件销毁时释放线程、位图与内核。 */
     override fun onWidgetDestroy() {
@@ -556,7 +658,6 @@ class WereadBoardWidget(
         ticking = false
         handler.removeCallbacksAndMessages(null)
         noteLoader.shutdownNow()
-        overlay.release()
         covers.release()
         surface.release()
         kernel?.release()
@@ -575,6 +676,7 @@ class WereadBoardWidget(
      * @param next 目标形态
      */
     private fun switchForm(next: WereadBoardForm) {
+        if (immersiveBookMode) return
         form = next
         kernel?.setForm(next.id)
         persistForm(next)
@@ -608,7 +710,12 @@ class WereadBoardWidget(
         AppServices.config.edit { current ->
             val page = current.desktop.negativePage
             val forms = page.forms + (WEREAD_BOARD_WIDGET_ID to ordinal)
-            current.copy(desktop = current.desktop.copy(negativePage = page.copy(forms = forms)))
+            current.copy(
+                desktop =
+                    current.desktop.editWidgetPage(
+                        pageIndex,
+                    ) { it.copy(negativePage = page.copy(forms = forms)) },
+            )
         }
         AppServices.refresh.requestPartial()
     }
@@ -647,7 +754,31 @@ class WereadBoardWidget(
      *
      * @return 是否已发起刷新
      */
-    private fun refreshBoard(): Boolean {
+    private fun refreshImmersive(manual: Boolean): Boolean {
+        val sync = AppServices.wereadSync
+        if (destroyed || remoteRefreshing || sync == null) return false
+        remoteRefreshing = true
+        val accepted =
+            sync.refresh(
+                WereadRefreshRequest(if (manual) "immersive" else "immersive_auto", bookId = kernelBookId()),
+            ) { success, message ->
+                handler.post {
+                    remoteRefreshing = false
+                    if (!destroyed) {
+                        reload(force = true)
+                        requestDraw()
+                        if (manual) AppServices.router.toast(message)
+                    }
+                }
+            }
+        if (!accepted) remoteRefreshing = false
+        requestDraw()
+        return accepted
+    }
+
+    private fun refreshBoard(): Boolean = if (immersiveBookMode) refreshImmersive(true) else refreshOrdinaryBoard()
+
+    private fun refreshOrdinaryBoard(): Boolean {
         val active = ensureKernel() ?: return false
         reloadLocal()
         if (form != WereadBoardForm.TODO) {
@@ -722,20 +853,18 @@ class WereadBoardWidget(
             requestDraw()
             return
         }
-        settleTarget = target.coerceIn(0, carousel.count - 1)
-        settleFrom = carousel.position
-        if (abs(settleFrom - settleTarget) < SETTLE_EPS) {
-            finishSettle()
-            return
-        }
-        settleStart = SystemClock.uptimeMillis()
-        handler.removeCallbacks(settleRunnable)
-        handler.post(settleRunnable)
+        // 循环轮播允许越过首尾，非循环形态仍截断到有效范围。
+        settleTarget =
+            if (carousel.looping) {
+                target
+            } else {
+                target.coerceIn(0, carousel.count - 1)
+            }
+        finishSettle()
     }
 
     /** 结束落位动画，提交选中位置并按变化同步数据。 */
     private fun finishSettle() {
-        handler.removeCallbacks(settleRunnable)
         if (carousel.commit(settleTarget)) {
             applySelection()
         } else {
@@ -799,16 +928,6 @@ class WereadBoardWidget(
     private fun currentBook(): WereadBookCard? = books.getOrNull(carousel.selectedIndex)
 
     /**
-     * 打开隐藏菜单。
-     *
-     * @return 固定返回 true
-     */
-    private fun showHideMenu(): Boolean {
-        overlay.show()
-        return true
-    }
-
-    /**
      * 上一条或换一条本记。
      *
      * @param previous 为真时前移，为假时后移
@@ -828,12 +947,8 @@ class WereadBoardWidget(
      *
      * @return 是否完成翻转
      */
-    private fun toggleNoteExpanded(): Boolean {
-        val active = kernel ?: return false
-        val toggled = active.toggleNoteExpanded()
-        if (toggled) requestDraw()
-        return toggled
-    }
+    private fun toggleNoteExpanded(): Boolean =
+        kernel?.currentNoteContent() != null && host?.openNoteOverlay(this) == true
 
     /**
      * 勾选或取消待办条目。

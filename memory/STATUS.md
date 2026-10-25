@@ -1,220 +1,35 @@
-# 当前状态与接力
+# 当前工作状态
 
-## 双机硬件与性能经验已整理（2026-10-23）
+[REL001 V1.0.0本地准备](../task/TASK-REL-001-v1-stable-release.md)完成：版本1.0.0/52、长期正式签名与dist/1.0.0五件套已生成；完整门禁各1027项0失败/错误1既有跳过，APK2211143字节、SHA2568aaf0ddfbb9c33723cadc6bd59288ff188638791054333ba020286c9212940cc。默认GitHub清单/国内镜像接口就绪。用户最新明确旧历史自行处理，本轮仅本地准备，未提交推送/建tag/发布Release，未操作设备或改变远端可见性。[验收及发布前条件](../docs/acceptance/2026-10-26-rel001-v1-release-preparation.md)。
 
-- 用户要求重试推送并沉淀性能设计参考；本轮首次push仍超时，随后用户选择手动推送。本地origin/master已到e198d2e，原待推送提交已同步到远端跟踪记录；新参考文档提交后由用户再执行git push origin master。
-- 新文档：[38 双机硬件与性能参考](../docs/design/38-device-performance-reference.md)，硬件表、软件/光学端点、冷启优化对照、缓存/PSS/磁盘预算及后续设计检查表齐全。只读补采两机技术字段，未改设置/业务/版本、未跑新压力或Gradle。
-- 新确认：S4/P4均rk3326、4逻辑CPU、CPU0最高频率字段1.512GHz、32位ABI；内核MemTotal分别2021820/3050936KiB（约1.928/2.910GiB）。两机lowRam=true/memoryClass128MiB，不能把P4整机约3GiB当更大Java堆预算。
-- 原始白名单采集仅本地_analysis/verify/device-performance-reference/hardware-2026-10-23.json；未读取正文/凭据/全偏好。无新设备租约或后台进程；其他UX001/网站/工具链差异保留。
+[UX152 P4通知返回跳动](../task/TASK-UX-152-p4-statusbar-transition.md)已交付：隐藏栏路径固定全屏View布局，避免79px inset驱动重排。最终release横竖过渡采样实际View始终完整，各3次开关闭环通过；服务未启用回退通过。check/debug/release各1018项0失败/错误1既有跳过。P4已装1.0.31/51、2205403字节、摘要6185500aae8afa494dfed7afd72aa922c3cae5490dd08e866e66c17e9f67fefa匹配；原配置/方向/选书选记与服务状态恢复，资源释放。S4/Tango未操作。[验收与逐帧边界](../docs/acceptance/2026-10-26-ux152-p4-statusbar-transition.md)。
 
-## 阅读器最终收口完成（2026-10-23）
+[UX151 P4通知下滑](../task/TASK-UX-151-p4-notification-gesture.md)已交付：现有无障碍服务连接后隐藏真实栏、恢复自绘指示，下滑展开系统面板；未连接/失败回退真实栏。最终release横竖各3次闭环通过；check/debug/release各1018项0失败/错误1既有跳过。P4已装1.0.31/51、2205411字节，摘要55d1081249c2ff7ca1a8573e69f45488b1a24299a5471843a6e803c9697f6c21匹配。原配置/方向/选书选记恢复、新缓存保留、服务保留开启；P4与构建释放，S4未操作。[验收与边界](../docs/acceptance/2026-10-26-ux151-p4-notification-gesture.md)。CLI的UiAutomation会抑制服务，无障碍验收必须先释放工具进程。
 
-- 用户授权剩余1–4与第5任务卡关闭已执行；RD000–017及FIX001–006 DONE，RD018–020 DEFERRED。最终1.0.31/51沿测试签名，不正式签名/Release；其他UX001/网站/Wrapper差异保留。
-- 源码1ca51be（前序b4ee37f/0d242dd）；最终reader-1.0.31-icon-release.apk2172584B，SHA29784637149498aa00814b4dcf2af60bc4f09b3a1da5986eb58eeb0427b40005；154源码摘要零差异，两机实际base.apk相同。gate7 check/debug/release成功，reader137/data128每变体零失败，Android Debug签名有效。
-- 已补真实OS持久授予/强停最近重开/撤销重选、同源与副本移动、版本变化、官方Office及50MiB、状态网络/renderer恢复、图标主题；真实PPTX扩展节点误索引及坏图破坏旧图两缺陷修复并实机前后对照。
-- 性能主体4e98各20冷启P95：TXT1.748s、PDF2.173s、DOCX4.481s、XLSX4.800s、PPTX6.335s。PDF2s/PPTX5s目标未达，分段定位保留，不因卡DONE宣称达标。P4 TXT/CSV与S4 DOCX各200/30通过；历史包与最终专项归属分列。
-- 原片实际PTS/摄影配准光学P95：S4翻页116.5/软件manualFull902.6ms，P4 90.7/489.6ms；各20，5%ROI定义/3%敏感性及帧误差明列，不含触点等待/厂商波形控制。
-- S4/P4均最终包/HOME、全刷6、原生480×800/552×768、auto1/user0与原网络恢复，ReaderPerf回空。P4新增probe/临时主题PNG已清，S4旧probe保留、仅清14已知合成文件；设备已释放，无活跃测试/Gradle。
-- 局部未测保留：厂商DocumentsUI不存在、PIN凭据锁未动、P4桌面BOOK双向未单测、本次S4锁屏未覆盖、实体/模拟宽视口未改变Main；历史S4和P4尺寸证据独立。有限样本非全格式保真或长期无泄漏。
-- 推送阻塞：b4ee37f/0d242dd已到origin/master；1ca51be与4b0390f本地已提交，最终git push多次443超时/连接重置，尚未上传。网络恢复后执行git push origin master；不重复设备测试。
-- 权威：[最终收口](../docs/acceptance/2026-10-23-reader-final-closure.md)、双机/光学报告及[本轮交接](sessions/2026-10-23-reader-final-closure-codex.md)。交付目标GitHub origin/master；原始视频/APK/夹具只存_analysis/verify/final-reader。
+[UX150 P4隐藏栏诊断](../task/TASK-UX-150-p4-hidden-status-bar.md)完成：30组有效独立Activity实验，28组隐藏栏未展开面板，2组可见栏正对照成功；现代/旧式及fits切换均未解决。正式应用未改，79px回退保留；诊断包卸载，原APK摘要一致、P4恢复横屏并释放，S4未操作。[验收与下一步候选](../docs/acceptance/2026-10-25-ux150-p4-statusbar-diagnosis.md)。无障碍路线未接入，真实手指与厂商根因未验证。
 
-## 当前：Office/统一搜索与入口修复已交付双机（2026-10-23）
+当前[UX149](../task/TASK-UX-149-immersive-device-pages-plan.md)已完成B版七项及最后左列20px调整。最终check/debug/release通过，各1014项0失败/错误1既有跳过；双机release1.0.31/51、2204679字节，摘要匹配并实见渲染。P4真实系统栏横竖下拉通过；S4多页独立选择/关闭回填通过。原配置、选书与选记恢复，新缓存保留；无活动构建/设备占用，不提交、升版或新建休眠。[最终验收](../docs/acceptance/2026-10-25-ux149-implementation.md)、[交接](sessions/2026-10-25-ux149-implementation.md)。真实盖板手指触达仍为物理验收边界。
 
-- 0a1534c基线、7d8a680 Office/统一全文搜索、2da644b重复外部入口任务affinity修复均已提交并按用户2026-10-23指令推送GitHub origin/master（含验收4bccccc），未升版/发布。无关网站、Wrapper/工具链偏好及原始日志保留。
-- 最终fbd4包entry-affinity-release.apk、2,170,000B，SHA256 fbd4bebc2e593fc413ea77b03f1f2f5b2125b748080a35d1fbcab2d8fe2878e9。check/debug/release退出0，reader debug/release各132例0失败；entry-affinity-confirm-gate.log。146源码摘要仅Manifest相对477变化，所有引擎/资源不变。
-- 历史477包双机200有效翻页已完成：P4工作簿行1→4001、S4 PPTX页1→200→199。P4该包30开关亦通过并曾恢复释放；补丁后两机自然覆盖同URI隐式重复VIEW及fbd4各30完整开关均通过，未清旧任务/未用显式Main旁路；跨格式及真实SEND小回归已过。
-- 资源已释放：S4/P4均全刷6、原生480×800/552×768、HOME；P4新增probe卸载且临时文件删除。根构建已退出，无本批活跃测试/Gradle/ADB。两机保持最终fbd4安装。
-- [集成交付](../docs/acceptance/2026-10-23-reader-office-search-integration.md)、[S4](../docs/acceptance/2026-10-23-reader-search-s4.md)、[P4](../docs/acceptance/2026-10-23-reader-search-p4.md)。真实SAF、通用URI身份、物理EPD/P95及完整桌面/复杂文档矩阵未全覆盖，RD016/017保持IN_PROGRESS。
+本轮[UX148](../task/TASK-UX-148-safe-area-note-expansion.md)已交付：P4物理15px安全区、横屏12dp左留白、本记整卡展开/短条收起、元信息与按钮一致、局部换条保留数据更新时间。最终check/debug/release通过，各1004项0失败/错误1既有跳过。P4已安装release1.0.31/51、2193763字节、SHA256 fc5f1ac0b3c917995e9abbfe6667122006fc516fe13f169e9e67b3ba42dd6a79；原90°普通横屏本记已恢复，全局配置/选记一致，kernel偏好仅同步状态变化保留。Widget+内核+Overlay合成探针横竖PASS；S4离线未补装，盖板手指与系统下拉需用户实触确认。[验收](../docs/acceptance/2026-10-25-ux148-safe-area-note-expansion.md)。无活动构建/设备占用，不升版、提交或新建休眠任务。
 
-## 历史阶段（以下保留当时证据，当前状态以上方为准）
+本轮[UX147](../task/TASK-UX-147-settings-cleanup-landscape-assessment.md)已交付已选清理：A1–A9/B1–B3及使用情况访问/最近应用、悬浮窗/主动通知/精确闹钟入口删除；现有外观数据与完整备份恢复保留。check/debug/release通过（各1000项0失败/错误1既有跳过），最终release2191827字节、SHA256 4f2c49eabae41a2aa79f3e2fa28b6f96819e70e8bd07a2f53096cff9e2a40c95，P4安装摘要匹配并验证三项权限页；S4当前离线未装。P4当前普通横屏/本记为用户状态，本轮未调整。横屏安全区/留白/本记性能与展开只读评估，等用户确认；[完整验收与方案](../docs/acceptance/2026-10-25-ux147-cleanup-landscape-assessment.md)。无活动构建/设备占用，不自动开休眠或实施第二部分。
 
-## 当前：RD016第一批与DOCX首轮已交付，表格/PPTX/统一搜索待继续（2026-10-23）
+本轮[UX146](../task/TASK-UX-146-settings-consolidation.md)已交付：统一锁屏密码、关于归检查更新、权限备份扁平与组件库直达，其他说明/重复项/权限仅列待选。完整 check/debug/release 通过（各1000项、0失败/错误、1既有跳过）；两机已安装最终 release 1.0.31/51、2217971字节、SHA256 364f855e0cc4e9bb6dce69e94c77af07e36945c0b40f4faf84bd7b6f646824ed。全局配置恢复差异0；密码交互/最终release边界与待选编号见[验收](../docs/acceptance/2026-10-25-ux146-settings-consolidation.md)。下一步等用户选择，无活动构建/设备占用，不自动清理权限或启动休眠。
 
-- 用户本聊天批准按基础余项/RD016→Office→统一搜索→最终验收推进；Codex接手，保留master/cfeae53之后全部差异，不提交/升版/发布。
-- RD016刷新0/6/12与低内存缓存释放已实现，基础批次完整门禁通过；S4合成PDF200次翻页/30次开关与PSS证据见[资源第一批](../docs/acceptance/2026-10-22-reader-resource-first.md)。全格式/最终APK/P4与物理刷新尚待，不记整卡DONE。
-- RD011 READY_FOR_REVIEW：DOCX双模式、未显示末段搜索/强停恢复、S4/debug/release首轮见[验收](../docs/acceptance/2026-10-23-reader-docx-and-entry.md)。RD015修复本应用URI/本地路径身份，保留较新进度和书签，副本/移动新路径独立；归档继承父来源别名。
-- 最终完整门禁及双构建通过，reader85例0失败；最终release摘要和APK见验收。S4回HOME、文件最后目录恢复根、全刷6；构建/ADB资源释放，P4未连接。真实SAF因本机无DocumentsUI仍待，其他Provider摘要关联未做，不写全方案完成。
-- [本轮接力](sessions/2026-10-23-reader-resources-docx-codex.md)：下一批按同一授权推进RD012→RD013→RD014，并补RD000/004/015/016余项与RD017。后续先重新核实源码/工具链/资源；Python其他项目转换进程不动。
+本轮[UX145](../task/TASK-UX-145-desktop-settings-file-actions.md)已交付：普通/沉浸最近10本循环、设置首页四卡+系统单列、系统卸载确认与文件详情/普通文件删除。check和debug/release通过，每变体1000项0失败0错误1既有跳过；两机系统卸载/详情删除/轮播验证，最终release1.0.31/51、2223507字节、SHA256 0d6f278118fdd0893c8c362bbd2b4ddd90a972de1f532cb94be9389dcb7774f6已安装匹配。按字段恢复原桌面、选书与文件页偏好，测试包/目录清理；无活动构建和设备占用。[验收及测试边界](../docs/acceptance/2026-10-25-ux145-desktop-settings-file-actions.md)。前轮遗留休眠任务已停用，本轮不新建休眠调度。
 
-## 当前：FIX005/006 已交付S4，共用本书刷新（2026-10-22）
+最新授权已交付：UX143/144由DSH Tauri完成，主代理审查直接修正并统一验证；自动首页竖2行3列/横4行2列，显式设置保留。最终check/debug/release通过，各995项0失败0错误1既有跳过。两机release1.0.31/51、2221639字节、SHA256 d45aa1abece1628e8a158a72fec2787b8b50b3a8238c22b1bb3a3acedce413f8已安装且摘要匹配；原测试字段/选书/图片恢复，合成数据删除。S4最终布局探针横屏复跑exit137，采用此前未变布局源码完整结果和实体横屏证据，其他最终探针通过。heartbeat已暂停，DSH与构建无活动任务。旧卡非S4遗留不扩做；双机已确认Asleep/OFF；电脑休眠已交Windows一次性计划任务调度（最终回执见hibernate-dispatch.json），尚未观测实际休眠。详见[集成验收](../docs/acceptance/2026-10-25-ux143-144-integration.md)与[本轮接力](sessions/2026-10-25-ux143-144-monitor.md)。以下旧记录保持各自边界。
 
-- 两卡READY_FOR_REVIEW；[验收](../docs/acceptance/2026-10-22-shared-shelf-refresh.md)、[最新交接](sessions/2026-10-22-shared-shelf-refresh-codex.md)。下方“实施中”和FIX004自动模式均为历史记录，不重复执行。
-- 负一屏与本书读同一微信读书缓存，任一刷新走同一book入口；独立自动设置/计时器与微信读书展示快照已停用。目标最近书第一、底部条/沙漏取消、右上百分比保留；本地手动保留。
-- 最终门禁/双构建及S4双向刷新、release设置与本地回归完成；weread/2行/Books/480×800/font1.0，最终release，资源操作释放。
-- P4与真实断网待RD017补；不再补已取消的自动长间隔矩阵。按用户后续安排回RD016；未提交/推送/升版/发布，保留现场。
+当前批次UX139整批仍IN_PROGRESS；本轮UX142代码审查、微读刷新入口/绑定与E小时规则已完成。修复方向fallback/关闭整页与设置回读，横竖刷新热区、本记绑定、待办刷新清理；E固定零时至九时/一零至二四，独立日期.0575，并纠正前次字号误改共用路径（恢复.041）。最终check及debug/release通过，各976例0失败0错误1既有跳过；P4周/月实际点击缓存推进、独立8形态/横竖12格探针与E20图通过，最终release2224155字节、1.0.31/51摘要匹配，测试字段曾恢复原E；用户中途调整微信读书竖屏后交还设备，最终临时E验收完成并切回用户新的微信读书本周竖屏，新读缓存保留。设备探针/构建/P4释放。S4不操作，143/144仍TODO；备份导入端到端、美化逐屏、设置逐项步进和本记全库云端绑定未完整实机重测。[最新审查验收](../docs/acceptance/2026-10-25-ux142-review-refresh.md)、[接力](sessions/2026-10-25-ux142-review-refresh.md)。保留master/f025b18及原差异，无升版、提交、推送或发布。以下旧记录保留各自边界。
 
+[UX142](../task/TASK-UX-142-grid-and-widget-reflow.md)已完成：其他页新增横竖方向容量（`landscapeColumns/Rows`、`portraitColumns/Rows`，0 沿用原行列），关闭组件后首页与其他页共用整页容量、横屏不再保留空分栏，页数随条目重算并把当前页夹回有效范围。统一 check+debug/release 通过，1946 例 0 失败 0 错误 2 跳过（每变体 973 例），debug 7213098 字节、release 2223935 字节，1.0.31/51。P4 实测竖屏 3 列 4 行、横屏 4 列 3 行各 12 容量，关闭组件后横屏整页排布、第二页关闭后回到第一页；配置已恢复原状。[验收](../docs/acceptance/2026-10-25-ux142-direction-grid-and-widget-reflow.md)、[交接](sessions/2026-10-25-ux142-direction-grid-and-widget-reflow.md)。S4、备份导入端到端与美化逐屏点验未覆盖；143–144 仍 TODO，不自动执行；保留 master/f025b18 及既有差异，不升版/提交/推送/发布。
 
-## 最新：FIX006 共用本书缓存/刷新（实施中，覆盖FIX004自动模式）
+当前批次：[UX139](../task/TASK-UX-139-widget-upgrade-integration.md)整批IN_PROGRESS；[UX141](../task/TASK-UX-141-todo-week-calendar.md)已完成本轮代码审查整改：箭头放大并扩展热区、日移IO串行保存、重复可见回调不复位窗口、时间限列、完成白勾、分钟刷新及视图状态回主线程；E日期字号约增22%。最终check+debug/release通过，各968例0失败0错误1既有跳过；P4实际左日移/周移及E显示、独立三尺寸12箭头方向/生命周期探针通过。[最新审查验收](../docs/acceptance/2026-10-25-ux141-review.md)、[接力](sessions/2026-10-25-ux141-review.md)。真实待办未改，测试字段已合并恢复，最终release2221839字节、1.0.31/51，安装摘要匹配并回原todo_week桌面；探针/构建/P4释放。S4未操作，真实午夜、触摸抖动/连点压力及全量CRUD未重测，宿主2px取消点击门限保持。143–144仍TODO，不自动执行；保留master/f025b18及既有差异，不升版/提交/推送/发布。以下旧验收保留各自版本边界。
 
-- 用户要求取消负一屏独立自动刷新，直接绑定本书轮播；Codex已改为读取共享weread书架，刷新调用相同book入口，订阅现有dataVersion只做本地重读。
-- [FIX006](../task/TASK-FIX-006-shared-shelf-refresh.md)实施后统一验收FIX005选书/封面改动；旧自动字段v13清退，其他模块刷新设置保留。本地仍手动扫描。
-- 正在完整门禁和S4验收；Codex持有构建/ADB，P4按原约定延后，不提交/升版/发布。
+[UX138文件入口恢复](../task/TASK-UX-138-files-entry-visibility.md)及[UX137 APK打开选择](../task/TASK-UX-137-apk-open-choice.md)已完成集成和P4验证；无后台构建或设备占用。
 
-
-## 最新：FIX005 最近在读排序与书封底部清理（实施中）
-
-- 用户反馈目标最近在读书未出现在负一屏前列；S4技术证据：资产最近时间排名1，旧10本快照缺失。
-- [FIX005](../task/TASK-FIX-005-shelf-recency.md)由Codex负责；修复先截取再排序、保存候选过少和两处时间依据分岔，删除书封底部进度/沙漏，保留右上百分比。
-- 构建及S4由Codex串行持有；不改其他模块同步、不提交/升版/发布；P4仍延后。
-
-
-## 最新：FIX004 书架行为调整已交付S4（2026-10-22）
-
-- 用户确认并授权直接实施：标题行同行操作、书架设置迁移、默认手动/前台自动刷新，优先于 RD016。
-- [任务卡](../task/TASK-FIX-004-shelf-controls-refresh.md) READY_FOR_REVIEW；完整门禁及最终release复验完成。[验收](../docs/acceptance/2026-10-22-shelf-refresh-controls.md)、[最新交接](sessions/2026-10-22-shelf-refresh-codex.md)。本节取代下方旧布局和返回即获取行为。
-- S4 单机本轮验收，P4 按用户指令延后；保留既有差异，不提交/推送/升版/发布。
-
-
-## 最新：Codex 已纠正三 FIX，S4 收口，P4 待补（2026-10-22）
-
-- 用户授权接管 DSH。三卡代码偏差已纠正，当前 READY_FOR_REVIEW：不是 TODO，也未伪写双机 DONE。
-- 同行书源下拉、最近阅读本地归属/独立性、返回刷新、搜索/书签重排回调、字段存在性与历史迁移、目录缓存与手动刷新、旧可见入口定义已修；门禁与 S4 debug/release 验证见 [接管验收](../docs/acceptance/2026-10-22-fix-takeover-codex.md)。
-- S4 补验搜索忙碌重排、连续尺寸变化、离开不重开、空目录最近阅读、两内置图标/主题/冷重启；状态恢复 source=weread、rows=2、字体1.0、尺寸480×800、两特殊默认图标。用户已明确本轮先完成 S4，P4 延后补验，不阻塞本轮收尾。
-- [最新交接](sessions/2026-10-22-fix-takeover-codex.md) 取代下方旧创建/接管中记录；后续按依赖回 RD016；P4 在后续设备门禁补齐，不记为通过。需求经验见 [36](../docs/design/36-demand-handoff-contract.md)。
-- 未提交/推送/升版/发布。源码仍有大量原有差异，不清理；最终 S4 release，资源释放后下轮重新核实。
-
-
-## Codex 接管 FIX 收口（2026-10-22）
-
-- 用户授权审查 DSH 实现、直接纠正并完成后续工作；当前按三 FIX → RD016 顺序推进，不提交/发布。
-- 当前唯一构建/ADB 操作者 Codex；S4 在线，P4 未连接；现有 Java 进程为 Gradle/Kotlin 守护进程，无测试脚本。S4 wm size 读回 480×800 无 override。
-- 已发现偏差：书源控件独占一行、最近阅读混入微信读书、返回列表不刷新、字段存在性与 v9 迁移回归；正在修正并补验，不能用 DSH 的空闲尺寸变化/书签回归替代忙碌重排验收。
-
-
-## 最新优先级：三项审查整改先于 RD016（2026-10-22）
-
-- 用户要求细化三张实施卡并插队；本轮 Codex 仅更新文档，业务未实施、设备未复验。
-- DSH 下一步：安全收尾当前操作并核实资源 → [FIX001](../task/TASK-FIX-001-reader-review.md) → [FIX002](../task/TASK-FIX-002-single-bookshelf.md) → [FIX003](../task/TASK-FIX-003-special-icons.md) → RD016，后续按依赖推进。
-- RD003/004/014/015/016/017 已补关联；三卡 TODO，不把方案写成完成。新顺序取代下方历史“直接 RD016”建议。
-- 交接：[审查整改 → DSH](sessions/2026-10-22-review-remediation-to-dsh.md)。本轮无构建、无设备操作；未提交/发布。
-
-## RD015 基础阅读入口与最近阅读集成完成本轮增量（2026-10-22 16:15）
-
-- 用户指令（m01226）："我已完成 Android CLI 两个子命令接入项目工作流，请你继续后续工作，并注意在开发过程中使用最新的工作流"。
-- 改动：`core/common` 增加 `RecentDocument`、`RecentGateway` 与 `AppServices.recent`；`ReaderModule` 注册最近阅读查询；`BookshelfScreen` 增加最近阅读区（最多 5 条、`MM-dd HH:mm`、点击走阅读器），本地书打开改 `AppServices.reader?.open(DocumentRef.LocalPath)`；`MainActivity` 增加 `MainIncoming` 入口诊断日志（只记 action、scheme、授权位与 open 结果）。
-- 团队：task-7（Lead 集成）完成；task-8（mvp-capability）完成，交付 [MVP 格式能力表](../docs/acceptance/2026-10-22-reader-mvp-capability-dsh.md)，覆盖 9 种格式并给出五条入口文案建议。
-- 门禁：`testDebugUnitTest` 与三个模块 detekt 通过（31s）；`check :app:assembleDebug :app:assembleRelease` 通过（3m18s，1564 tasks，EXIT=0）。debug 5,517,631 字节 SHA-256 `4e8537f795a7b868ac3e59b08479f046f05eb5fe4b886ea94f1ea3b08bc962fc`（16:03）。
-- 设备（S4）：书架最近阅读点击 plain 恢复 `3% · UTF-8`（prepareMs=442）；书架本地书三国演义.epub 打开为 `第1/122章 · 1/1`（prepareMs=3665）；外部 VIEW 探针回归 `MainIncoming valid=true opened=true`；旧探针 URI 记录显示“无法读取文档，请重新授权”；测毕恢复本地目录关、微信读书开并回桌面。
-- 验收：[RD015 增量](../docs/acceptance/2026-10-22-reader-entry-integration-dsh.md)；[本轮交接](sessions/2026-10-22-reader-entry-dsh.md)。
-- 未覆盖：文件页非图片入口未重跑；复制/移动后阅读记录区分未验；能力表只做源码核对，Office 未集成。
-- 下一步：按依赖推进 RD016 资源压力与 RD017 整包/设备门禁；能力表“接入建议”中的入口提示与 UNKNOWN 文案留待后续集成决策。
-
-## Android CLI 界面观测工具接入，S4 全部动作验证通过（2026-10-22 14:46）
-
-- 用户指令（m00345）："将Android CLI 的两个子命令正式融入本项目开发工作流并沉淀记忆，让其他AGENT也知道如何使用"。
-- 新增 `scripts/android-ui.ps1`：动作 layout、annotate、resolve、tap、find、click、key、text、raw；从 toolchain.path 取 JDK 与 SDK；CLI 二进制放在 `_ui-out\android-cli\android.exe`，可用 `ANDROID_CLI` 覆盖；输出写 `_ui-out\<时间戳>\`。
-- S4（SA4B03CN2608081096X）验证：layout 在桌面与设置主页输出 30 节点、书架设置页与桌面偏好页输出 60 节点，文本与 center 字段完整；annotate 生成 #1–#28；resolve 输出 `tap 242 681`；tap -Label "#26" 从桌面进入设置页；tap -FindText "书架设置" 进入书架设置页；click -Selector "text=桌面偏好" 进入桌面偏好页；key back 逐层返回。
-- 已知限制：自绘元素文字不进 accessibility 树，`tap -FindText` 对桌面图标无效，必须走 annotate 与 tap -Label；CLI 首次运行需要初始化，冷启动约 11 秒；native 进程退出码常为空，脚本以输出文件与 stdout 判断成败；PowerShell 5.1 读取脚本需 UTF-8 BOM。
-- 文档：`docs/design/33-dsh-development-playbook.md` §10 新增“Android CLI 界面观测”；`docs/design/35-development-workflow.md` §5 与 `AGENTS.md` 接手顺序第 5 条引用；`.gitignore` 增加 `_ui-out/`；`memory/MEMORY.md` 新增一行。
-- 本轮未改业务代码，未构建，未升版本。
-
-## DSH 接手：RD-003/004/005 未完成项增量完成，设备矩阵通过（2026-10-22 13:35）
-
-- 用户指令（m00836）："很好，继续交接文档中后续的工作"。按交接顺序推进 RD-003/004/005 未完成项。
-- 团队分工：bookmark-recent 负责 task-4 存储层，text-index 负责 task-5 稀疏索引与高亮，Lead 执行 task-6 旋转重排、双尺寸适配与书签 UI 接线。
-- 改动：`ReaderChrome` 增加 `sizeListener` 与底栏单行截断；`ReaderScreen` 增加 `onPageSize`/`relayoutPending` 与书签编辑删除对话框；`ReadingRepository` 增加 `BookmarkRow`、`RecentReading`、`bookmarkRows`、`updateBookmark`、`deleteBookmark`、`recent` 与 `ReadingStateRules`；`ReaderSession` 增加对应转发；`TextWindow` 增加 `SparseTextIndex`，`TextSearch` 增加 `TextMatch`/`TextRange`，新增 `TextHighlight` 当前页高亮。
-- 门禁：reader 70 用例 0 失败；detekt（修复 onPageSize 与 alignToCharBoundary 的 ReturnCount、书签重命名的 MaxLineLength）与 ktlint 通过；`check :app:assembleDebug :app:assembleRelease` 退出 0（41s，1564 tasks）。debug 5,853,173 字节 SHA-256 `6d0bfa9f8a03f1e49c40e7f297e84fbb5a7a3ce6f374c16742d3daf8f9a3cd32`；release SHA-256 `5213b45851ab2221cc439da83fd181fe664a00ea2f91deba08c193b30e12cc8f`。
-- 设备：S4 于 13:13 恢复连接，矩阵六项全部通过（480×800 打开、音量键前后翻页、正文左右点按、运行中 `wm size 552x768` 重排与复位）；书签添加、列出、重命名、删除 16 个步骤全部通过。系统旋转设置读回 `user_rotation=0`、display rotation 0，设备固定竖屏且第三方 Rotation 应用接管方向，旋转以尺寸变化覆盖同一重排入口。音量键验证时临时置 `tray.volumeKeyFlip=true`，测毕恢复 false。
-- 验收：[RD-003/004/005 增量](../docs/acceptance/2026-10-22-reader-shell-state-text-dsh.md)。最近阅读入口按任务边界留给 RD-015 集成。
-- 下一步：S4 恢复后运行矩阵并补设备结论；随后按依赖推进 RD-015 基础阅读入口或 Office（RD-000/011–013）。
-
-## 历史：DSH 接手 RD-002 增量审查修复完成，等待确认（2026-10-22 09:55）
-
-- 用户指令：读交接文档后按项目规范接手，启用智能体团队完成后续 TASK，首个 TASK 完成后停下等待审查。
-- 首轮完成 RD-002 未完成项：ZIP 内部标记鉴别、ACTION_SEND 单文件入口、授权与缺失及撤销设备矩阵。团队按 zip-signature、external-entry、device-driver 三卡分工，集成、构建与设备执行由 Lead 串行完成。
-- 审查意见三项已修复：`streamUri()` 按动作读取并安全判断 `Uri`，非 Uri 的 `EXTRA_STREAM` 不再提前抛出类型转换异常；外部入口以 data 或 `EXTRA_STREAM` 为主文档，主文档存在时 ClipData 视为附带授权，恢复 Markdown 正文引用同目录图片的打开场景；转发日志只保留 scheme、MIME 前 64 字符与授权状态。
-- 门禁：reader 53 用例 0 失败，detekt 与 ktlint 通过；`check :app:assembleDebug :app:assembleRelease` 退出 0（52s）。debug 5,846,784 字节，SHA-256 `77bd08bfae2d604edc0a15476c4f7074ef4665ee87f542f031d1dad4d327b03d`；release 1,434,377 字节，SHA-256 `308fc6eb0c6648c30a2145f8f005d03b326b2c2beffce4562d34455ffd8b6a35`，apksigner 通过（沿用项目既有 debug 签名配置）。
-- 设备复核：非 Uri 的 `EXTRA_STREAM` 得到 `reject=MISSING` 且产品进程存活；sample.md 加父目录 ClipData 打开为 `reader_title=sample.md`、`reader_status=42/47`，未按多文件拒绝。
-- 证据与边界：[RD-002 验收](../docs/acceptance/2026-10-22-reader-sources-002.md)；[本轮交接](sessions/2026-10-22-reader-sources-dsh.md)。
-- 未覆盖：真实 SAF 系统撤销后的重选流程、Office 内容渲染、release 签名配置仍为 debug；不把设备复核当整包发布验收。
-- 本轮已提交为 `8ca69db` 并推送 `origin/master`；下一步等待用户确认，通过后按 task/README 依赖继续下一张卡。
-
-## 已交DSH：RD010完成，停止开启新任务（2026-10-22）
-
-- 最新指令完成当前TASK后交接：[Codex→DSH入口](sessions/2026-10-22-reader-to-dsh-handoff.md)。HEAD1379e8b，差异全部未提交；未升版/推送/发布。
-- PERF001及RD001/006/007/008/009/010首轮完成；其余以卡片为准。Office未产品接入，不宣称整个计划完成。
-- 最终check/debug/release退出0（1564tasks）；reader30通过，common81通过+1历史跳过。[EPUB验收](../docs/acceptance/2026-10-22-reader-epub.md)记录旧驱动问题及最终补验。
-- S4/P4最终release、HOME；P4仅安装启动。S4无线恢复、合成probe卸载；无运行构建或ADB脚本。
-- 一次性04-30安排已删除，后续不再自动续工。下方历史暂停/自动续工状态由本节取代。
-
-## Codex 本窗口收尾：八项优化完成，原生文本首轮落地（2026-10-22 04:23）
-
-- 用户授权全面接管；master基线1379e8b，保留本轮全部未提交差异，未升版本/推送/发布。唯一构建与ADB操作者Codex。
-- PERF-001 DONE；阅读器000–005部分实现，均保持IN_PROGRESS；其余RD卡仍待实施。详见[接力记录](sessions/2026-10-22-performance-reader-handoff.md)。
-- 最终`check :app:assembleDebug :app:assembleRelease`退出0（1556 tasks）；reader 9个测试通过，reader Lint无告警。S4最终debug/P4最终release已覆盖安装启动；探针均卸载，无后台构建占用。
-- S4文本翻页/强停恢复、50MiB首屏、GB18030、管道缓存退出清理、搜索定位4001与书签回跳通过；边界及APK摘要见[原生首轮验收](../docs/acceptance/2026-10-22-reader-native-first.md)。
-- 两机WebView83的DOCX/SheetJS/PPTX基础探针通过；Office仍未接入产品，图片图表/大文件/renderer完整PSS待验。不能把探针当产品引擎通过。
-- 当前窗口最后一次额度查询已用84%，保留收尾余量后暂停；04:30本聊天续工automation `04-30`已确认ACTIVE。续工先检查额度、读本交接，再关闭该一次性安排，继续RD卡，无需再问用户是否开工。
-- 下一步优先读TASK-RD-006，实现原生PDF隔离渲染；002–005未完项见对应卡。凭据及用户正文不进日志/文档，不恢复已删除的统计/月历/实验室功能。
-
-## Codex 接管：性能优化完成，开始阅读器（2026-10-22 03:15）
-
-- 用户已明确 DSH 开发结束，由本聊天全面接管；唯一构建/ADB操作者 Codex，master 基线1379e8b，开始时干净。
-- 八项性能优化代码与整包门禁完成，新增7个JVM用例通过；设备验证与限制见 [性能验收](../docs/acceptance/2026-10-22-s4-performance.md)，任务 [PERF-001](../task/TASK-PERF-001-s4-performance.md)。未升版本/提交/推送。
-- S4单次本记滚动辅助采样P95 48→29ms，非稳定提升承诺；内存前后Activity数不同，不作节省内存结论。
-- 后续按阅读器RD卡依赖推进。000的Office资源探针仍需独立完成，先冻结无需外部依赖的原生接口，不能将Office规划写成实现。
-- 04:30 本聊天续工 automation `04-30` 已创建；当前继续工作，额度接近耗尽前交接，续工后关闭该安排。
-- 不记录PIN/用户正文，不修改凭据；截图在系统临时目录。S4恢复原本记进度，P4仅安装release与启动检查，不绕过锁屏。
-
-
-更新时间：2026-10-22 02:45；维护者：1.0.28 发布集成者。此处只代表本轮结束时的检查范围。
-
-## 1.0.28 状态（本轮发布）
-
-- 本轮完成：微读墨记顶部大标签由四项收敛为三项（本周▽／设置／待办）；删除实验室容器与续航优化；锁屏密码并入设置页签成为第三个子标签并重写文案；删除微信读书「统计」页与「阅读月历」页（含卡片正文热区、书架「统计」按钮、路由、绘制与测试）；校验作废结果改为静默；移除全部 `LockTiming` 临时测速日志与计时变量。
-- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；debug 4,916,383 字节、release 1,204,137 字节。
-- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.28`（2626 文件，摘要 `f17eda14678729688749fdd4e877fca273c0f1b8e7ff332247d46d368f839965`，本次排除 `.git`、`build`、`.gradle-home`）；验收记录 `_analysis/verify/1.0.28-team-r6.md`。
-- Git：`d107016 feat: 1.0.28 微读墨记合并为三个大标签并删除统计页与阅读月历` 已推送 `origin master`（经 `http://127.0.0.1:7890` 代理）。
-- 设备：P4 写回 `_analysis/device/accept-1.0.27/p4-mig-base.xml`（`pbkdf2$20000$…`、`enabled=true`、`failedAttempts=0`、`forms.weread_board=0`、壁纸原路径）；S4 保留用户 PIN 1124（20000 轮）。
-- 遗留：锁屏页曾显示「未设置密码」，复核为设备配置本身丢失 `pinHash`（`enabled=false`、`iterations=20000`），页面读取正确，丢失的写入路径未定位，建议后续加一处「`enabled` 为真但摘要缺失」的自检日志；`scripts/snapshot.ps1` 在无 `pwsh` 环境仍不可用，本轮改为 Python 逐文件复制并生成 `MANIFEST.sha256`，另需注意脚本会产生 Windows 保留名 `nul` 文件，`git add` 前先删。
-
-## 1.0.27 状态（历史）
-
-- 本轮完成：轮播笔记限两行、封面细边框、刷新按形态映射、书架数据源惰性回退；修复校验代次作废（静默）、旧摘要迁移、壁纸解码堆预算。
-- 实测：十二万轮 `verify` 约 10.9–12.1 秒，两万轮约 1.8–1.9 秒，`commit` 与主线程回调各在 20 毫秒级；熄屏打断时 `stale mark=` 命中、覆盖层无红字。
-- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；debug 4,937,235 字节、release 1,211,641 字节。
-- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.27`（17829 文件，摘要 `9b79fd75379fe1445cf2df96035b25cd43bf5afbe9eb6b9fc333fb6122e5ea4b`）；验收记录 `_analysis/verify/1.0.27-team-r6.md`。
-- Git：`325c6b2 feat: 1.0.27 轮播笔记限两行、封面细边框与刷新按形态，修复审计问题` 已推送 `origin master`。
-- 待办：`LockGateImpl` 与 `LockSettingsScreen` 的 `LockTiming` 临时日志待删；统计页（微信读书「统计」）与阅读月历的组件跳转待用户确认删除范围；本轮所选书无划线笔记，笔记两行只由单测覆盖。
-- 设备：P4 写回 `_analysis/device/accept-1.0.27/p4-mig-base.xml`（摘要与盐一致、失败计数 0、壁纸回原路径）；S4 保留用户 PIN 1124（20000 轮）。
-
-## 1.0.26 状态
-
-- 已完成三项诉求并双机验收：负一屏书架与桌面书籍轮播统一按最近在读排序（`assets.json` 的 `readUpdateTime`）、本书形态默认定位最近在读首本、轮播底部信息行放大 1.1 倍、负一屏设置页重排。
-- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；产物 debug 5,121,077 字节、release 1,210,349 字节。
-- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.26`（17781 文件，摘要 `7df63a11360f110192bb49f4521a2ae8c90e8da2ead139ef2357636090c7d4e5`）；验收记录 `_analysis/verify/1.0.26-team-r5.md`。
-- Git：`5690ed4 feat: 1.0.26 书架按最近在读排序、轮播底部放大与负一屏设置排版` 已推送 `origin master`；推送需经 `http://127.0.0.1:7890` 代理，凭据由 `gh auth setup-git` 提供。
-- 设备：P4 写回 `_analysis/device/accept-1.0.26/p4-restore.xml`（失败计数 0、摘要与盐一致）；S4 保留用户 PIN 1124（20000 轮）与既有配置，未改锁屏与模块设置。
-- 遗留：轮播侧层「看理想」为公众号条目无封面，按占位框绘制；`Models.kt` 与 `LockSettingsScreen` 两处 KDoc 仍写「十万级迭代」；`scripts/snapshot.ps1` 在无 `pwsh` 的环境需 UTF-8 BOM 副本并显式传 `-Root`。
-- 本轮交接：[2026-10-22-1.0.26-release.md](sessions/2026-10-22-1.0.26-release.md)。
-
-## 1.0.25 状态
-
-- 已完成四条诉求并双机验收：桌面卡片五形态（本书＝轮播，其余沿用旧样式）、初始化页删除卡片总开关、锁屏 PBKDF2 默认降到 20000 轮并给壁纸页面内提示、负一屏书架十本与 1–5 行调节。
-- 门禁：`assembleDebug assembleRelease testDebugUnitTest ktlintCheck detekt check` 通过（1464 tasks）；产物 debug 5,109,420 字节、release 1,209,001 字节。
-- 快照：`D:\DSHStation\_snapshots\OctoberLauncher-1.0.25`（17422 文件，摘要 `8a4b2aa4fcc9ab8bcf4ec75d31b4c9221abaf11f7c480749ee6eca751d09d4fd`）；验收记录 `_analysis/verify/1.0.25-team-r4.md`。
-- S4 实测：旧摘要 120000 轮 6886ms／7093ms，重新设置密码后 20000 轮 1109ms。
-- 设备：P4 已恢复原配置（摘要与盐一致、失败计数 0）；S4 保留用户重设的 PIN 1124（20000 轮），`forms` 改回 0。
-- 遗留：`PinHasher.verify` 的临时测量日志仍在源码；内核形态点「C」后「更新于」时间戳是否即时更新待复核；两处 KDoc 仍写「十万级迭代」。
-- 本轮交接：[2026-10-22-1.0.25-release.md](sessions/2026-10-22-1.0.25-release.md)。
-
-## 另一轮管理整理记录
-
-更新时间：2026-10-22；维护者：本轮管理整理 Agent。此处只代表本轮结束时的检查范围。
-
-- 本轮目标：阅读器 TASK 拆解，文档分类，开发流程及仓库记忆落盘；未执行阅读器开发。
-- 观察到的代码版本：本轮开始时 VERSION 为 1.0.24，收尾时 VERSION 与 app Gradle 已由其他工作更新为 1.0.25（versionCode 45），分支观察值 master；不等于已核实发布、装机版本。工作区已有大量微读、锁屏、图标、书架等未提交/未跟踪改动，本轮不接管其完成状态。
-- 阅读器任务：全部处于 TODO，执行者未分配。推荐从 TASK-RD-000 开始；任务存在不表示已授权逐项实施。
-- 下一步：收到实施指令后，读 task/README.md，核实工作区与设备，分配兼容尖峰和集成负责人；按依赖推进。
-- 本轮未运行 Android 构建、未安装 APK、未操作设备；未新增后台任务或设备占用。
-- 共享资源：暂无本轮持有的构建/设备租用；不能据此认定其他会话没有占用，开工须协调。
-- 迁移：40份旧顶层文档迁至 docs/design 和 docs/acceptance；原始 _analysis 等证据目录不动，旧路径映射见 docs/migration-2026-10-22.json。
-- 已知历史问题：24-weread-spec-reference.md 为只读参考，保留原文及属性，其中旧相对引用按迁移索引定位；若要修改内容应先核实其只读约定。旧文档的版本、测试数量和路径均不能直接作为当前事实。
-
-本轮详细交接：[2026-10-22-project-management.md](sessions/2026-10-22-project-management.md)。后续执行者更新自己的任务卡和 session，由集成者汇总本文件，避免并行覆盖。
-
-## 产品网站预览（2026-10-22，独立于Android任务）
-
-- 用户确认十月窗雨方向，微读墨记独立版继续维护；[WEB-001](../task/TASK-WEB-001-product-site.md)已交本地7页预览待审阅。未部署旧站。
-- 十雨公开下载地址待确认；旧清单与APK链接只读核实可达。[验收边界](../docs/acceptance/2026-10-22-product-site-preview.md)。
+- 文件默认显示，配置v16一次恢复；设置→桌面偏好→桌面与布局→管理隐藏应用可再次隐藏。关状态冷启保留，最终恢复开。系统资源管理器com.android.rk保留；P4原首页顺序不变，文件位于第二页。
+- 当前1.0.31/51、2210547字节，SHA256 d8b8dab4067812adce46d34cc0198ae7223edf36cd61b2597f01e5c38f29164f。统一check及两种构建通过，各948例0失败0错误1既有跳过；P4安装摘要相同。
+- 当前包P4实测APK菜单、取消、结构、系统安装提示后取消，ZIP直接查看、JAR未知分支。未实际安装APK或更改授权；三份自建样本和空目录已删除，文件恢复原Pictures列表，桌面停第二页可见文件。NOTE/2×4/90°/壁纸及系统入口保持。
+- S4离线未安装当前包；其UX136横竖宫格/EPUB结果仍属于旧包，不冒充当前验收。未扩大RAR等解码能力。
+- [当前验收](../docs/acceptance/2026-10-24-ux138-files-entry-visibility.md)、[本轮交接](sessions/2026-10-24-ux138-files-entry-visibility.md)。保留master/f025b18及既有差异；未升应用版本、提交、推送或发布。下一步等待反馈。

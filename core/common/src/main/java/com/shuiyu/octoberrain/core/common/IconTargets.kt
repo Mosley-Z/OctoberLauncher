@@ -68,7 +68,6 @@ object IconTargets {
     fun specialLabel(entry: SpecialEntry): String =
         when (entry) {
             SpecialEntry.WEREAD -> "微信读书"
-            SpecialEntry.KOREADER -> "KOReader"
             SpecialEntry.FILES -> "文件"
             SpecialEntry.BOOKSHELF -> "书架"
             SpecialEntry.SETTINGS -> "设置"
@@ -79,7 +78,6 @@ object IconTargets {
     private fun nameOf(entry: SpecialEntry): String =
         when (entry) {
             SpecialEntry.WEREAD -> "weread"
-            SpecialEntry.KOREADER -> "koreader"
             SpecialEntry.FILES -> "files"
             SpecialEntry.BOOKSHELF -> "bookshelf"
             SpecialEntry.SETTINGS -> "settings"
@@ -90,7 +88,6 @@ object IconTargets {
     private fun entryOf(name: String): SpecialEntry? =
         when (name) {
             "weread" -> SpecialEntry.WEREAD
-            "koreader" -> SpecialEntry.KOREADER
             "files" -> SpecialEntry.FILES
             "bookshelf" -> SpecialEntry.BOOKSHELF
             "settings" -> SpecialEntry.SETTINGS

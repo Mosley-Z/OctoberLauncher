@@ -1,10 +1,12 @@
 # 十雨桌面
 
+V1.0.0 为首个正式签名版本。安装包、GitHub 更新清单与后续国内镜像的发布约定见 [正式版发布](release/README.md)。现有测试签名安装需先导出备份，再卸载测试版并安装正式版；后续正式版使用同一签名覆盖升级。
+
 > 开发接手从 [PROJECT.md](PROJECT.md) 开始；协作约定见 [AGENTS.md](AGENTS.md)，阅读器任务见 [task](task/README.md)，设计/验收分类索引见 [docs](docs/README.md)。下文历史版本与计数应按当前源码核实。
 
 面向安卓墨水屏设备的桌面启动器，包名 `com.shuiyu.octoberrain` 与 `applicationId` 一致。版本以 `VERSION` 和 `app/build.gradle.kts` 为准。功能覆盖上游 TOMO 0.5.0 的主要能力，并新增文件管理、图片查看编辑与微信读书页面；屏幕硬门禁已移除，验证基线的墨水屏为 S4 480×800（Android 11）。
 
-工程为原创实现，包名、类名、资源名、域名与 FileProvider authority 均与上游无共同片段；交互形态与功能范围参考上游，融合部分的来源与许可见 `docs/design/17-weread-fusion.md` 与 `feature/settings/.../ThirdPartyLicenses.kt`。
+主应用包名与 FileProvider authority 使用十雨自己的命名。项目融合的微读墨记代码及其他第三方组件按各自许可使用，来源与许可见 `docs/design/17-weread-fusion.md`、应用“关于”中的开源许可及各组件的许可文件。
 
 ## 模块
 
@@ -30,7 +32,7 @@
 
 ## 构建
 
-工具链放在 `D:\DSHStation\.toolchain`，包含 JDK 17、Android SDK 与 Gradle 8.11.1。工程不复制工具链，根目录 `toolchain.path` 指明位置，换机器只改该文件。工程没有 Gradle Wrapper，命令统一使用工具链中的 `gradle.bat` 或构建脚本。
+工具链放在 `D:\DSHStation\.toolchain`，包含 JDK 17、Android SDK 与 Gradle 8.11.1。工程不复制工具链，根目录 `toolchain.path` 指明位置。仓库含 Gradle Wrapper；本机脚本使用配置工具链。正式签名配置通过仓库外文件传入；CI 未配置密钥时只生成未签名 release 验证包。
 
 ```powershell
 # 整包构建，脚本读取 toolchain.path 并设置 JAVA_HOME、ANDROID_HOME、GRADLE_USER_HOME

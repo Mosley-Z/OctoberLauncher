@@ -77,10 +77,32 @@ class IconOverrideStoreImpl(
                     key != targetId && IconTargets.normalizeStoredKey(key) == targetId
                 }
             current.copy(
-                appearance = current.appearance.copy(iconOverrides = overrides - stale + (targetId to path)),
+                appearance =
+                    current.appearance.copy(
+                        iconOverrides = overrides - stale + (targetId to path),
+                        transparentIconTargets = current.appearance.transparentIconTargets - targetId,
+                    ),
             )
         }
         return pathOf(targetId) == path
+    }
+
+    override fun setTransparent(
+        targetId: String,
+        enabled: Boolean,
+    ) {
+        val normalized = IconTargets.normalizeStoredKey(targetId)
+        if (enabled) clearOverride(normalized)
+        config.edit { current ->
+            val targets = current.appearance.transparentIconTargets
+            current.copy(
+                appearance =
+                    current.appearance.copy(
+                        transparentIconTargets = if (enabled) targets + normalized else targets - normalized,
+                    ),
+            )
+        }
+        versionState.value += 1
     }
 
     /** 清除单个目标的覆盖图标，同时清理历史键与对应文件。 */
@@ -94,6 +116,7 @@ class IconOverrideStoreImpl(
                 appearance =
                     current.appearance.copy(
                         iconOverrides = current.appearance.iconOverrides - stale.keys,
+                        transparentIconTargets = current.appearance.transparentIconTargets - targetId,
                     ),
             )
         }
@@ -107,7 +130,9 @@ class IconOverrideStoreImpl(
             config.state.value.appearance.iconOverrides.values
                 .toList()
         config.edit { current ->
-            current.copy(appearance = current.appearance.copy(iconOverrides = emptyMap()))
+            current.copy(
+                appearance = current.appearance.copy(iconOverrides = emptyMap(), transparentIconTargets = emptySet()),
+            )
         }
         paths.forEach { File(it).delete() }
         versionState.value += 1

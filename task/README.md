@@ -1,4 +1,91 @@
+当前[REL001 V1.0.0本地准备](TASK-REL-001-v1-stable-release.md)已完成正式签名、版本及五件套；用户自行处理旧历史，提交推送及远端Release暂缓。[验收](../docs/acceptance/2026-10-26-rel001-v1-release-preparation.md)。
+
+此前[UX152 P4通知返回跳动](TASK-UX-152-p4-statusbar-transition.md)已交付固定全屏View布局；[横竖过渡验收](../docs/acceptance/2026-10-26-ux152-p4-statusbar-transition.md)。
+
+此前[UX151 P4通知下滑](TASK-UX-151-p4-notification-gesture.md)已通过现有无障碍服务交付：真实栏隐藏时自绘栏下滑展开通知，未连接时真实栏回退；[release横竖验收](../docs/acceptance/2026-10-26-ux151-p4-notification-gesture.md)。
+
+此前[UX150 P4隐藏栏诊断](TASK-UX-150-p4-hidden-status-bar.md)已完成最小实验，未找到可替代79px回退的窗口参数；[结果与边界](../docs/acceptance/2026-10-25-ux150-p4-statusbar-diagnosis.md)。
+
+此前[UX149 沉浸与多页组件](TASK-UX-149-immersive-device-pages-plan.md)已完成：B版及七项实施、最后左列20px调整、双机最终release安装和原配置恢复；[最终验收](../docs/acceptance/2026-10-25-ux149-implementation.md)。
+
+本轮[UX148 P4安全区与本记整改](TASK-UX-148-safe-area-note-expansion.md)已交付，承接用户确认的UX147方案并追加元信息整理及WereadMoji本地换条策略。[验收与边界](../docs/acceptance/2026-10-25-ux148-safe-area-note-expansion.md)：P4最终release已安装；S4离线，盖板手指效果待用户实触。
+
+本轮[UX147 已选清理与横屏评估](TASK-UX-147-settings-cleanup-landscape-assessment.md)已交付：删除已选说明/主题入口/最近应用与权限；P4最终包验证，S4离线。第二部分仅给[待确认方案](../docs/acceptance/2026-10-25-ux147-cleanup-landscape-assessment.md)，未改横屏/本记行为。
+
+本轮已交付：[UX146 设置入口合并与文案审计](TASK-UX-146-settings-consolidation.md)。指定删改完成，其他说明/重复项/权限仅列待选；[验收与清单](../docs/acceptance/2026-10-25-ux146-settings-consolidation.md)。
+
+本轮已交付：[UX145 最近十书循环、设置首页与应用/文件操作](TASK-UX-145-desktop-settings-file-actions.md)。主代理直接实施、审查及双机验证；最终release已安装，原测试状态恢复。[验收及边界](../docs/acceptance/2026-10-25-ux145-desktop-settings-file-actions.md)。
+
+当前批次：[UX139小组件升级集成](TASK-UX-139-widget-upgrade-integration.md)已完成本轮授权集成交付。UX143/144由DSH Tauri实施，主代理审查整改、统一门禁和P4/S4验证；首页自动竖2行3列、横4行2列，显式选择保留。最终包/恢复/证据及验证边界见[集成验收](../docs/acceptance/2026-10-25-ux143-144-integration.md)。旧卡除S4测试外不扩做，以下早期记录保留当时边界。
+
+UX140已按2026-10-25反馈完成数字圈、中文逐字时间、日期左齐与默认数字宽度微调；[新包验收](../docs/acceptance/2026-10-25-ux140-clock-adjustments.md)替代对应旧细节，S4本轮未操作。
+
+UX140最新追加：E三行时/日期/分、F距线增加，A–F独立固定样式provider进入长按统一组件清单；设置钟面区与旧独立页删除。[最新验收](../docs/acceptance/2026-10-25-ux140-direct-clock-picker.md)为准，旧clock配置兼容，141–144未实施。
+
+| 卡 | 范围 | 依赖/共享文件交接 |
+| --- | --- | --- |
+| [UX139](TASK-UX-139-widget-upgrade-integration.md) | 公共契约/迁移/注册、批次集成与统一验收 | 主代理串行；最终依赖140–144交付 |
+| [UX140](TASK-UX-140-clock-styles.md) | A–F六款时钟 | 无前置；现有时钟入口，公共配置归139 |
+| [UX141](TASK-UX-141-todo-week-calendar.md) | 月历改名、同源待办周历 | 无前置；待办/注册契约归139 |
+| [UX142](TASK-UX-142-grid-and-widget-reflow.md) | 横3×4/竖4×3、关闭组件补位 | 无前置；先负责HomeView几何/分页 |
+| [UX143](TASK-UX-143-widget-gesture-cleanup.md) | usage删除、组件切换手势删除、图片四种滑动模式 | 142交接HomeView后执行 |
+| [UX144](TASK-UX-144-reading-carousel-stats.md) | 本书/沉浸双向轮播、账号今日总量与连续天数 | 143交接手势后执行 |
+
+当前追加：[UX138 文件入口显隐](TASK-UX-138-files-entry-visibility.md)：新装默认显示、旧配置一次恢复；既有隐藏管理提供文件开关，与安装应用统一为开显示关隐藏。
+
+当前追加：[UX137 APK打开选择](TASK-UX-137-apk-open-choice.md)：文件页APK先选择安装或查看结构，安装交系统、结构交原阅读器；其他压缩包沿用默认查看。
+
+当前追加：[UX136 文件宫格与缩略图](TASK-UX-136-files-grid-thumbnails.md)：缩略图优先宫格与动态容量、图片无“图”角标、EPUB复用共享封面及缓存；具体范围和状态以任务卡为准。
+
+当前追加：[UX135 普通横屏微调](TASK-UX-135-landscape-spacing-time.md)：累计左移30px，组件原位，展开右界跟随首页；小时/横置冒号/分钟分行。实现、统一工程和P4有限验证已交付，未覆盖见卡。
+
+当前追加：[UX134 普通横屏侧栏整改](TASK-UX-134-landscape-sidebar.md)：应用区左移15px、两列阅读层边界、本记扁圆角大字按钮、切换/标题/刷新/更新时间竖排；仅普通横屏。
+
+当前追加：[UX133 桌面收尾整改](TASK-UX-133-desktop-followup-corrections.md)。第1/2/5项已完成限定验收；用户2026-10-24确认第3项周/月空间与第4项横屏右向阅读层方案，当前实现与统一工程/双机限定验证已交付，未覆盖见卡与验收。新增功能/界面必须先经用户确认。
+
+当前入口：[UX120 桌面整改集成](TASK-UX-120-correction-integration.md)。UX121–132实现与本轮统一验证已交付；周/月严格对[原C稿](../design/ux-corrections-proposal/index.html)，本记/待办对[修订稿](../design/ux-corrections-proposal/revision-2.html)。用户随后取消标题长按与临时隐藏，已删除并完成新包工程和双机受影响回归。单卡状态为权威；[验收](../docs/acceptance/2026-10-23-ux120-corrections.md)区分前包完整矩阵与最终包补测、列明未覆盖项。双机均恢复释放，无升版/提交/推送/发布。
+
+| 卡 | 用户项 | 依赖/文件协调 |
+| --- | --- | --- |
+| [UX121 文档与权限治理](TASK-UX-121-documentation-governance.md) | 1 | 先核实硬权限能力，文档由专职角色维护 |
+| [UX122 沉浸负一屏](TASK-UX-122-immersive-negative-gesture.md) | 4 | HomeView手势；交接后由UX127接长按菜单 |
+| [UX123 横屏其他页全宽](TASK-UX-123-landscape-full-width-pages.md) | 5 | DesktopMetrics先行 |
+| [UX124 横屏首页2×4](TASK-UX-124-landscape-home-eight-slots.md) | 6 | UX123交接后串行修改同文件 |
+| [UX125 壁纸拉伸与图片转向](TASK-UX-125-wallpaper-stretch-rotation.md) | 7 | 配置/主题由集成者串行；UX128接透明策略 |
+| [UX126 本月默认热力图](TASK-UX-126-month-heatmap-default.md) | 8 | 保留显式旧选择，双端默认统一 |
+| [UX127 沉浸桌面菜单](TASK-UX-127-immersive-desktop-menu.md) | 2 | UX122交接手势后 |
+| [UX128 沉浸纯透明](TASK-UX-128-immersive-transparent-wallpaper.md) | 3 | UX125交接壁纸后 |
+| [UX129 十雨设置重组](TASK-UX-129-project-settings-regroup.md) | 9 | UX132后；系统设置不变 |
+| [UX130 横屏组件](TASK-UX-130-landscape-weread-widgets.md) | 10 | UX131后；竖屏/本书不变 |
+| [UX131 横屏状态栏侧边距](TASK-UX-131-landscape-status-side-spacing.md) | 新增 | UX124后，DesktopMetrics串行 |
+| [UX132 删除KOReader集成](TASK-UX-132-remove-koreader-integration.md) | 新增 | 主代理串行公共契约/旧配置迁移 |
+
+前轮精修：[UX116沉浸桌面细节](TASK-UX-116-immersive-refinement.md)，[验收及边界](../docs/acceptance/2026-10-23-immersive-refinement.md)。前序整改：[UX115入口与视觉集成](TASK-UX-115-visual-integration.md)，分卡[UX112](TASK-UX-112-entry-cleanup.md) / [UX113](TASK-UX-113-note-continuity.md) / [UX114](TASK-UX-114-immersive-design-alignment.md)。
+
 # 阅读器任务看板与执行入口
+
+当前追加：[UX111 总结与完整离线使用说明](TASK-UX-111-summary-and-guide.md)，原“怎么用”入口保持不变。
+
+## 阅读桌面实施批次（2026-10-23 已授权）
+
+用户已确认本记覆盖展开、普通组件轮换与沉浸固定本书；授权1/2/3/4/5/6/7/9实施，8搁置。本批Codex集成，三个GPT-6.1 Sol / low子智能体按文件分工；Gradle串行、每台设备单一操作者，保留现有修改，不升版或发布。按依赖推进，不因阶段交付重复请求确认。
+
+实现已交付，卡保留READY_FOR_REVIEW；最新为单一本机录入二维码。见[最终验收与边界](../docs/acceptance/2026-10-23-reading-desktop-implementation.md)，8仍DEFERRED。
+
+| 卡 | 范围 | 前置 |
+| --- | --- | --- |
+| [UX100](TASK-UX-100-integration.md) | 阅读桌面集成与双机交付 | 101、102、103、104、105、106、107、109、110 |
+| [UX101](TASK-UX-101-onboarding.md) | 首次引导与微信读书连接 | 102 |
+| [UX102](TASK-UX-102-immersive.md) | 沉浸本书桌面与应用抽屉 | 106 |
+| [UX103](TASK-UX-103-icons-theme.md) | 透明图标与壁纸主题 | 106 |
+| [UX104](TASK-UX-104-list-layout.md) | 列表对齐数量与左右边距 | 106 |
+| [UX105](TASK-UX-105-landscape.md) | 正反横屏与左右分区 | 102、104、106 |
+| [UX106](TASK-UX-106-grid-layout.md) | 首页与其他页独立行列 | 无 |
+| [UX107](TASK-UX-107-widget-gestures.md) | 普通桌面组件直切手势 | 102、110 |
+| [UX108](TASK-UX-108-sleep-wallpaper.md) | 休眠关机壁纸后置研究 | 无 |
+| [UX109](TASK-UX-109-paper-ui.md) | 纸页书桌视觉落地 | 101、102、103、104、105、106、107、110 |
+| [UX110](TASK-UX-110-note-overlay.md) | 本记宿主覆盖展开 | 106 |
+
 
 2026-10-23最终收口：1.0.31/51、源码1ca51be；RD000–017/FIX001–006 DONE，RD018–020 DEFERRED。双机最终包与字段恢复/释放完成，完整门禁reader137/data128每变体零失败。PDF/PPTX冷首屏仍超目标及局部未测如实保留；详见[最终收口](../docs/acceptance/2026-10-23-reader-final-closure.md)。无正式签名/Release，设备与构建均无占用。
 
@@ -96,3 +183,13 @@ settings.gradle.kts；app Gradle/Manifest/OctoberRainApp/proguard；core:common�
 ## 产品网站（独立范围）
 
 - [WEB-001 产品站本地预览](TASK-WEB-001-product-site.md)：负责人Codex，状态以卡为准；与Android构建/设备任务无依赖。
+
+## 阅读桌面设计与可行性（独立范围）
+
+- [UX-001 阅读桌面方案、设备探索与设计稿](TASK-UX-001-reading-desktop-proposal.md)：Codex负责；1/2/3/4/6/7具体方案、5/8可行性、9设计稿及本记展开分析，业务实施待用户确认；不自动接续RD或FIX业务。
+
+UX140最新E时分逐字竖排、日期横排保持，高度自适应间隔与字号已完成；[竖排验收](../docs/acceptance/2026-10-25-ux140-vertical-clock.md)。S4延期、141–144未实施。
+
+UX141代码审查整改及E日期字号调整已完成，受影响范围与未测项见[最新审查验收](../docs/acceptance/2026-10-25-ux141-review.md)。
+
+UX142审查、微读刷新与E两字小时/日期字号本轮完成；[最新验收](../docs/acceptance/2026-10-25-ux142-review-refresh.md)。此前E字号误改共用路径已纠正，143/144未实施。

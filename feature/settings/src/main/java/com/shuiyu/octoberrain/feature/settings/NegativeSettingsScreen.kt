@@ -5,7 +5,6 @@ import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.NegativeModule
 import com.shuiyu.octoberrain.core.common.NegativeModuleRegistry
@@ -20,8 +19,8 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
 /**
  * 负一屏设置页。
  *
- * 页面由两个分组构成：卡片开关与顺序逐行列出负一屏模块，行内直接切换启用状态并通过
- * 上移下移按钮调整顺序；查看效果分组提供进入负一屏的入口。
+ * 卡片开关与顺序逐行列出负一屏模块，行内直接切换启用状态并通过上移下移按钮调整顺序；
+ * 返回即回到负一屏查看效果。
  * 所有写入都经过 [SettingsUi.edit]，写入后通知内容层刷新，使负一屏按新顺序重建。
  *
  * 卡片开关、顺序调整与墨单十三项各自成组，每组构建逻辑独立成函数以保持可读性，
@@ -41,7 +40,6 @@ class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
         SettingsUi.beginRowCount(page)
         buildModules(page, config)
         buildMenu(page, config)
-        buildEntry(page)
         SettingsUi.note(
             page,
             "关闭的卡片不加载数据；上移下移调整卡片在负一屏中的上下顺序，调整后负一屏立即重建。",
@@ -64,16 +62,6 @@ class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
         order.forEachIndexed { index, moduleId ->
             section.content(buildModuleRow(page.context, config, registered, order.size, index, moduleId))
         }
-    }
-
-    /** 查看效果分组：进入负一屏确认排列结果。 */
-    private fun buildEntry(page: InkPage) {
-        val section = SettingsUi.section(page, "查看效果", "设置立即作用于桌面负一屏")
-        section.action(
-            label = "打开负一屏",
-            value = "也可在桌面首页右滑进入",
-            onClick = { AppServices.router.navigate(Destination.Negative) },
-        )
     }
 
     /**

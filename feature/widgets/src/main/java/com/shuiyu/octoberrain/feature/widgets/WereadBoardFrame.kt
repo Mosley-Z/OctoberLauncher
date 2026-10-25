@@ -1,5 +1,6 @@
 package com.shuiyu.octoberrain.feature.widgets
 
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
@@ -95,6 +96,8 @@ internal data class WereadBoardFrame(
     val infoBottom: Float,
     /** 底部信息字号。 */
     val infoSize: Float,
+    /** 沉浸外层封面继续向外展开，普通组件保持原有收拢几何。 */
+    val expandedCoverRings: Boolean = false,
 ) {
     companion object {
         /** 书封的默认高宽比，实际绘制按位图比例在给定框内适配。 */
@@ -377,7 +380,14 @@ internal fun coverBoundsOf(
     val scale = WereadBoardCarousel.scaleAt(slot.position)
     val width = frame.coverWidth * scale
     val height = frame.coverHeight * scale
-    val shift = WereadBoardCarousel.offsetAt(slot.position) * frame.coverWidth * slot.position.sign
+    val ring = abs(slot.position)
+    val offset =
+        if (frame.expandedCoverRings) {
+            min(ring, 1f) * .40f + max(ring - 1f, 0f) * .32f
+        } else {
+            WereadBoardCarousel.offsetAt(slot.position)
+        }
+    val shift = offset * frame.coverWidth * slot.position.sign
     val centerX = frame.coverCenterX + shift
     return BoardBounds(
         left = centerX - width / 2f,

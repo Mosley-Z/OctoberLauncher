@@ -76,11 +76,23 @@ internal object NegativeSettingsLogic {
             return retainExtensions(config, DeskModulePolicy.toggle(config, moduleId))
         }
         val page = config.desktop.negativePage
-        val next = NegativeSpecs.applyNegativeModule(page.modules, moduleId, !enabled(config, moduleId))
+        val next = applyNegativeModule(page.modules, moduleId, !enabled(config, moduleId))
         return config.copy(
             desktop = config.desktop.copy(negativePage = page.copy(modules = next)),
         )
     }
+
+    /** 增删扩展模块，开启时去重，关闭时移除全部同名标识。 */
+    internal fun applyNegativeModule(
+        modules: List<String>,
+        moduleId: String,
+        enabled: Boolean,
+    ): List<String> =
+        if (enabled) {
+            (modules + moduleId).distinct()
+        } else {
+            modules.filterNot { it == moduleId }
+        }
 
     /**
      * 把指定模块上移或下移一格。

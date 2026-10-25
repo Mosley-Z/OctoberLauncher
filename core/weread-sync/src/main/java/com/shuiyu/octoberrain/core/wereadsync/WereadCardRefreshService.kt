@@ -35,6 +35,9 @@ class WereadCardRefreshService(
         }
 
     private fun runRefresh(intent: WereadRefreshRequest): WereadSyncReport {
+        if (intent.mode == "immersive" || intent.mode == "immersive_auto") {
+            return WereadImmersiveSync(request, root, clock).refresh(intent)
+        }
         val prefs = readPrefs()
         val targets = refreshTargets(intent.mode, bindingMask(prefs))
         val warnings = mutableListOf<String>()
@@ -117,14 +120,13 @@ class WereadCardRefreshService(
             return mask
         }
 
-        /** 本记只同步笔记，待办只读本地，其余形态补发开启的周/月/本书。 */
+        /** 待办只读本地，其余形态刷新自身并补发开启的周/月/本书。 */
         internal fun refreshTargets(
             mode: String,
             mask: Int,
         ): List<String> =
             when (mode) {
                 "todo" -> emptyList()
-                "note" -> listOf("note")
                 else ->
                     buildList {
                         if (mode == "overall") add("annually")

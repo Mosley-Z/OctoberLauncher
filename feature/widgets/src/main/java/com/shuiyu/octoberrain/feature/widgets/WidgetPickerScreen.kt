@@ -10,10 +10,16 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.ScreenProvider
+import com.shuiyu.octoberrain.core.common.editWidgetPage
+import com.shuiyu.octoberrain.core.common.forWidgetPage
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.design.InkWidgets
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * 组件库页面：按分类以两列卡片列出全部组件，点选后写入桌面配置并返回。
@@ -21,9 +27,18 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
  * 同一时刻只启用一个组件；卡片使用细描边与设计令牌圆角，
  * 选中项整卡反白，名称与说明的层级由字号区分。末尾提供关闭项。
  */
-class WidgetPickerScreen : Screen {
+class WidgetPickerScreen(
+    private val title: String = "选择组件",
+    private val pageIndex: Int = 0,
+) : Screen {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    override fun onDestroy() {
+        scope.cancel()
+    }
+
     override fun createView(context: Context): View {
-        val page = InkPage(context, "选择组件", showBack = true) { AppServices.router.back() }
+        val page = InkPage(context, title, showBack = true) { AppServices.router.back() }
         fill(context, page.content)
         return page
     }
@@ -34,7 +49,10 @@ class WidgetPickerScreen : Screen {
         content: LinearLayout,
     ) {
         val tokens = DesignRuntime.tokens
-        val currentId = AppServices.config.state.value.desktop.widgetId
+        val currentId =
+            AppServices.config.state.value.desktop
+                .forWidgetPage(pageIndex)
+                .widgetId
 
         for ((category, providers) in WidgetCatalog.byCategory) {
             content.addView(InkWidgets.heading(context, category.title))
@@ -42,12 +60,16 @@ class WidgetPickerScreen : Screen {
             content.addView(InkWidgets.spacer(context, tokens.gap))
         }
 
+        if (currentId == "image") {
+            content.addView(
+                InkWidgets.button(context, "图片组件设置") { ImageWidgetSettings.show(context, scope, pageIndex) },
+            )
+        }
         content.addView(InkWidgets.heading(context, "关闭"))
         content.addView(
             grid(context, listOf(Option("", "不使用组件", "桌面只显示应用宫格")), currentId),
         )
         content.addView(InkWidgets.spacer(context, tokens.gap))
-        content.addView(InkWidgets.caption(context, "同一时刻只显示一个组件，长按桌面组件区可以再次打开本页"))
     }
 
     /** 组件卡片所需的展示数据。 */
@@ -142,19 +164,26 @@ class WidgetPickerScreen : Screen {
             )
         }
         cellView.addView(titleRow)
-        cellView.addView(
-            (InkWidgets.textView(context, option.description, tokens.textCaption, secondary) as TextView).apply {
-                maxLines = 2
-                ellipsize = TextUtils.TruncateAt.END
-            },
-        )
+        if (option.description.isNotBlank()) {
+            cellView.addView(
+                (InkWidgets.textView(context, option.description, tokens.textCaption, secondary) as TextView).apply {
+                    maxLines = 2
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+            )
+        }
         return cellView
     }
 
     /** 写入桌面组件标识并请求桌面局部重绘。 */
     private fun select(id: String) {
         AppServices.config.edit { config ->
-            config.copy(desktop = config.desktop.copy(widgetId = id))
+            config.copy(
+                desktop =
+                    config.desktop.editWidgetPage(
+                        pageIndex,
+                    ) { it.copy(widgetId = id, widgetCycleIds = emptyList()) },
+            )
         }
         AppServices.refresh.requestFullRefresh()
         AppServices.router.back()
@@ -168,7 +197,12 @@ class WidgetPickerScreen : Screen {
         val Provider: ScreenProvider =
             object : ScreenProvider {
                 override fun create(destination: Destination): Screen? =
-                    if (destination == Destination.WidgetPicker) WidgetPickerScreen() else null
+                    when (destination) {
+                        Destination.WidgetPicker -> WidgetPickerScreen()
+                        is Destination.PageWidgetPicker -> WidgetPickerScreen(pageIndex = destination.page)
+                        Destination.ProjectWidgets -> WidgetPickerScreen("桌面组件")
+                        else -> null
+                    }
             }
     }
 }

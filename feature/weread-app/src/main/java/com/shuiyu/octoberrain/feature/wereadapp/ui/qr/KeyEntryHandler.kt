@@ -53,7 +53,7 @@ internal class KeyEntryHandler(
         return when {
             request == null -> Outcome(400, KeyEntryPage.message("请求无效", "无法解析请求行。"))
             request.token != currentToken ->
-                Outcome(403, KeyEntryPage.message("链接已失效", "页面令牌不匹配，请在电脑上重新生成。"))
+                Outcome(403, KeyEntryPage.message("链接已失效", "页面令牌不匹配，请在墨水屏上重新生成。"))
             request.path != PATH -> Outcome(404, KeyEntryPage.message("页面不存在", "请重新扫描二维码。"))
             request.method == "GET" -> Outcome(200, KeyEntryPage.form(PATH, currentToken, null, ""))
             request.method != "POST" ->
@@ -70,7 +70,7 @@ internal class KeyEntryHandler(
         val rawKey = KeyEntryHttp.parameter(body, "key").trim()
         val error = WereadKeyValidator.validateOrNull(rawKey)
         return if (error == null) {
-            Outcome(200, KeyEntryPage.message("密钥已接收", "电脑端已收到密钥，可以关闭本页面。"), rawKey)
+            Outcome(200, KeyEntryPage.message("密钥已提交", "已提交到墨水屏，请在设备上查看保存结果。"), rawKey)
         } else {
             Outcome(200, KeyEntryPage.form(PATH, currentToken, error, rawKey))
         }

@@ -8,15 +8,13 @@ import com.shuiyu.octoberrain.core.common.ChangelogEntry
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.UpdateInfo
 import com.shuiyu.octoberrain.core.common.UpdateService
+import com.shuiyu.octoberrain.core.common.UpdateSources
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
-import java.util.Locale
 
 /**
  * 在线更新实现：读取更新清单、下载安装包并触发安装。
@@ -31,40 +29,21 @@ class UpdateServiceImpl(
 
     override suspend fun check(force: Boolean): UpdateInfo? =
         withContext(Dispatchers.IO) {
-            val url = AppServices.config.state.value.integrations.updateUrl
-            if (url.isBlank()) return@withContext null
-            runCatching {
-                val text = httpGet(url)
-                val remote = AppJson.format.decodeFromString<UpdatePayload>(text)
-                val installed = installedVersionCode()
-                if (!force && remote.versionCode <= installed) {
-                    null
-                } else {
-                    UpdateInfo(
-                        versionName = remote.versionName,
-                        versionCode = remote.versionCode,
-                        notes = remote.notes,
-                        downloadUrl = remote.downloadUrl,
-                        sha256 = remote.sha256,
-                        sizeBytes = remote.sizeBytes,
-                    )
-                }
-            }.onFailure { InkLog.w("更新", "检查更新失败", it) }.getOrNull()
+            val config = AppServices.config.state.value.integrations
+            readUpdate(
+                UpdateSources.manifests(config.updateUrl, config.updateFallbackUrls),
+                installedVersionCode(),
+                ::httpGet,
+            )
         }
 
     override suspend fun download(info: UpdateInfo): File? =
         withContext(Dispatchers.IO) {
-            runCatching {
-                val file = File(downloadDir, "update_${info.versionCode}.apk")
-                httpGetStream(info.downloadUrl) { input ->
-                    java.io.FileOutputStream(file).use { output -> input.copyTo(output) }
+            downloadUpdate(info, downloadDir) { url, partial ->
+                httpGetStream(url) { input ->
+                    java.io.FileOutputStream(partial).use { output -> input.copyTo(output) }
                 }
-                if (info.sha256.isNotBlank() && !sha256(file).equals(info.sha256, ignoreCase = true)) {
-                    file.delete()
-                    error("安装包校验失败")
-                }
-                file
-            }.onFailure { InkLog.w("更新", "下载更新失败", it) }.getOrNull()
+            }
         }
 
     override fun install(file: File) {
@@ -144,29 +123,4 @@ class UpdateServiceImpl(
             requestMethod = "GET"
             instanceFollowRedirects = true
         }
-
-    /** 计算文件摘要。 */
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(8192)
-            while (true) {
-                val read = input.read(buffer)
-                if (read <= 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { String.format(Locale.ROOT, "%02x", it) }
-    }
-
-    /** 更新清单结构。 */
-    @Serializable
-    private data class UpdatePayload(
-        val versionName: String = "0.0.0",
-        val versionCode: Int = 0,
-        val notes: String = "",
-        val downloadUrl: String = "",
-        val sha256: String = "",
-        val sizeBytes: Long = 0L,
-    )
 }

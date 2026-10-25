@@ -6,12 +6,15 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.MinuteTicker
+import com.shuiyu.octoberrain.core.common.NotificationPanelAccess
 import com.shuiyu.octoberrain.core.common.RefreshPolicy
 import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.TimeUtils
@@ -23,12 +26,22 @@ import com.shuiyu.octoberrain.core.design.InkGlyphs
  * 桌面状态栏：左侧刷新环与时间，右侧电量百分比与电池图标，背景透明。
  *
  * 文字与图标带白色描边，壁纸在状态栏区域可见，内容在花纹上仍可辨认；
- * 刷新环与时间点击触发整屏闪烁刷新，中段空白区域点击展开快捷托盘。
+ * 刷新环与时间点击触发整屏闪烁刷新，中段为空白区域。
  * 尺寸全部取自设计令牌。
  */
 class StatusBarView(
     context: Context,
 ) : FrameLayout(context) {
+    private val systemOwnsIndicators =
+        com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0 &&
+            !NotificationPanelAccess.available.value
+    private val panelGestureEnabled =
+        com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0 &&
+            NotificationPanelAccess.available.value
+    private val swipeDistance = maxOf(ViewConfiguration.get(context).scaledTouchSlop * 2, DesignRuntime.tokens.dp(24f))
+    private var downX = 0f
+    private var downY = 0f
+    private var openingPanel = false
     private val timeView: HaloTextView
 
     private val batteryView: HaloTextView
@@ -69,14 +82,11 @@ class StatusBarView(
             ),
         )
 
-        // 中段：留白区域点击展开托盘
+        // 中段：保留原有布局留白
         row.addView(
             View(context).apply {
                 layoutParams =
                     LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { openTray() }
             },
         )
 
@@ -108,7 +118,9 @@ class StatusBarView(
         )
         row.addView(hSpace(context, tokens.dp(3f)))
         row.addView(
-            InkGlyphs.view(context, InkGlyphs.Kind.BATTERY, tokens.statusIcon, Color.WHITE),
+            InkGlyphs.view(context, InkGlyphs.Kind.BATTERY, tokens.statusIcon, Color.WHITE).apply {
+                if (systemOwnsIndicators) visibility = View.GONE
+            },
             LinearLayout
                 .LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -120,7 +132,7 @@ class StatusBarView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        ticker.start()
+        if (!systemOwnsIndicators) ticker.start()
         refresh()
     }
 
@@ -129,9 +141,46 @@ class StatusBarView(
         super.onDetachedFromWindow()
     }
 
+    /** 下滑超过门限才取消原点击；短按仍交给刷新按钮与时间。 */
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (!panelGestureEnabled) return super.dispatchTouchEvent(event)
+        var consumed = openingPanel
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                downY = event.y
+                openingPanel = false
+                consumed = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dy = event.y - downY
+                if (!openingPanel && dy > swipeDistance && dy > kotlin.math.abs(event.x - downX) * 1.5f) {
+                    openingPanel = true
+                    val cancel = MotionEvent.obtain(event)
+                    cancel.action = MotionEvent.ACTION_CANCEL
+                    super.dispatchTouchEvent(cancel)
+                    cancel.recycle()
+                    NotificationPanelAccess.open()
+                }
+                consumed = openingPanel
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                openingPanel = false
+            }
+        }
+        if (!consumed) super.dispatchTouchEvent(event)
+        return true
+    }
+
     /** 重新读取外观配置与电量状态并刷新显示。 */
     fun refresh() {
         if (!DesignRuntime.isReady()) return
+        if (systemOwnsIndicators) {
+            timeView.visibility = View.GONE
+            batteryView.visibility = View.GONE
+            chargeMark.visibility = View.GONE
+            return
+        }
         val config = runCatching { AppServices.config.state.value }.getOrNull()
         val twelveHour = config?.appearance?.twelveHour ?: false
         timeView.text = TimeUtils.currentTime(twelveHour)
@@ -153,16 +202,6 @@ class StatusBarView(
         }
     }
 
-    /** 展开快捷托盘；托盘被关闭时给出提示。 */
-    private fun openTray() {
-        val enabled = runCatching { AppServices.config.state.value.tray.enabled }.getOrDefault(true)
-        if (!enabled) {
-            runCatching { AppServices.router.toast("快捷托盘已在设置中关闭") }
-            return
-        }
-        runCatching { AppServices.tray.open() }
-    }
-
     /** 构造可点击图标按钮，触控区取令牌触控高度，图标带白色描边。 */
     private fun glyphButton(
         context: Context,
@@ -171,6 +210,7 @@ class StatusBarView(
     ): FrameLayout {
         val tokens = DesignRuntime.tokens
         return FrameLayout(context).apply {
+            contentDescription = "刷新屏幕"
             isClickable = true
             isFocusable = true
             setOnClickListener { onClick() }

@@ -31,7 +31,7 @@ open class FilePager(
     }
 
     /** 分页状态，页码变更后通知监听并重绘。 */
-    val pagerState: FilePagerState = FilePagerState(FileMetrics.GRID_PAGE)
+    val pagerState: FilePagerState = FilePagerState(1)
 
     /** 顶栏标题，子类覆盖为当前目录名称。 */
     protected open val pageTitle: String get() = BrowseStrings.TITLE
@@ -43,7 +43,7 @@ open class FilePager(
     protected open val topActionLabel: String get() = ""
 
     /** 每页条目数，子类按视图形态覆盖。 */
-    open val pageSize: Int get() = FileMetrics.GRID_PAGE
+    open val pageSize: Int get() = geometry?.pageSize ?: 1
 
     /** 最近一次布局得到的几何，尚未完成布局时为 null。 */
     protected val geometry: FileMetrics? get() = metrics
@@ -131,9 +131,11 @@ open class FilePager(
         oldHeight: Int,
     ) {
         super.onSizeChanged(width, height, oldWidth, oldHeight)
+        val anchor = metrics?.let { pagerState.firstIndex }
         val rebuilt = FileMetrics(width, height, tokens)
         metrics = rebuilt
         pagerState.pageSize = pageSize
+        if (anchor != null) pagerState.setPage(anchor / pageSize)
         chrome.layout(width, rebuilt)
         onGeometryChanged(rebuilt)
     }

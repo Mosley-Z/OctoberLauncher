@@ -16,11 +16,6 @@ internal object LockSpecs {
                 id = GROUP_LOCK_BEHAVIOR,
                 title = "行为",
                 subtitle = "锁定触发条件",
-                notes =
-                    listOf(
-                        "PIN 只保存在本机配置中，以加盐摘要形式存储，不保存明文；" +
-                            "连续输入错误不会锁死设备，返回桌面重新进入即可。",
-                    ),
             ),
         )
 

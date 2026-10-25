@@ -24,7 +24,7 @@
 | 本轮管理文件diff | `git diff --check -- README.md AGENTS.md PROJECT.md docs task memory scripts/check-project-docs.py .github/workflows/build.yml settings.gradle.kts` | 退出码0 |
 | Android构建/设备 | 本轮只整理管理材料 | 未执行，不适用 |
 
-文档检查输出：[原始结果](../../_analysis/verify/project-management-2026-10-22/docs-check.txt)。以上不是Android构建或真机验证证据。
+文档检查输出：原始结果（本地证据：`_analysis/verify/project-management-2026-10-22/docs-check.txt`）。以上不是Android构建或真机验证证据。
 
 ## 历史边界
 

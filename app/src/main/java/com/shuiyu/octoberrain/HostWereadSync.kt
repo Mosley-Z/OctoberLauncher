@@ -53,6 +53,10 @@ object HostWereadSync : WereadSyncHost {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    @Volatile private var lastImmersiveSuccess = 0L
+
+    @Volatile private var lastImmersiveAttempt = 0L
+
     /** 仅失效消费者缓存，不触发另一轮联网同步。 */
     internal fun notifyDataChanged() {
         mainHandler.post {
@@ -68,6 +72,7 @@ object HostWereadSync : WereadSyncHost {
      */
     fun attach(filesDir: File) {
         root = File(filesDir, DIRECTORY)
+        lastImmersiveSuccess = File(root, "immersive-refresh.stamp").lastModified()
     }
 
     /** 当前是否正在同步。 */
@@ -113,16 +118,36 @@ object HostWereadSync : WereadSyncHost {
             onFinished(true, "待办已重新读取")
             return true
         }
+        val autoSuppressed = shouldSkipAutoRefresh(request)
         val dir = root
         val key = apiKey()
         return when {
-            dir == null || key.isEmpty() -> false
+            autoSuppressed || dir == null || key.isEmpty() -> false
             !running.compareAndSet(false, true) -> false
             else -> {
                 startWorker(dir, key, onFinished, request)
                 true
             }
         }
+    }
+
+    private fun shouldSkipAutoRefresh(request: WereadRefreshRequest): Boolean {
+        if (request.mode != "immersive_auto") return false
+        val now = System.currentTimeMillis()
+        val zone = java.time.ZoneId.systemDefault()
+        val day =
+            java.time.Instant
+                .ofEpochMilli(now)
+                .atZone(zone)
+                .toLocalDate()
+        val lastDay =
+            java.time.Instant
+                .ofEpochMilli(lastImmersiveSuccess)
+                .atZone(zone)
+                .toLocalDate()
+        val skip = (day == lastDay && now - lastImmersiveSuccess < 600_000L) || now - lastImmersiveAttempt < 60_000L
+        if (!skip) lastImmersiveAttempt = now
+        return skip
     }
 
     /** 启动后台同步线程。 */
@@ -151,6 +176,11 @@ object HostWereadSync : WereadSyncHost {
                     }.getOrElse { error ->
                         WereadSyncReport(false, "同步失败：${error.message ?: "未知错误"}")
                     }
+                if (report.success &&
+                    request?.mode?.startsWith("immersive") == true
+                ) {
+                    lastImmersiveSuccess = System.currentTimeMillis()
+                }
                 lastReport = report
                 running.set(false)
                 notifyDataChanged()

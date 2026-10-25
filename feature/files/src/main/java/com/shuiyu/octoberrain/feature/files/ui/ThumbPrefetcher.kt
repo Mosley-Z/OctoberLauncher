@@ -2,6 +2,7 @@ package com.shuiyu.octoberrain.feature.files.ui
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.shuiyu.octoberrain.core.render.EpubCover
 import com.shuiyu.octoberrain.core.render.ImageDecoder
 import com.shuiyu.octoberrain.core.render.ThumbCache
 import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
@@ -82,6 +83,7 @@ internal class ThumbPrefetcher(
     private val targetEdge: Int,
     private val pageSize: Int,
     private val onReady: () -> Unit,
+    private val includeEpub: Boolean = false,
 ) {
     private val appContext: Context = context.applicationContext
     private val cache: ThumbCache = ThumbCacheRegistry.get(appContext, targetEdge)
@@ -91,7 +93,7 @@ internal class ThumbPrefetcher(
 
     /** 取条目已就绪的缩略图，仅查内存缓存，不读磁盘；非图片或未命中返回 null。 */
     fun bitmapOf(item: FileItem): Bitmap? =
-        if (item.isImage) {
+        if (eligible(item)) {
             ThumbCacheRegistry.peekMemory(File(item.path), targetEdge)
         } else {
             null
@@ -121,7 +123,7 @@ internal class ThumbPrefetcher(
                     for (index in start until end) {
                         if (!isActive || token != generation) return@launch
                         val item = items.getOrNull(index)
-                        if (item != null && item.isImage) {
+                        if (item != null && eligible(item)) {
                             withContext(Dispatchers.IO) { load(item) }
                         }
                     }
@@ -142,9 +144,13 @@ internal class ThumbPrefetcher(
         job = null
     }
 
+    private fun eligible(item: FileItem): Boolean = item.isImage || (includeEpub && item.isEpub)
+
     /** 从两级缓存读取，未命中时解码并写回缓存；只在后台线程调用。 */
     private fun load(item: FileItem): Bitmap? {
         val file = File(item.path)
-        return cache.get(file) ?: ImageDecoder.decode(item.path, targetEdge)?.let { cache.put(file, it) }
+        return cache.get(file)
+            ?: (if (item.isEpub) EpubCover.decode(file, targetEdge) else ImageDecoder.decode(item.path, targetEdge))
+                ?.let { cache.put(file, it) }
     }
 }

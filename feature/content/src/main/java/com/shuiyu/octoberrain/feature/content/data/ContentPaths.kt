@@ -38,17 +38,6 @@ object ContentPaths {
     /** 书籍显式封面目录，位于书籍根目录下的 cover 子目录。 */
     fun coverRoot(): File = File(booksRoot(), "cover")
 
-    /** KOReader 数据目录，按常见挂载点依次探测，未找到返回 null。 */
-    fun koreaderRoot(): File? {
-        val candidates =
-            listOf(
-                File(externalRoot(), "koreader"),
-                File("/sdcard/koreader"),
-                File("/storage/emulated/0/koreader"),
-            )
-        return candidates.firstOrNull { it.isDirectory }
-    }
-
     /** 存储权限是否已授予，读取失败按未授权处理。 */
     fun hasStorageAccess(): Boolean =
         runCatching {

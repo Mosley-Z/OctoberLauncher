@@ -1,4 +1,12 @@
 # 构建产物与本地环境文件不入库
+release-signing.properties
+*.jks
+*.keystore
+*.p12
+dist/
+website/dist/
+website/evidence/
+nul
 build/
 .gradle/
 .gradle-home/
@@ -54,3 +62,15 @@ _analysis/reader-probe/assets/deck.pptx
 
 # 大型合成PDF仅由generate_pdf_fixtures.py重建
 _analysis/reader-probe/fixtures/
+
+# 阅读桌面可行性探针、设备系统包与临时测试签名（仅本地证据）
+_analysis/verify/desktop-ux/
+
+_analysis/verify/help-guide/
+
+_analysis/verify/visual-alignment/
+
+_analysis/verify/immersive-refinement/
+
+# 验收原始数据与设备快照只保留本地；既有历史由维护者另行清理。
+_analysis/

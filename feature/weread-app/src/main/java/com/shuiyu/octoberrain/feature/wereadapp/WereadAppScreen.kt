@@ -6,7 +6,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import com.inkread.weekread.ui.SegTabView
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -20,7 +19,7 @@ internal enum class WereadAppTab {
     /** 阅读页：内部再分本周、本月、本书、洞察四段。 */
     READING,
 
-    /** 页面内设置页：显示、卡片、锁屏密码、成就与联动等表单。 */
+    /** 页面内设置页：初始化、自定义与联动等表单。 */
     SETTINGS,
 
     /** 待办页：清单增删改查。 */
@@ -202,12 +201,6 @@ internal class WereadAppView(
     /** 阅读页外部跳转回调。 */
     private fun readingListener(): WereadReadingPage.Listener =
         object : WereadReadingPage.Listener {
-            override fun onOpenDesk() {
-                if (AppServices.hasRouter()) {
-                    AppServices.router.navigate(Destination.Negative)
-                }
-            }
-
             override fun onOpenBook(bookId: String) {
                 openExternal("weread://reading?bId=$bookId")
             }

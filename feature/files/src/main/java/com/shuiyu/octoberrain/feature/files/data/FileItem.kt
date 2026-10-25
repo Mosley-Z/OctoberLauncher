@@ -25,6 +25,16 @@ data class FileItem(
     /** 是否为图片，按 MIME 前缀判断。 */
     val isImage: Boolean get() = !dir && mime.startsWith("image/")
 
+    /** 安装包在进入通用阅读器前由用户选择安装或查看结构。 */
+    val isApk: Boolean
+        get() = !dir && (extension().equals(".apk", true) || mime.substringBefore(';').trim().equals(APK_MIME, true))
+
+    /** EPUB remains a document, even when its cover is available. */
+    val isEpub: Boolean get() = !dir && (mime == "application/epub+zip" || extension().equals(".epub", true))
+
+    /** Whether a grid may request a visual preview. */
+    val hasThumbnail: Boolean get() = isImage || isEpub
+
     /** 是否为可编辑图片，动图与 HEIF 只做查看。 */
     val isEditableImage: Boolean
         get() = isImage && !mime.contains("gif") && !mime.contains("heif")
@@ -56,6 +66,8 @@ data class FileItem(
     }
 
     companion object {
+        const val APK_MIME = "application/vnd.android.package-archive"
+
         /** 创建目录条目，目录不记录字节数与 MIME。 */
         fun dir(
             name: String,

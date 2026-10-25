@@ -78,6 +78,9 @@ class FileTokens(
     /** 正文字号，对应桌面视觉层级的 14sp。 */
     val bodyText: Float get() = textSize(14f)
 
+    /** Grid names remain secondary to the visual preview. */
+    val gridLabelText: Float get() = textSize(11f)
+
     /** 辅助字号，对应桌面视觉层级的 12sp。 */
     val smallText: Float get() = textSize(12f)
 }

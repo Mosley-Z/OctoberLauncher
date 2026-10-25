@@ -10,12 +10,14 @@ import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 
 /**
- * 快捷托盘设置页面。
+ * 既有状态栏/通知与墨水屏刷新设置页面。
  *
  * 行控件全部由 [SettingsCatalog.trayGroups] 的声明生成；
  * 本页额外维护「距上次整刷」摘要行，并按固定周期刷新其文字。
  */
-class TrayPrefsScreen : SettingsBaseScreen("快捷托盘") {
+class TrayPrefsScreen(
+    private val refreshOnly: Boolean = false,
+) : SettingsBaseScreen(if (refreshOnly) "墨水屏刷新" else "状态栏与通知") {
     /** 摘要文字的刷新调度器，运行在主线程。 */
     private val summaryHandler = Handler(Looper.getMainLooper())
 
@@ -40,15 +42,72 @@ class TrayPrefsScreen : SettingsBaseScreen("快捷托盘") {
     ) {
         SettingsSpecRenderer.renderPage(
             page = page,
-            groups = SettingsCatalog.trayGroups,
+            groups = SettingsCatalog.trayGroups.filter { (it.id == SettingsCatalog.GROUP_TRAY_REFRESH) == refreshOnly },
             config = config,
             sink = settingEffectSink(),
             actions = trayActions(),
             customs = trayCustoms(),
         )
+        if (!refreshOnly) {
+            SettingsSpecRenderer.renderPage(
+                page,
+                listOf(SettingsGroupSpec("project.status", "十雨状态栏高度")),
+                config,
+                settingEffectSink(),
+            )
+            buildNotifications(page)
+        }
     }
 
-    /** 托盘页的动作表，键为设置项标识。 */
+    private fun buildNotifications(page: InkPage) {
+        val section = SettingsUi.section(page, "通知展示", "折叠、会话与桌面角标")
+        section.toggle("按应用折叠", { SettingsUi.settings().notifications.foldByApp }) { value ->
+            SettingsUi.edit { it.copy(notifications = it.notifications.copy(foldByApp = value)) }
+            SettingsUi.refresh()
+        }
+        section.toggle("合并同一会话", { SettingsUi.settings().notifications.mergeConversation }) { value ->
+            SettingsUi.edit { it.copy(notifications = it.notifications.copy(mergeConversation = value)) }
+            SettingsUi.refresh()
+        }
+        section.toggle("丢弃系统汇总条目", { SettingsUi.settings().notifications.stripSummary }) { value ->
+            SettingsUi.edit { it.copy(notifications = it.notifications.copy(stripSummary = value)) }
+            SettingsUi.refresh()
+        }
+        section.toggle("启用桌面角标", { SettingsUi.settings().notifications.badgeEnabled }) { value ->
+            SettingsUi.edit { it.copy(notifications = it.notifications.copy(badgeEnabled = value)) }
+            SettingsUi.refresh()
+        }
+        section.choose("角标上限", listOf("9", "99"), {
+            if (SettingsUi.settings().notifications.badgeMax ==
+                99
+            ) {
+                1
+            } else {
+                0
+            }
+        }) { index ->
+            SettingsUi.edit { it.copy(notifications = it.notifications.copy(badgeMax = if (index == 1) 99 else 9)) }
+            SettingsUi.refresh()
+        }
+        val badge =
+            if (SettingsUi.settings().notifications.badgeEnabled) {
+                runCatching {
+                    com.shuiyu.octoberrain.core.data.NotificationCenter.badgeText(
+                        SettingsUi.settings().notifications,
+                    )
+                }.getOrDefault("")
+                    .ifEmpty { "无" }
+            } else {
+                "已关闭"
+            }
+        section.info("当前角标", badge)
+        section.action("清空全部通知", "执行") {
+            runCatching { AppServices.notifications.dismissAll() }
+            SettingsUi.refresh()
+        }
+    }
+
+    /** 状态栏与刷新页的动作表，键为设置项标识。 */
     private fun trayActions(): Map<String, () -> Unit> =
         mapOf(
             "tray.refreshNow" to { requestManualRefresh() },

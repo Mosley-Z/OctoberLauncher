@@ -5,62 +5,36 @@ import com.shuiyu.octoberrain.core.device.DisplayClass
 import com.shuiyu.octoberrain.core.device.HeightClass
 import com.shuiyu.octoberrain.core.device.SizeClass
 import com.shuiyu.octoberrain.feature.files.ui.FileMetrics
-import com.shuiyu.octoberrain.feature.files.ui.FileMetrics.Companion.GRID_ROWS
 import com.shuiyu.octoberrain.feature.files.ui.FileTokens
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * 网格绘制高度测试。
- *
- * 核对三档设备在整屏与真实内容区高度下，四行缩略图与标签能否完整落在内容区内。
- */
 class P2MetricsTest {
-    /** 小屏整屏高度下四行无需压缩。 */
-    @Test
-    fun `小屏整屏四行保持标称缩略图高度`() {
-        val metrics = metricsOf(width = 480, height = 800, dpi = 219)
-        assertEquals(134, metrics.gridCellDrawH)
-        assertEquals(648, metrics.gridDrawH)
-        assertTrue(metrics.gridDrawH <= metrics.contentH)
+    @Test fun previewsDominateInBothOrientationsAndCellsKeepTheirLabelsClickable() {
+        listOf(480 to 753, 800 to 432, 552 to 720, 768 to 505, 824 to 1600).forEach { (w, h) ->
+            val m = metricsOf(w, h, 219)
+            assertEquals(if (w > h) 5 else 3, m.gridColumns)
+            assertEquals(m.gridColumns * m.gridRows, m.pageSize)
+            val cells = (0 until m.pageSize).map { m.gridCell(it) }
+            cells.forEachIndexed { index, c ->
+                assertEquals(c.thumbnail.width, c.thumbnail.height)
+                assertTrue(c.hit.bottom <= m.contentBottom)
+                assertTrue(c.hit.contains(c.label.right - 1, c.label.bottom - 1))
+                assertTrue(c.hit.contains(c.hit.left, c.thumbnail.top))
+                assertFalse(c.hit.contains(c.hit.right, c.hit.top))
+                assertEquals(listOf(index), cells.indices.filter { cells[it].hit.contains(c.label.left, c.label.top) })
+            }
+        }
     }
 
-    /** 横向设备整屏高度下缩略图被压缩到恰好容纳四行。 */
-    @Test
-    fun `横向设备四行压缩后不超出内容区`() {
-        val metrics = metricsOf(width = 552, height = 768, dpi = 213)
-        assertEquals(129, metrics.gridCellDrawH)
-        assertEquals(624, metrics.gridDrawH)
-        assertEquals(metrics.contentH, metrics.gridDrawH)
-    }
-
-    /** 大屏设备内容区富余，缩略图保持 3:4。 */
-    @Test
-    fun `大屏设备四行保持标称缩略图高度`() {
-        val metrics = metricsOf(width = 824, height = 1648, dpi = 320)
-        assertEquals(238, metrics.gridCellDrawH)
-        assertEquals(1116, metrics.gridDrawH)
-        assertTrue(metrics.gridDrawH <= metrics.contentH)
-    }
-
-    /** 小屏真实内容区高度 753 时按四行反推并压缩缩略图。 */
-    @Test
-    fun `小屏真实内容区压缩缩略图`() {
-        val metrics = metricsOf(width = 480, height = 753, dpi = 219)
-        assertEquals(605, metrics.contentH)
-        assertEquals(123, metrics.gridCellDrawH)
-        assertEquals(604, metrics.gridDrawH)
-        assertTrue(metrics.gridDrawH <= metrics.contentH)
-    }
-
-    /** 内容区过矮时缩略图高度保底一像素，行数仍为四行。 */
-    @Test
-    fun `内容区过矮时缩略图高度保底`() {
-        val metrics = metricsOf(width = 480, height = 200, dpi = 219)
-        assertEquals(1, metrics.gridCellDrawH)
-        val expected = GRID_ROWS * (1 + metrics.tokens.cellLabelH) + (GRID_ROWS - 1) * metrics.tokens.gap
-        assertEquals(expected, metrics.gridDrawH)
+    @Test fun s4LandscapeHasTwoLargeRowsRatherThanSixteenTinyPreviews() {
+        val m = metricsOf(800, 432, 219)
+        assertEquals(5, m.gridColumns)
+        assertEquals(2, m.gridRows)
+        assertEquals(10, m.pageSize)
+        assertTrue(m.gridCellDrawH > 100)
     }
 
     private fun metricsOf(

@@ -30,10 +30,11 @@ internal object KeyEntryPage {
         val body =
             buildString {
                 append("<p class=\"tip\">$tip</p>")
+                append("<p>手机微信中打开 weread.qq.com/r/weread-skills，按官方提示登录并复制 API Key；粘贴到下方提交给墨水屏保存。</p>")
                 append("<form method=\"post\" action=\"$path?t=$token\">")
                 append("<label for=\"key\">接口密钥</label>")
-                append("<input id=\"key\" name=\"key\" type=\"text\" value=\"${escape(value)}\"")
-                append(" placeholder=\"wrk-…\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\">")
+                append("<textarea id=\"key\" name=\"key\" rows=\"4\" placeholder=\"粘贴复制的 API Key\"")
+                append(" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\">${escape(value)}</textarea>")
                 append("<button type=\"submit\">提交密钥</button>")
                 append("</form>")
             }
@@ -59,7 +60,7 @@ internal object KeyEntryPage {
             append("h1{font-size:20px;font-weight:600;margin:0 0 12px}")
             append(".tip{color:#aaa;font-size:14px}")
             append("label{display:block;margin:20px 0 8px;font-size:14px;color:#bbb}")
-            append("input{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;")
+            append("textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;")
             append("border:1px solid #333;background:#1c1c1c;color:#eee;font-size:16px}")
             append("button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:8px;")
             append("background:#3a7afe;color:#fff;font-size:16px}")

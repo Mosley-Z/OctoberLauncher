@@ -122,10 +122,20 @@ class IconPickerScreen(
         val hasOverride =
             runCatching { AppServices.iconOverrides.overrides().containsKey(targetId) }.getOrDefault(false)
         card.addView(
-            InkWidgets.caption(context, if (hasOverride) "当前使用自定义图片" else "当前使用系统图标").apply {
-                gravity = Gravity.CENTER
-                setPadding(0, tokens.gap / 4, 0, 0)
-            },
+            InkWidgets
+                .caption(
+                    context,
+                    if (isTransparent()) {
+                        "当前使用透明图标"
+                    } else if (hasOverride) {
+                        "当前使用自定义图片"
+                    } else {
+                        "当前使用系统图标"
+                    },
+                ).apply {
+                    gravity = Gravity.CENTER
+                    setPadding(0, tokens.gap / 4, 0, 0)
+                },
         )
         card.addView(
             InkWidgets.textView(context, "恢复默认图标", tokens.textBody, InkColors.INK).apply {
@@ -134,9 +144,25 @@ class IconPickerScreen(
                 setOnClickListener { restoreDefault(context) }
             },
         )
-        loadCurrentIcon(preview, size)
+        card.addView(transparentButton(context))
+        if (!isTransparent()) loadCurrentIcon(preview, size)
         return card
     }
+
+    private fun transparentButton(context: Context): View {
+        val tokens = DesignRuntime.tokens
+        return InkWidgets.textView(context, "使用透明图标", tokens.textBody, InkColors.INK).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, tokens.gap, 0, tokens.gap)
+            setOnClickListener {
+                AppServices.iconOverrides.setTransparent(targetId, true)
+                SettingsUi.refresh()
+                rebuild()
+            }
+        }
+    }
+
+    private fun isTransparent(): Boolean = targetId in SettingsUi.settings().appearance.transparentIconTargets
 
     /** 读取当前生效图标：图标覆盖优先，其次应用图标或内置字形。 */
     private fun loadCurrentIcon(

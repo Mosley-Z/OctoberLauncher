@@ -68,6 +68,35 @@ class WereadBookSync(
         return books.map(::enrich) to selected?.let(::enrich)
     }
 
+    /** Refresh only the candidate carousel, retaining full shelf metadata and cached assets. */
+    fun recentBooks(
+        selectedId: String,
+        force: Boolean,
+    ): List<WereadShelfBook>? {
+        val books = shelf() ?: return null
+        val candidates = books.sortedByDescending { it.readUpdateTime }.distinctBy { it.bookId }.take(10)
+        candidates.forEach { fetch(it, force) }
+        val enriched = books.map(::enrich)
+        val ids = candidates.map { it.bookId }.toSet()
+        val saved = storeRecent(enriched, selectedId, ids)
+        return enriched.filter { it.bookId in ids }.takeIf { saved }
+    }
+
+    private fun storeRecent(
+        books: List<WereadShelfBook>,
+        selectedId: String,
+        ids: Set<String>,
+    ): Boolean {
+        val store = WereadStore(root)
+        return store.writeShelf(books, clock()) &&
+            store.writeShelfIds(books.map { it.bookId }) &&
+            store.writeAssets(cachedAssets()) &&
+            store.writeCurrentBook(
+                books.firstOrNull { it.bookId == selectedId && it.bookId in ids }
+                    ?: books.filter { it.bookId in ids }.maxByOrNull { it.readUpdateTime },
+            )
+    }
+
     private fun fetch(
         book: WereadShelfBook,
         force: Boolean,

@@ -9,7 +9,6 @@ import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.ScreenProvider
 import com.shuiyu.octoberrain.core.common.ScreenRegistry
 import com.shuiyu.octoberrain.feature.content.ui.BookScreen
-import com.shuiyu.octoberrain.feature.content.ui.KoreaderScreen
 import com.shuiyu.octoberrain.feature.content.ui.NoteScreen
 import com.shuiyu.octoberrain.feature.content.ui.SearchScreen
 import com.shuiyu.octoberrain.feature.content.ui.TodoScreen
@@ -20,8 +19,8 @@ import com.shuiyu.octoberrain.feature.content.ui.negative.DeskNegativeModule
  * 内容域模块入口。
  *
  * 由宿主通过反射按固定类名实例化后调用 [install]：先构造内容数据源并替换
- * 应用级 [AppServices.content]，再把书架、微信读书、KOReader、搜索与
- * 最近任务五个页面注册到 [ScreenRegistry]，最后向 [NegativeModuleRegistry]
+ * 应用级 [AppServices.content]，再把书架、微信读书、搜索与
+ * 等四个页面注册到 [ScreenRegistry]，最后向 [NegativeModuleRegistry]
  * 注册墨台负一屏模块。模块内部不依赖其他 feature 模块。
  */
 class ContentModule : LauncherModule {
@@ -51,10 +50,7 @@ class ContentModule : LauncherModule {
                 Destination.Todo -> TodoScreen()
                 Destination.Weread -> WereadScreen()
                 is Destination.WereadTab -> WereadScreen(destination.section)
-                Destination.Koreader -> KoreaderScreen()
                 Destination.Search -> SearchScreen()
-                // 最近任务与使用统计页面位于 feature/content 根包，与提供者同包
-                Destination.Recents -> RecentsScreen()
                 else -> null
             }
     }

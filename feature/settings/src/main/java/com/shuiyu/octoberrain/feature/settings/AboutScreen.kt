@@ -3,7 +3,6 @@ package com.shuiyu.octoberrain.feature.settings
 import android.app.AlertDialog
 import android.os.Build
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.device.DeviceRuntime
@@ -15,22 +14,14 @@ import java.io.IOException
 /**
  * 关于本机页面。
  *
- * 展示应用版本、构建类型与设备画像，并提供检查更新入口。
+ * 展示设备画像与开源许可，由检查更新页底部进入。
  */
-class AboutScreen : SettingsBaseScreen("关于本机") {
+class AboutScreen : SettingsBaseScreen("关于") {
     override fun build(
         page: InkPage,
         config: LauncherConfig,
     ) {
         val context = page.context
-
-        val app = SettingsUi.section(page, "应用", "版本与构建信息")
-        app.info("应用名称", "十雨桌面")
-        app.info("版本名", AppPackageInfo.versionName(context))
-        app.info("版本号", AppPackageInfo.versionCode(context).toString())
-        app.info("构建类型", if (AppPackageInfo.isDebuggable(context)) "调试构建" else "发布构建")
-        app.info("配置版本", config.version.toString())
-        app.info("数据来源", ThirdPartyLicenses.WEREAD_SOURCE_NOTICE)
 
         val device = SettingsUi.section(page, "设备", "当前运行环境")
         device.info("设备型号", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
@@ -52,22 +43,8 @@ class AboutScreen : SettingsBaseScreen("关于本机") {
             device.info("设备画像", "尚未初始化")
         }
 
-        val update = SettingsUi.section(page, "更新", "版本检查与更新日志")
-        update.action(
-            label = "检查更新",
-            value = "当前 ${AppPackageInfo.versionName(context)}",
-            hint = "读取更新地址并比较版本号",
-        ) {
-            AppServices.router.navigate(Destination.Update)
-        }
-
         buildLicenses(page)
         SettingsUi.note(page, ThirdPartyLicenses.WEREAD_SOURCE_DETAIL)
-
-        SettingsUi.note(
-            page,
-            "本应用为墨水屏阅读设备定制，界面按纸面阅读场景设计；更新安装需要系统允许安装未知来源应用。",
-        )
     }
 
     private fun buildLicenses(page: InkPage) {

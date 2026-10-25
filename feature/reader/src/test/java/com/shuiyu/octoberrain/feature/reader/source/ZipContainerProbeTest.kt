@@ -103,12 +103,12 @@ class ZipContainerProbeTest {
         }
     }
 
-    @Test fun plainZipWithOfficeExtensionFallsBackToZip() {
+    @Test fun plainZipWithOfficeExtensionDoesNotDefaultToArchiveBrowsing() {
         withTempDirectory { directory ->
             val file = writeArchive(directory, "a.docx", listOf("readme.txt" to "hello"))
             val container = ZipContainerProbe.probe(file)
             assertEquals(ZipContainer.ZIP, container)
-            assertEquals(ReaderFormat.ZIP, DocumentKinds.detect("a.docx", null, zipHeader(file), container))
+            assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("a.docx", null, zipHeader(file), container))
         }
     }
 

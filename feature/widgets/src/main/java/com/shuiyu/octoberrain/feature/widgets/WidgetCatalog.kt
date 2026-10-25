@@ -63,7 +63,7 @@ object WidgetCatalog {
         Entry(
             id = "clock",
             label = "时钟",
-            description = "大字时间与日期，高度较小时自动切换单行布局",
+            description = "",
             category = WidgetCategory.TIME,
             refreshPolicy = WidgetRefreshPolicy.MANUAL,
             forms =
@@ -73,26 +73,37 @@ object WidgetCatalog {
                 ),
         ) { ClockWidget(it) }
 
-    /** 日历组件，整分刷新时重绘以更新当天标记。 */
+    /** 六款固定钟面，组件库与顺序清单直接从同一目录读取。 */
+    private val clockStyles =
+        ClockFace.entries.filter { it.includesDate }.map { face ->
+            Entry(
+                id = "clock_${face.id}",
+                label = face.label,
+                description = "",
+                category = WidgetCategory.TIME,
+                refreshPolicy = WidgetRefreshPolicy.MANUAL,
+            ) { ClockWidget(it, face) }
+        }
+
+    /** 月历组件，整分刷新时重绘以更新当天标记；显示名改称月历，标识保持不变。 */
     private val calendar =
         Entry(
             id = "calendar",
-            label = "日历",
+            label = "月历",
             description = "本月月历，突出当天",
             category = WidgetCategory.TIME,
             refreshPolicy = WidgetRefreshPolicy.MINUTE,
         ) { CalendarWidget(it) }
 
-    /** 使用统计组件。 */
-    private val usage =
+    /** 待办周历组件，内容变化或页面恢复时重读共享待办清单。 */
+    private val todoWeek =
         Entry(
-            id = "usage",
-            label = "使用统计",
-            description = "今日使用时长最高的应用",
-            category = WidgetCategory.LOCAL,
-            refreshPolicy = WidgetRefreshPolicy.EVENT,
-            requiredCapabilities = setOf(Capability.USAGE_ACCESS),
-        ) { UsageWidget(it) }
+            id = "todo_week",
+            label = "待办周历",
+            description = "七天待办，与微信读书待办共用同一份数据",
+            category = WidgetCategory.TIME,
+            refreshPolicy = WidgetRefreshPolicy.MINUTE,
+        ) { TodoWeekWidget(it) }
 
     /** 自定义图片组件，支持多张图片轮播。 */
     private val image =
@@ -140,17 +151,17 @@ object WidgetCatalog {
         listOf(
             clock,
             calendar,
-            usage,
+            todoWeek,
             image,
             placeholder,
             wereadBoard,
-        )
+        ) + clockStyles
 
     /** 按分类组织的组件，供选择页分组展示。 */
     val byCategory: List<Pair<WidgetCategory, List<WidgetProvider>>> =
         listOf(
-            WidgetCategory.TIME to listOf(clock, calendar),
-            WidgetCategory.LOCAL to listOf(usage, image),
+            WidgetCategory.TIME to (listOf(clock) + clockStyles + listOf(calendar, todoWeek)),
+            WidgetCategory.LOCAL to listOf(image),
             WidgetCategory.WEREAD to listOf(wereadBoard),
             WidgetCategory.OTHER to listOf(placeholder),
         )

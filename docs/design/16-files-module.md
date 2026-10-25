@@ -8,6 +8,10 @@
 
 模块边界：
 
+内置文件入口与已安装资源管理器分别由特殊入口显隐和应用目录管理，两者身份独立，不因名称或图标相同互相替换。新装默认显示内置文件入口；既有“桌面偏好→桌面与布局→管理隐藏应用”顶部“内置入口”提供文件开关，开为显示、关为隐藏，父级隐藏数量包含文件。安装应用仍由`hiddenPackages`独立管理，开关同样开为显示、关为隐藏；不新增独立页面或其他内置入口开关。
+
+配置结构版本16对版本15及以前的配置仅一次移除`hiddenSpecials`中的`special:files`，保留其他入口、应用和布局；版本16之后用户重新隐藏文件的选择保留。此兼容边界不改变APK版本。
+
 - 依赖 `core:common`、`core:device`、`core:design`、`core:data`、`core:render`，构建脚本见 `feature/files/build.gradle.kts`（37 行）。
 - 在 `settings.gradle.kts:32` 注册为 `:feature:files`。
 - 由宿主 `app/build.gradle.kts:63` 依赖，并在 `OctoberRainApp.kt:100` 以反射按类名安装。
@@ -108,6 +112,10 @@
 
 ### 4.5 外部意图
 
+文件页依据后缀或APK MIME识别安装包，不限定下载目录。APK优先于图片及普通阅读分流，先由文件模块提供“安装/查看结构”选择，取消不执行动作。安装通过现有FileProvider交给Android系统安装界面，用户自行决定安装及未知来源授权；项目不自动确认或修改授权。查看结构交原阅读器的ZIP引擎，共享Reader契约保持。
+
+普通归档默认查看仅适用于常见压缩后缀或ZIP MIME；JAR、AAB及未知二进制文件不再仅凭ZIP签名进入归档查看。EPUB与Office专用识别保持优先，APK结构查看由文件页明确选择触发；不新增RAR等解码引擎。
+
 `FileIntents.EXTRA_PATH = "com.shuiyu.octoberrain.extra.FILE_PATH"`，见 `FileIntents.kt:16`。`viewImage` 与 `openFile` 使用 `FLAG_GRANT_READ_URI_PERMISSION`，`photoEntry` 直接构造 `PhotoEntryActivity` 组件意图。
 
 ## 五、媒体索引
@@ -171,17 +179,7 @@
 | `slop` / `touchMin` | 12dp / 44dp |
 | `titleText` / `bodyText` / `smallText` | 17sp / 14sp / 12sp |
 
-`FileMetrics`（72 行）由实测宽高重建，核心公式：
-
-- `contentTop = topBarH`（`FileMetrics.kt:18`）。
-- `contentBottom = height - bottomBarH`（`:21`）。
-- `listRows = contentH / rowH`（`:27`）。
-- `cellW = (width - padH * 2 - gap * 3) / 4`（`:30`）。
-- `cellH = cellW * 4 / 3`（`:33`）。
-- `gridCellDrawH`：内容区不足时压缩绘制高度，公式见 `:47`。
-- `gridDrawH`：压缩后的四行总高（`:57`）。
-
-`FileMetricsTest.kt` 以整屏高度构造三档期望：480×800@219 得 `contentH 652`、`listRows 10`、`cellW 101`、`cellH 134`；552×768@213 得 `contentH 624`、`10 行`、`cellW 120`、`cellH 160`；824×1648@320 得 `contentH 1432`、`16 行`、`cellW 179`、`cellH 238`。真机 480×800 的页面容器还要扣除状态栏，实测内容区高度 753，对应 `contentH 605`、`gridCellDrawH 123`。因此文档中的“整屏期望”与“宿主可见区”存在固定差值，界面布局以 `FileMetrics` 实例为准。
+文件宫格以方形缩略图为主，竖屏3列、横屏5列，行数及每页容量按宿主可用空间动态确定。浏览与Picker共用几何，绘制和命中使用同一布局边界；缩略图居中并尽量填充格子，名称为较小的单行短标签，视觉文件省略冗余后缀、过长名称省略，完整名称仍由原详情提供。整格均可命中，旋转后按原首项所在页重新分页。图片不显示“图”角标；列表布局及图片/非图片的打开语义保持独立。
 
 ## 七、查看、选图与编辑
 
@@ -217,7 +215,9 @@
 - `RefreshScheduler.notifyContentChanged()` 与 `requestFullRefresh(reason)` 负责刷新调度，见 `core/render/.../RefreshScheduler.kt:77`、`:90`。
 - 浏览页切页使用 `AppServices.refresh.requestPartial()`，避免整屏刷新。
 
-缩略图目标长边在网格取单元短边，在列表取 `FileTokens.rowThumb`；预取由 `ThumbPrefetcher.kt`（150 行）在 IO 线程解码并写入缓存，绘制期只查内存。
+缩略图预取由文件模块在后台完成，绘制期只查内存缓存。宫格的`GridPane`与`PickPane`开启EPUB缩略图，列表不启用该扩展；图片原缩略图链路保留。
+
+EPUB封面提取由[core:render的EpubCover](../../core/render/src/main/java/com/shuiyu/octoberrain/core/render/EpubCover.kt)共有，提供解码和提取能力；内容模块原入口为薄转发，文件模块不复制提取算法，也不横向依赖content。文件宫格以原EPUB路径及修改时间复用既有缩略图缓存；无封面、损坏或无法解码时保持EPUB占位。封面仅改变宫格预览，不把EPUB当成图片，不改变文件类型、打开行为或列表展示。
 
 ## 十、与计划差异和已知限制
 
@@ -231,7 +231,7 @@
 
 1. `FileProvider` 的 `${applicationId}.files` 同时服务于选图与分享，路径授权范围较大，后续可按用途拆分 authority。
 2. 全盘能力依赖 `MANAGE_EXTERNAL_STORAGE`（`app/src/main/AndroidManifest.xml:29`），上架政策需单独评估。
-3. 网格固定四列四行；小屏内容区不足时压缩 `gridCellDrawH`，单元比例随之变化，属视觉上的已知折中。
+3. 宫格行数与页容量随宿主空间变化，不承诺固定每页项数；缩略图保持居中方形，名称和整格命中仍按共享布局。
 4. 文件页的图片打开能力以模块内查看器实现，不依赖系统图库。
 5. 相册首刷在 5000 个文件规模内完成，超过上限的目录不进入索引。
 6. `MediaIndex.kt` 当前 643 行，编解码、合并、扫描与缓存读写集中在一个文件，后续可按编解码、合并、扫描三部分拆分。

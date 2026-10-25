@@ -122,7 +122,8 @@ interface WidgetTouchTarget {
  */
 interface WidgetView :
     WidgetHitRegionSource,
-    WidgetTouchTarget {
+    WidgetTouchTarget,
+    WidgetDisplayBehavior {
     /** 首次绘制或尺寸变化时回调，参数为可用宽高像素。 */
     fun onSizeChanged(
         width: Int,
@@ -188,10 +189,21 @@ interface WidgetView :
     fun onDestroy() {}
 }
 
+/** 宿主显示模式与组件内部手势的边界。 */
+interface WidgetDisplayBehavior : WidgetHitRegionSource {
+    /** 沉浸宿主临时固定本书，不写入普通形态偏好。 */
+    fun setImmersiveBookMode(enabled: Boolean) {}
+
+    fun setImmersiveLandscape(landscape: Boolean) {}
+}
+
 /** 宿主协议：组件通过它请求重绘与页面跳转。 */
 interface WidgetHost {
     /** 请求重绘指定组件所在区域。 */
     fun requestWidgetDraw(widget: WidgetView)
+
+    /** 请求当前组件的临时本记阅读层；宿主无法承载时返回 false。 */
+    fun openNoteOverlay(widget: WidgetView): Boolean = false
 
     /** 打开内置页面。 */
     fun openDestination(destination: Destination)
@@ -208,6 +220,9 @@ abstract class BaseWidgetView(
 ) : WidgetView {
     /** 宿主，由桌面在创建组件时挂接。 */
     var host: WidgetHost? = null
+
+    /** Stable owning desktop page, retained by callbacks while off screen. */
+    var pageIndex: Int = 0
 
     /** 当前绘制宽度。 */
     protected var widthPx: Int = 0

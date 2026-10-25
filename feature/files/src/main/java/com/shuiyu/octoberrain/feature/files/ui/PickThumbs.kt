@@ -25,6 +25,7 @@ internal class PickThumbs(
     private var prefetcher: ThumbPrefetcher? = null
     private var targetEdge: Int = 0
     private var pageSize: Int = 0
+    private var includeEpub: Boolean = false
 
     /**
      * 按本次布局与视图形态对齐预取参数。
@@ -35,13 +36,17 @@ internal class PickThumbs(
     fun update(
         edge: Int,
         size: Int,
+        epub: Boolean = false,
     ) {
         val normalizedEdge = edge.coerceAtLeast(1)
         val normalizedSize = size.coerceAtLeast(1)
-        if (prefetcher != null && normalizedEdge == targetEdge && normalizedSize == pageSize) return
+        val sameDimensions = normalizedEdge == targetEdge && normalizedSize == pageSize
+        val sameContent = epub == includeEpub
+        if (prefetcher != null && sameDimensions && sameContent) return
         prefetcher?.release()
         targetEdge = normalizedEdge
         pageSize = normalizedSize
+        includeEpub = epub
         prefetcher =
             ThumbPrefetcher(
                 context = appContext,
@@ -49,6 +54,7 @@ internal class PickThumbs(
                 targetEdge = normalizedEdge,
                 pageSize = normalizedSize,
                 onReady = onReady,
+                includeEpub = epub,
             )
     }
 

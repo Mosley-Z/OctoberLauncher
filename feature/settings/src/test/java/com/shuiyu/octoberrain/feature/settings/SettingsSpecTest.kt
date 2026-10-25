@@ -128,6 +128,8 @@ class SettingsSpecTest {
     fun `设置项可按标识检索且分组顺序稳定`() {
         assertEquals(
             listOf(
+                "project.lockWallpaper",
+                "project.status",
                 SettingsCatalog.GROUP_APPEARANCE_WALLPAPER,
                 SettingsCatalog.GROUP_APPEARANCE_THEME,
                 SettingsCatalog.GROUP_APPEARANCE_FONTS,

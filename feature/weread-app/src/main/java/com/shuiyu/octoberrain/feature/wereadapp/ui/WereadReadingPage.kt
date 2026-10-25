@@ -62,9 +62,6 @@ internal class WereadReadingPage(
 ) : FrameLayout(context) {
     /** 阅读页对外回调。 */
     internal interface Listener {
-        /** 请求打开墨台。 */
-        fun onOpenDesk()
-
         /** 请求打开微信读书中的指定书目。 */
         fun onOpenBook(bookId: String)
 
@@ -654,7 +651,7 @@ internal class WereadReadingPage(
         target.createTime = item.createTime
     }
 
-    /** 卡片「打开 / 选书 / 打开墨台」回调。 */
+    /** 卡片「打开 / 选书」回调。 */
     private fun cardOpenListener(): WeekCardView.OpenListener =
         object : WeekCardView.OpenListener {
             override fun onOpen() {
@@ -668,10 +665,6 @@ internal class WereadReadingPage(
 
             override fun onPickBook() {
                 showBookPickSheet()
-            }
-
-            override fun onOpenDesk() {
-                listener?.onOpenDesk()
             }
         }
 

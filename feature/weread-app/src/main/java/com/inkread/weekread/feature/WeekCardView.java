@@ -316,14 +316,6 @@ public class WeekCardView extends View implements com.inkread.weekread.kernel.Ca
          */
         void onPickBook();
 
-        /**
-         * 🆕 TASK-080：点了左上角「打开墨台」—— 呼出墨台（第三覆盖窗，`TASK-075` 产出）。
-         *
-         * <p>与 {@link #onOpen()} 同款：**桌面卡片走不到这里**（卡主体 `FLAG_NOT_TOUCHABLE`，
-         * 点击由 `OverlayController#deskView` 那个透明小窗承接）；本回调是给"卡片本体可触摸"
-         * 的宿主（App 全屏档）兜底的。
-         */
-        void onOpenDesk();
     }
 
     /**
@@ -975,13 +967,13 @@ public class WeekCardView extends View implements com.inkread.weekread.kernel.Ca
     public String deskOpenLabel() { return "打开墨台"; }
 
     /**
-     * 桌面入口是否可用。
+     * 设置内卡片不显示桌面跳转入口。
      *
      * @return 可用时返回 true
      */
     @Override
     public boolean deskEnabled() {
-        return com.shuiyu.octoberrain.feature.wereadapp.WereadMicroBridge.deskEnabled(getContext());
+        return false;
     }
 
     /**

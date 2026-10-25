@@ -1,23 +1,23 @@
-# 文档导览与分类索引
+# 文档导航
 
-新会话先读 [PROJECT](../PROJECT.md)、[STATUS](../memory/STATUS.md) 和指定任务。这里不要求从00号读到最后；按需定位。
+新会话从 [PROJECT](../PROJECT.md) 与 [当前状态](../memory/STATUS.md) 接手，再按任务读文档。
 
-| 分类 | 内容 | 索引 |
-| --- | --- | --- |
-| 项目设计 | 目标、架构、功能规格、开发流程与经验 | [design](design/README.md) |
-| 验收记录 | 评审、实施、适配、构建和交付记录 | [acceptance](acceptance/README.md) |
-| 复用模板 | 任务卡、验收、会话交接 | [任务](templates/task.md)、[验收](templates/acceptance.md)、[交接](templates/handoff.md) |
-| 任务与记忆 | 当前任务和跨会话接力，独立于历史报告 | [task](../task/README.md)、[memory](../memory/MEMORY.md) |
+| 目录 | 职责 |
+| --- | --- |
+| [architecture](architecture/README.md) | 现存模块职责、依赖、状态来源与边界；具体实现沿源码入口查找 |
+| [development](development/README.md) | 生效的开发、协作、需求回读与设备操作流程 |
+| [design](design/README.md) | 产品方案与规格；目标不自动等于已经实现 |
+| [acceptance](acceptance/README.md) | 某一源码和设备范围内的验证证据，不作为架构更新记录 |
+| [archive](archive/README.md) | 上游分析、历史规范和被替代提案的分类入口；原文保留 |
+| [templates](templates/README.md) | 任务、验收和交接模板 |
 
-## 维护约定
+任务进度归 [task](../task/README.md)，短期状态与接力归 [memory](../memory/STATUS.md)，改动历史由 Git 保存。架构文档只忠实描述现存架构，不堆逐函数解释、测试计数或轮次流水。
 
-1. 延用docs目录，不另建并行doc目录。已有文件保留原名/编号，分类不改变历史结论；实施与验收混合文档归验收，规格与设计混合材料归设计，按索引标明用途。
-2. 新设计用清楚的主题名或下一个可用编号，不给本轮每张任务重复编设计号；新验收用 YYYY-MM-DD-TASK或主题.md，同日多份加后缀。
-3. 历史验收按原版本理解，后续补验用新文件链接旧文件，不能把旧报告改成当前已通过。分析原始产物仍放_analysis/verify等原路径。
-4. 活跃规则是AGENTS和35开发流程；旧规范、旧交接中的工具/版本/无Git声明按现状核实。动态状态只写STATUS和任务卡。
-5. 文档使用仓库内相对链接；跨项目资料只作参考，不复制凭据与用户内容。迁移时检查链接，无法确认的历史路径写明来源和映射。
+当前小组件批次：[升级方案](design/40-widget-upgrade-plan.md)，关联UX139–144及候选设计稿；已按任务分阶段实施，实际状态与验证边界见任务卡和验收。
 
-更新后运行 `python scripts/check-project-docs.py`，检查本地链接、迁移映射与任务依赖。检查器不调用Android构建或设备，不将历史记录升格为当前验收。
+代码实现代理不得修改文档库、任务卡、根文档、记忆或权限配置，只向主代理提交建议。主代理决定采纳后，另派拥有明确文档范围的文档代理写入。独立入口显式加载 [角色权限](../scripts/agent-permissions.toml)，不以自动项目配置影响主会话。原生 spawn 继承父权限，本轮只读检查或提供暂存建议。独立角色边界与实际验证证据见 [开发流程](design/35-development-workflow.md)及 [UX121](../task/TASK-UX-121-documentation-governance.md)。
+
+已有文档不整批搬移；旧路径按以下映射定位。新材料使用仓库内相对链接，历史验收保持原结论，后续验证另建记录关联。文档检查由本批主代理在统一验证阶段运行。
 
 ## 2026-10-22 迁移映射
 

@@ -59,6 +59,8 @@ data class DeviceProfile(
     val navigationInsetPx: Int,
     val longEdgePx: Int,
     val shortEdgePx: Int,
+    val physicalSideInsetPx: Int = 0,
+    val model: String = "",
 ) {
     /** 宽高比，供横竖屏与折叠态判断使用。 */
     val aspectRatio: Float get() = if (heightPx == 0) 0f else widthPx.toFloat() / heightPx

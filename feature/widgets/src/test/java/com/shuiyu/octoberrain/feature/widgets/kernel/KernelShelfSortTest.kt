@@ -15,6 +15,23 @@ import org.junit.Test
  * 覆盖时间倒序、缺失时间后置、时间相同保持原序，以及资产文件解析。
  */
 class KernelShelfSortTest {
+    @Test
+    fun carouselUsesOnlyTenMostRecentBooksWithoutTruncatingShelf() {
+        val ids = (1..15).map { "book-$it" }
+        val shelf = snapshot(*ids.toTypedArray())
+        val recent = recentCarouselBooks(shelf, ids.mapIndexed { i, id -> id to (i + 1L) }.toMap())
+        assertEquals(ids.reversed().take(10), recent.map { it.bookId })
+        assertEquals(15, shelf.books.size)
+        assertEquals(ids, shelf.books.map { it.bookId })
+    }
+
+    @Test
+    fun carouselKeepsActualCountWhenFewerThanTenBooksExist() {
+        assertTrue(recentCarouselBooks(snapshot(), emptyMap()).isEmpty())
+        assertEquals(1, recentCarouselBooks(snapshot("one"), emptyMap()).size)
+        assertEquals(2, recentCarouselBooks(snapshot("one", "two"), emptyMap()).size)
+    }
+
     /**
      * 构造一本测试书目。
      *

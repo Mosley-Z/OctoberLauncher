@@ -6,7 +6,6 @@
     <ID>CyclomaticComplexMethod:BookshelfScreen.kt$BookshelfScreen$private fun renderPage(token: Int)</ID>
     <ID>CyclomaticComplexMethod:EpubCover.kt$EpubCover$fun extract( epub: File, targetDirectory: File, stem: String, ): File?</ID>
     <ID>CyclomaticComplexMethod:FilesScreen.kt$FilesScreen$private suspend fun renderBrowser( container: LinearLayout, library: FileLibrary, directory: File, hasStorage: Boolean, )</ID>
-    <ID>CyclomaticComplexMethod:KoreaderRepository.kt$KoreaderRepository$suspend fun recentEntries( limit: Int = 20, deadlineMs: Long = 5000L, ): List&lt;KoreaderEntry&gt;</ID>
     <ID>CyclomaticComplexMethod:RecentsRepository.kt$RecentsRepository$suspend fun usage( span: UsageSpan, limit: Int = MAX_ENTRIES, ): UsageSummary</ID>
     <ID>CyclomaticComplexMethod:WeatherClient.kt$WeatherClient$private fun describeWeatherCode(code: Int): String</ID>
     <ID>CyclomaticComplexMethod:WereadClient.kt$WereadClient$private fun extractDailySeconds(payload: JSONObject): Map&lt;Int, Long&gt;</ID>
@@ -18,7 +17,6 @@
     <ID>LongMethod:SearchScreen.kt$SearchScreen$private fun buildUi()</ID>
     <ID>LongMethod:WereadClient.kt$WereadClient$private fun parseShelf(payload: JSONObject): List&lt;WereadShelfItem&gt;</ID>
     <ID>LoopWithTooManyJumpStatements:BookshelfRepository.kt$BookshelfRepository$for</ID>
-    <ID>LoopWithTooManyJumpStatements:KoreaderRepository.kt$KoreaderRepository$for</ID>
     <ID>LoopWithTooManyJumpStatements:RecentsRepository.kt$RecentsRepository$for</ID>
     <ID>LoopWithTooManyJumpStatements:RecentsRepository.kt$RecentsRepository$while</ID>
     <ID>LoopWithTooManyJumpStatements:UsageRepository.kt$UsageRepository$for</ID>
@@ -49,10 +47,6 @@
     <ID>ReturnCount:FileLibrary.kt$FileLibrary$private fun copyDirectory( source: File, destination: File, ): Boolean</ID>
     <ID>ReturnCount:FileLibrary.kt$FileLibrary$private fun copyToOpenCache(file: File): File?</ID>
     <ID>ReturnCount:FileLibrary.kt$FileLibrary$private fun normalizeName( target: File, raw: String, ): String?</ID>
-    <ID>ReturnCount:KoreaderRepository.kt$KoreaderRepository$private fun readHistory(root: File): List&lt;String&gt;</ID>
-    <ID>ReturnCount:KoreaderRepository.kt$KoreaderRepository$private fun readLastFile(root: File): String?</ID>
-    <ID>ReturnCount:KoreaderRepository.kt$KoreaderRepository$private fun readMetadata(book: File): BookMetadata</ID>
-    <ID>ReturnCount:KoreaderScreen.kt$KoreaderScreen$private fun heatColor( minutes: Int, maxMinutes: Int, ): Int</ID>
     <ID>ReturnCount:RecentsScreen.kt$KeyFrameLayout$override fun dispatchKeyEvent(event: KeyEvent): Boolean</ID>
     <ID>ReturnCount:RecentsScreen.kt$RecentsScreen$private fun activateSelected(): Boolean</ID>
     <ID>ReturnCount:RecentsScreen.kt$RecentsScreen$private fun scrollRowIntoView(view: View)</ID>
@@ -79,8 +73,6 @@
     <ID>TooManyFunctions:ContentUi.kt$ContentUi</ID>
     <ID>TooManyFunctions:FileLibrary.kt$FileLibrary</ID>
     <ID>TooManyFunctions:FilesScreen.kt$FilesScreen : ContentScreen</ID>
-    <ID>TooManyFunctions:KoreaderRepository.kt$KoreaderRepository</ID>
-    <ID>TooManyFunctions:KoreaderScreen.kt$KoreaderScreen : ContentScreen</ID>
     <ID>TooManyFunctions:RecentsRepository.kt$RecentsRepository</ID>
     <ID>TooManyFunctions:RecentsScreen.kt$RecentsScreen : ContentScreen</ID>
     <ID>TooManyFunctions:WeatherClient.kt$WeatherClient</ID>

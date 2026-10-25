@@ -16,6 +16,67 @@ import org.junit.Test
  */
 class DesktopPaginationTest {
     @Test
+    fun `兜底分页按横竖方向且关闭组件后首页使用整页容量`() {
+        val desktop =
+            LauncherConfig().desktop.copy(
+                widgetId = "",
+                widgetCycleIds = emptyList(),
+                columns = 5,
+                rows = 5,
+                firstPageColumns = 2,
+                firstPageRows = 1,
+                landscapeColumns = 4,
+                landscapeRows = 3,
+                portraitColumns = 3,
+                portraitRows = 4,
+            )
+        listOf(
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.PORTRAIT to 3,
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.LANDSCAPE to 4,
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.REVERSE_LANDSCAPE to 4,
+        ).forEach { (orientation, columns) ->
+            val snapshot =
+                DesktopPagination.fallbackSnapshot(
+                    LauncherConfig(desktop = desktop.copy(orientation = orientation)),
+                    entries(25),
+                )
+            assertEquals(columns, snapshot.columns)
+            assertEquals(columns, snapshot.firstPageColumns)
+            assertEquals(listOf(12, 12, 1), snapshot.pages.map { it.size })
+            assertEquals(entries(25), snapshot.pages.flatten())
+        }
+    }
+
+    @Test
+    fun `独立首页列数保留全部应用并与容量一致`() {
+        val items = entries(39)
+        val pages = DesktopPagination.paginate(items, 4, 2, 3, 3)
+        assertEquals(listOf(6, 12, 12, 9), pages.map { it.size })
+        assertEquals(items, pages.flatten())
+        val snapshot = DesktopLayoutSnapshot(4, 2, 3, pages, firstPageColumns = 3)
+        assertEquals(6, DesktopPagination.pageCapacity(snapshot, 0))
+        assertEquals(12, DesktopPagination.pageCapacity(snapshot, 1))
+    }
+
+    @Test
+    fun `列表容量不消费宫格列数和行数`() {
+        val config =
+            LauncherConfig(
+                desktop =
+                    com.shuiyu.octoberrain.core.common.DesktopConfig(
+                        kind = com.shuiyu.octoberrain.core.common.DesktopKind.LIST,
+                        columns = 4,
+                        rows = 5,
+                        listFirstRows = 2,
+                        listRows = 7,
+                    ),
+            )
+        val snapshot = DesktopPagination.fallbackSnapshot(config, entries(18))
+        assertEquals(listOf(2, 7, 7, 2), snapshot.pages.map { it.size })
+        assertEquals(1, snapshot.firstPageColumns)
+    }
+
+    @Test
     fun `首页按首页行数切分且后续页按通用行数切分`() {
         val entries = entries(16)
         val pages = DesktopPagination.paginate(entries, columns = 3, firstPageRows = 2, rowsPerPage = 3)
@@ -41,17 +102,40 @@ class DesktopPaginationTest {
     fun `本地换算在配置为零时使用兜底行列`() {
         val snapshot = DesktopPagination.fallbackSnapshot(LauncherConfig(), emptyList())
         assertEquals(DesktopPagination.DEFAULT_COLUMNS, snapshot.columns)
-        assertEquals(DesktopPagination.DEFAULT_ROWS, snapshot.firstPageRows)
+        assertEquals(2, snapshot.firstPageRows)
+        assertEquals(3, snapshot.firstPageColumns)
         assertEquals(DesktopPagination.DEFAULT_ROWS, snapshot.rowsPerPage)
         assertEquals(1, snapshot.pages.size)
         assertTrue(snapshot.pages[0].isEmpty())
     }
 
     @Test
+    fun `首页自动容量随方向切换且显式选择不变`() {
+        val desktop = LauncherConfig().desktop.copy(firstPageColumns = 0, firstPageRows = 0)
+        listOf(
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.PORTRAIT to (3 to 2),
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.LANDSCAPE to (2 to 4),
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.REVERSE_LANDSCAPE to (2 to 4),
+        ).forEach { (orientation, expected) ->
+            val config = LauncherConfig(desktop = desktop.copy(orientation = orientation))
+            val auto = DesktopPagination.fallbackSnapshot(config, entries(20))
+            assertEquals(expected.first, auto.firstPageColumns)
+            assertEquals(expected.second, auto.firstPageRows)
+            val explicit =
+                DesktopPagination.fallbackSnapshot(
+                    config.copy(desktop = config.desktop.copy(firstPageColumns = 1, firstPageRows = 1)),
+                    entries(20),
+                )
+            assertEquals(1, explicit.firstPageColumns)
+            assertEquals(1, explicit.firstPageRows)
+        }
+    }
+
+    @Test
     fun `本地换算读取配置的列数与首页行数`() {
         val config =
             LauncherConfig(
-                desktop = LauncherConfig().desktop.copy(columns = 4, rows = 3, firstPageRows = 1),
+                desktop = LauncherConfig().desktop.copy(columns = 4, firstPageColumns = 4, rows = 3, firstPageRows = 1),
             )
         val snapshot = DesktopPagination.fallbackSnapshot(config, entries(13))
         assertEquals(4, snapshot.columns)

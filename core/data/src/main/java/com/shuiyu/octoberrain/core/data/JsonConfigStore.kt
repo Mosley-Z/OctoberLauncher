@@ -124,8 +124,13 @@ class JsonConfigStore(
             )
             return parsed
         }
-        val migrated = ConfigMigration.migrate(parsed, hasShelfSource(root))
-        if (migrated.version != parsed.version) {
+        val migrated =
+            ConfigMigration.migrate(
+                parsed,
+                hasShelfSource(root),
+                DesktopLayoutMigration.presentFields(root),
+            )
+        if (migrated != parsed) {
             val error = persist(migrated)
             if (error != null) {
                 notifyWriteError(error, "迁移结果回写失败，本次仍按迁移结果运行")
@@ -154,7 +159,11 @@ class JsonConfigStore(
             version = version,
             desktop = readSection(root, KEY_DESKTOP, DesktopConfig.serializer(), defaults.desktop),
             appearance = readSection(root, KEY_APPEARANCE, AppearanceConfig.serializer(), defaults.appearance),
-            tray = readSection(root, KEY_TRAY, TrayConfig.serializer(), defaults.tray),
+            tray =
+                preserveLegacyTrayGate(
+                    root,
+                    readSection(root, KEY_TRAY, TrayConfig.serializer(), defaults.tray),
+                ),
             lock = readSection(root, KEY_LOCK, LockConfig.serializer(), defaults.lock),
             integrations =
                 readSection(root, KEY_INTEGRATIONS, IntegrationsConfig.serializer(), defaults.integrations),

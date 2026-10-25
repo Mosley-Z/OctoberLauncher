@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -18,10 +19,12 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.DesktopOrientation
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.MinuteTicker
+import com.shuiyu.octoberrain.core.common.NotificationPanelAccess
 import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.ScreenRegistry
@@ -32,6 +35,13 @@ import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.core.device.HomeRole
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /** 从其他应用返回桌面时触发整刷的最短后台时长，单位毫秒。 */
 private const val EXIT_REFRESH_THRESHOLD_MS = 1500L
@@ -49,17 +59,16 @@ private const val TAG_INCOMING = "MainIncoming"
 private const val HOME_ROLE_PROMPT_INTERVAL_MS = 3L * 24 * 60 * 60 * 1000
 
 /**
- * 宿主 Activity：维护页面栈、状态栏、托盘与锁屏覆盖层。
+ * 宿主 Activity：维护页面栈、状态栏与锁屏覆盖层。
  *
  * 页面由 ScreenRegistry 按目标创建，缺失时显示占位页，保证功能模块分头开发期间可用；
- * 锁屏、托盘与刷新都通过全局服务访问，不直接依赖具体模块实现。
+ * 锁屏、状态栏与刷新都通过全局服务访问，不直接依赖具体模块实现。
  */
 class MainActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var wallpaperLayer: WallpaperView
     private lateinit var contentFrame: FrameLayout
     private lateinit var statusHolder: FrameLayout
-    private lateinit var trayHolder: FrameLayout
     private lateinit var lockHolder: FrameLayout
 
     /** 锁屏壁纸层，位于锁屏容器底层，PIN 面板叠加其上。 */
@@ -76,6 +85,7 @@ class MainActivity : Activity() {
     private var lockOverlay: View? = null
     private lateinit var minuteTicker: MinuteTicker
     private var homeRoleAsked = false
+    private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** 主线程调度器，用于投递退出应用后的延迟整刷。 */
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -108,8 +118,22 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyDesktopOrientation(AppServices.config.state.value.desktop.orientation)
+        configScope.launch {
+            AppServices.config.state.map { it.desktop.orientation }.distinctUntilChanged().collect {
+                applyDesktopOrientation(it)
+            }
+        }
         buildLayout()
         configureWindow()
+        if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0) {
+            configScope.launch {
+                NotificationPanelAccess.available.collect {
+                    configureWindow()
+                    rebuildStatusBar()
+                }
+            }
+        }
         InkRefreshController.attach(root)
         LauncherRouter.attach(this, ::navigate, ::goBack)
         HostFilePicker.attach(this)
@@ -133,28 +157,81 @@ class MainActivity : Activity() {
         if (!openIncomingDocument(intent) && deferHome) stack.lastOrNull()?.screen?.onResume()
     }
 
-    /** 配置窗口：全屏、白底、无窗口动画。 */
+    /** 仅请求本 Activity 方向，不改变系统全局自动旋转。 */
+    private fun applyDesktopOrientation(orientation: DesktopOrientation) {
+        val requested =
+            when (orientation) {
+                DesktopOrientation.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                DesktopOrientation.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                DesktopOrientation.REVERSE_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            }
+        if (requestedOrientation != requested) requestedOrientation = requested
+    }
+
+    /** P4仅在无障碍入口已实际连接时隐藏系统栏，否则保留可下拉的真实栏。 */
     private fun configureWindow() {
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.setBackgroundDrawableResource(android.R.color.white)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.hide(
-                android.view.WindowInsets.Type
-                    .statusBars(),
-            )
+            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0 &&
+                !NotificationPanelAccess.available.value
+            ) {
+                window.setDecorFitsSystemWindows(true)
+                window.statusBarColor = Color.WHITE
+                window.insetsController?.setSystemBarsAppearance(
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                )
+                window.insetsController?.show(
+                    android.view.WindowInsets.Type
+                        .statusBars(),
+                )
+            } else {
+                if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0) {
+                    // 通知面板收起时也保持全屏尺寸，避免短暂状态栏inset把桌面压缩79px。
+                    window.setDecorFitsSystemWindows(false)
+                    window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                    window.insetsController?.systemBarsBehavior =
+                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+                window.insetsController?.hide(
+                    android.view.WindowInsets.Type
+                        .statusBars(),
+                )
+            }
         } else {
+            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
                 View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         }
     }
 
-    /** 搭建分层布局：状态栏、内容、托盘、锁屏。 */
+    /** 搭建分层布局：状态栏、内容、锁屏。 */
     private fun buildLayout() {
-        val tokens = DesignRuntime.tokens
-        root = FrameLayout(this).apply { setBackgroundColor(InkColors.PAPER) }
+        root =
+            FrameLayout(this).apply {
+                setBackgroundColor(InkColors.PAPER)
+                addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+                    val profile = com.shuiyu.octoberrain.core.device.DeviceRuntime.profile
+                    val insets =
+                        com.shuiyu.octoberrain.core.device.DisplaySafeArea.insets(
+                            profile.physicalSideInsetPx,
+                            right - left,
+                            bottom - top,
+                        )
+                    val current =
+                        com.shuiyu.octoberrain.core.device.DisplaySafeArea.Insets(
+                            view.paddingLeft,
+                            view.paddingTop,
+                            view.paddingRight,
+                            view.paddingBottom,
+                        )
+                    if (current != insets) view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+                }
+            }
 
-        val statusBarHeight = tokens.statusBarHeight
+        val statusBarHeight = statusBarHeight()
         // 壁纸层铺满整块屏幕，位于所有内容之下；状态栏与桌面内容区保持透明。
         wallpaperLayer =
             WallpaperView(this).apply {
@@ -183,14 +260,6 @@ class MainActivity : Activity() {
                             ViewGroup.LayoutParams.MATCH_PARENT,
                         ).apply { topMargin = statusBarHeight }
             }
-        trayHolder =
-            FrameLayout(this).apply {
-                layoutParams =
-                    FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                    )
-            }
         lockHolder =
             FrameLayout(this).apply {
                 layoutParams =
@@ -213,7 +282,6 @@ class MainActivity : Activity() {
 
         root.addView(wallpaperLayer)
         root.addView(contentFrame)
-        root.addView(trayHolder)
         root.addView(lockHolder)
         root.addView(statusHolder)
         setContentView(
@@ -221,19 +289,26 @@ class MainActivity : Activity() {
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
         )
 
-        // 状态栏与托盘视图由托盘模块提供
+        rebuildStatusBar()
+    }
+
+    private fun statusBarHeight(): Int {
+        val tokens = DesignRuntime.tokens
+        val systemOwnsIndicators =
+            com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0 &&
+                !NotificationPanelAccess.available.value
+        return if (systemOwnsIndicators) minOf(tokens.statusBarHeight, tokens.trayTouch) else tokens.statusBarHeight
+    }
+
+    /** 服务连接变化时同步指示归属与栏高度，不重建桌面内容。 */
+    private fun rebuildStatusBar() {
+        val height = statusBarHeight()
+        statusHolder.layoutParams = statusHolder.layoutParams.apply { this.height = height }
+        contentFrame.layoutParams = (contentFrame.layoutParams as FrameLayout.LayoutParams).apply { topMargin = height }
+        statusHolder.removeAllViews()
         runCatching {
             statusHolder.addView(
                 AppServices.tray.createStatusBar(this),
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                ),
-            )
-            val overlay = AppServices.tray.createOverlay(this)
-            overlay.visibility = View.GONE
-            trayHolder.addView(
-                overlay,
                 FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -248,6 +323,10 @@ class MainActivity : Activity() {
         if (!config.onboarding.completed) {
             pushScreen(
                 OnboardingScreen {
+                    stack.forEach {
+                        it.screen.onPause()
+                        it.screen.onDestroy()
+                    }
                     stack.clear()
                     contentFrame.removeAllViews()
                     navigate(Destination.Home)
@@ -343,10 +422,6 @@ class MainActivity : Activity() {
     /** 返回上一页；根页面时退到后台。 */
     private fun goBack(): Boolean {
         if (AppServices.lock.isLocked) return true
-        if (AppServices.tray.isOpen) {
-            AppServices.tray.close()
-            return true
-        }
         val top = stack.lastOrNull() ?: return false
         if (top.screen.onBack()) return true
         if (stack.size <= 1) {
@@ -616,6 +691,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        configScope.cancel()
         (AppServices.lock as? LockGateImpl)?.observe(null)
         cancelPendingExitRefresh()
         mainHandler.removeCallbacksAndMessages(null)

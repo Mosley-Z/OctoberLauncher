@@ -138,6 +138,19 @@ internal class BrowseScreen(
         load(currentPath, 0, resetPage = true)
     }
 
+    /** 普通文档与用户明确选择查看结构的安装包共用阅读器入口。 */
+    private fun openDocument(item: FileItem) {
+        val opened = AppServices.reader?.open(DocumentRef.LocalPath(item.path)) == true
+        if (!opened) AppServices.router.toast("文件阅读器尚未就绪")
+    }
+
+    private fun openImage(item: FileItem) {
+        val images = pane?.itemSnapshot().orEmpty().filter { it.isImage }
+        if (images.isEmpty()) return
+        val index = images.indexOfFirst { it.path == item.path }.coerceAtLeast(0)
+        AppServices.router.navigate(Destination.PhotoViewer(images.map { it.path }, index))
+    }
+
     /** 按偏好创建面板并绑定回调。 */
     private fun buildPane(): BrowsePane {
         val callbacks =
@@ -147,19 +160,24 @@ internal class BrowseScreen(
                 }
 
                 override fun onOpenItem(item: FileItem) {
-                    if (!item.isImage) {
-                        val opened = AppServices.reader?.open(DocumentRef.LocalPath(item.path)) == true
-                        if (!opened) AppServices.router.toast("文件阅读器尚未就绪")
-                        return
+                    when {
+                        item.isApk -> ApkOpenActions.choose(container.context, item) { openDocument(item) }
+                        item.isImage -> openImage(item)
+                        else -> openDocument(item)
                     }
-                    val images = pane?.itemSnapshot().orEmpty().filter { it.isImage }
-                    if (images.isEmpty()) return
-                    val index = images.indexOfFirst { it.path == item.path }.coerceAtLeast(0)
-                    AppServices.router.navigate(Destination.PhotoViewer(images.map { it.path }, index))
                 }
 
                 override fun onDetailRequested(item: FileItem) {
-                    AppServices.router.toast(BrowseStrings.DETAIL_PENDING)
+                    FileEntryActions.details(container.context, scope, item)
+                }
+
+                override fun onDeleteRequested(item: FileItem) {
+                    val folder = currentPath
+                    val firstIndex = pane?.pagerState?.firstIndex ?: 0
+                    FileEntryActions.delete(container.context, scope, item) {
+                        notifyFileChanged(item.path)
+                        if (currentPath == folder) load(folder, firstIndex, resetPage = false)
+                    }
                 }
 
                 override fun onToggleView() {

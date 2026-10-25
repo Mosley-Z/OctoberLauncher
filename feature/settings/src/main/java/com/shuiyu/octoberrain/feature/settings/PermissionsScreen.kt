@@ -8,7 +8,7 @@ import com.shuiyu.octoberrain.core.device.PermissionCenter
 /**
  * 权限与授权页面。
  *
- * 展示七项权限的当前状态，点击条目跳转系统设置；
+ * 展示三项权限的当前状态，点击条目跳转系统设置；
  * 电池优化单独列出一行，便于关闭后台限制。
  */
 class PermissionsScreen : SettingsBaseScreen("权限与授权") {
@@ -18,7 +18,7 @@ class PermissionsScreen : SettingsBaseScreen("权限与授权") {
     ) {
         val permissions = AppServices.permissions
         val snapshot = runCatching { permissions.snapshot() }.getOrDefault(emptyMap())
-        val granted = snapshot.count { it.value }
+        val granted = PERMISSION_ITEMS.count { snapshot[it.key] == true }
 
         val section =
             SettingsUi.section(
@@ -42,7 +42,7 @@ class PermissionsScreen : SettingsBaseScreen("权限与授权") {
         system.action(
             label = "电池优化",
             value = "系统设置",
-            hint = "关闭电池优化可避免刷新与托盘被系统冻结",
+            hint = "关闭电池优化可避免刷新与悬浮状态栏被系统冻结",
         ) {
             runCatching { permissions.openBatterySettings() }
         }
@@ -53,11 +53,6 @@ class PermissionsScreen : SettingsBaseScreen("权限与授权") {
         ) {
             runCatching { permissions.openAppSettings() }
         }
-
-        SettingsUi.note(
-            page,
-            "授权状态在页面恢复时刷新；从系统设置返回后再次进入本页可看到最新结果。所有权限均可在系统设置中收回。",
-        )
     }
 
     /** 单项权限描述。 */
@@ -69,39 +64,19 @@ class PermissionsScreen : SettingsBaseScreen("权限与授权") {
     )
 
     private companion object {
-        /** 七项权限条目，顺序与快照一致。 */
+        /** 三项权限条目，顺序与快照一致。 */
         val PERMISSION_ITEMS =
             listOf(
                 PermissionItem(
                     key = PermissionCenter.KEY_NOTIFICATION_LISTENER,
                     label = "通知读取权限",
-                    hint = "托盘显示通知内容需要监听通知的服务",
+                    hint = "桌面通知角标需要通知监听服务",
                 ) { it.openNotificationListenerSettings() },
                 PermissionItem(
                     key = PermissionCenter.KEY_ACCESSIBILITY,
                     label = "无障碍服务",
-                    hint = "返回键与托盘手势在部分设备上依赖此服务",
+                    hint = "悬浮状态栏与音量键翻转需要此服务",
                 ) { it.openAccessibilitySettings() },
-                PermissionItem(
-                    key = PermissionCenter.KEY_OVERLAY,
-                    label = "悬浮窗权限",
-                    hint = "悬浮球与锁屏覆盖层需要此权限",
-                ) { it.openOverlaySettings() },
-                PermissionItem(
-                    key = PermissionCenter.KEY_NOTIFICATION_PERMISSION,
-                    label = "应用通知权限",
-                    hint = "从 Android 13 起需单独授予通知显示权限",
-                ) { it.openAppNotificationSettings() },
-                PermissionItem(
-                    key = PermissionCenter.KEY_EXACT_ALARM,
-                    label = "精确闹钟",
-                    hint = "定时刷新与提醒需要精确闹钟权限",
-                ) { it.openAppSettings() },
-                PermissionItem(
-                    key = PermissionCenter.KEY_USAGE_ACCESS,
-                    label = "使用情况访问",
-                    hint = "使用统计与最近使用记录需要此权限",
-                ) { it.openUsageSettings() },
                 PermissionItem(
                     key = PermissionCenter.KEY_STORAGE,
                     label = "存储访问",

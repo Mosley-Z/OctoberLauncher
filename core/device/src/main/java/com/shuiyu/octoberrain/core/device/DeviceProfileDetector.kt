@@ -77,6 +77,8 @@ object DeviceProfileDetector {
             navigationInsetPx = systemBarHeight(context, "navigation_bar_height"),
             longEdgePx = maxOf(widthPx, heightPx),
             shortEdgePx = minOf(widthPx, heightPx),
+            physicalSideInsetPx = DisplaySafeArea.physicalSideInset(Build.MANUFACTURER, Build.MODEL),
+            model = Build.MODEL,
         )
     }
 

@@ -28,7 +28,8 @@ class BrowsePanelTest {
             ),
             BrowsePanel.rows,
         )
-        assertEquals(2, BrowsePanel.pressedRows.size)
+        assertEquals(3, BrowsePanel.pressedRows(false).size)
+        assertEquals(2, BrowsePanel.pressedRows(true).size)
     }
 
     /** 每行映射到对应动作。 */

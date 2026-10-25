@@ -25,7 +25,7 @@ internal class WereadBoardTaps(
         if (host.form == WereadBoardForm.BOOK) {
             bookTap(x, y)
         } else {
-            formTap(x, y)
+            tappedRegion(x, y)
         }
 
     /**
@@ -60,26 +60,6 @@ internal class WereadBoardTaps(
             }
         }
     }
-
-    /**
-     * 内核形态点击：隐藏菜单优先，其次底部按钮与内核命中区域。
-     *
-     * @param x 组件局部横坐标
-     * @param y 组件局部纵坐标
-     * @return 是否消费
-     */
-    private fun formTap(
-        x: Float,
-        y: Float,
-    ): Boolean =
-        when {
-            host.menuVisible -> {
-                host.menuClick(x, y)
-                true
-            }
-
-            else -> tappedRegion(x, y)
-        }
 
     /**
      * 判定底部按钮与内核命中区域。

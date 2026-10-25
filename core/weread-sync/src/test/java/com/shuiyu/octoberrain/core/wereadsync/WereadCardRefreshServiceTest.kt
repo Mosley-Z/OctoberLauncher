@@ -25,7 +25,8 @@ class WereadCardRefreshServiceTest {
     fun `绑定关闭仍刷新当前形态且各绑定只发一次`() {
         assertEquals(listOf("monthly"), WereadCardRefreshService.refreshTargets("monthly", 0))
         assertEquals(listOf("monthly", "weekly", "book"), WereadCardRefreshService.refreshTargets("monthly", 7))
-        assertEquals(listOf("note"), WereadCardRefreshService.refreshTargets("note", 7))
+        assertEquals(listOf("note", "weekly", "monthly", "book"), WereadCardRefreshService.refreshTargets("note", 7))
+        assertEquals(listOf("note"), WereadCardRefreshService.refreshTargets("note", 0))
         assertTrue(WereadCardRefreshService.refreshTargets("todo", 7).isEmpty())
     }
 
@@ -108,8 +109,9 @@ class WereadCardRefreshServiceTest {
         }
 
     @Test
-    fun `本记手动刷新绕过正文有效期且不发绑定统计`() =
+    fun `本记关闭绑定时只刷新笔记且绕过正文有效期`() =
         runBlocking {
+            File(folder.root, "kernel_prefs.json").writeText("""{"int":{"bind_targets":0}}""")
             val calls = mutableListOf<String>()
             val transport =
                 WereadRequest { api, _ ->
@@ -127,6 +129,38 @@ class WereadCardRefreshServiceTest {
             calls.clear()
             assertTrue(WereadCardRefreshService(transport, folder.root).refresh(WereadRefreshRequest("note")).success)
             assertEquals(listOf("/user/notebooks", "/book/bookmarklist", "/review/list/mine"), calls)
+        }
+
+    @Test
+    fun `本记刷新消费自定义布尔绑定且只补发已勾选月份`() =
+        runBlocking {
+            File(folder.root, "kernel_prefs.json").writeText(
+                """{"bool":{"bind_week":false,"bind_month":true,"bind_book":false}}""",
+            )
+            val calls = mutableListOf<Pair<String, JsonObject>>()
+            val service =
+                WereadCardRefreshService(
+                    WereadRequest { api, body ->
+                        calls += api to body
+                        if (api ==
+                            "/user/notebooks"
+                        ) {
+                            obj("""{"books":[],"hasMore":0}""")
+                        } else {
+                            obj("""{"readTime":60}""")
+                        }
+                    },
+                    folder.root,
+                )
+            assertTrue(service.refresh(WereadRefreshRequest("note")).success)
+            assertEquals(listOf("/user/notebooks", "/readdata/detail"), calls.map { it.first })
+            assertEquals(
+                "monthly",
+                calls
+                    .last()
+                    .second["mode"]!!
+                    .jsonPrimitive.content,
+            )
         }
 
     @Test

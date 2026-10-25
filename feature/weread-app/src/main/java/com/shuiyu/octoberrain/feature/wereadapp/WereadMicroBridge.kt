@@ -52,19 +52,6 @@ object WereadMicroBridge {
             .orEmpty()
 
     /**
-     * 返回桌面墨台是否启用。
-     *
-     * 微读卡片在抬头区按此决定“打开墨台”按钮的可用状态，十雨侧对应偏好是负一屏开关。
-     *
-     * @param context 调用方上下文，当前实现不使用，保留以匹配 Java 调用点
-     */
-    @JvmStatic
-    @Suppress("UnusedParameter")
-    fun deskEnabled(context: Context): Boolean =
-        runCatching { AppServices.config.state.value.desktop.negativePage.enabled }
-            .getOrDefault(true)
-
-    /**
      * 按「只统计书架上的书」开关过滤本月排行条目。
      *
      * 关闭开关或取不到书架时原样返回；开启且书架就绪时只保留书架内的书目。

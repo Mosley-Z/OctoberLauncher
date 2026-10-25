@@ -1,0 +1,164 @@
+[
+  {
+    "file": "immersive-480x800.png",
+    "state": "immersive",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "home-480x800.png",
+    "state": "home",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "prefs-480x800.png",
+    "state": "prefs",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "note-480x800.png",
+    "state": "note",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "note-expanded-480x800.png",
+    "state": "note-expanded",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "intro-480x800.png",
+    "state": "intro",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "icons-480x800.png",
+    "state": "icons",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "key-480x800.png",
+    "state": "key",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "drawer-480x800.png",
+    "state": "drawer",
+    "size": "480x800",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "immersive-552x768.png",
+    "state": "immersive",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "home-552x768.png",
+    "state": "home",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "prefs-552x768.png",
+    "state": "prefs",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "note-552x768.png",
+    "state": "note",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "note-expanded-552x768.png",
+    "state": "note-expanded",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "intro-552x768.png",
+    "state": "intro",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "icons-552x768.png",
+    "state": "icons",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "key-552x768.png",
+    "state": "key",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "drawer-552x768.png",
+    "state": "drawer",
+    "size": "552x768",
+    "zoom": 1,
+    "animationWaitMs": 0,
+    "issues": [],
+    "lint": []
+  }
+]

@@ -53,11 +53,12 @@ internal object DocumentKinds {
                 else -> null
             }
         return when {
+            container == ZipContainer.ZIP -> zipKind(extension, mime)
             container != null -> containerFormat(container)
             exact != null -> exact
             header.take(8) == listOf(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1).map { it.toByte() } &&
                 extension == "xls" -> ReaderFormat.SHEET
-            isZipHeader(header) -> extensionFormat(extension)
+            isZipHeader(header) -> extensionFormat(extension, mime)
             else -> textKind(extension, mime, header)
         }
     }
@@ -82,14 +83,30 @@ internal object DocumentKinds {
             ZipContainer.ZIP -> ReaderFormat.ZIP
         }
 
-    private fun extensionFormat(extension: String): ReaderFormat =
+    private fun extensionFormat(
+        extension: String,
+        mime: String?,
+    ): ReaderFormat =
         when (extension) {
             "epub" -> ReaderFormat.EPUB
             "docx" -> ReaderFormat.DOCX
             "xlsx" -> ReaderFormat.SHEET
             "pptx" -> ReaderFormat.SLIDES
-            else -> ReaderFormat.ZIP
+            else -> zipKind(extension, mime)
         }
+
+    /** APK由文件页显式选择查看结构；其他普通ZIP容器仅按常见压缩格式进入浏览。 */
+    private fun zipKind(
+        extension: String,
+        mime: String?,
+    ): ReaderFormat {
+        val declared = mime?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT)
+        return if (extension in ARCHIVE_EXTENSIONS || extension == "apk" || declared in ARCHIVE_MIMES) {
+            ReaderFormat.ZIP
+        } else {
+            ReaderFormat.UNKNOWN
+        }
+    }
 
     private fun isImage(header: ByteArray): Boolean {
         val hex = header.take(12).joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -117,6 +134,10 @@ internal object DocumentKinds {
     }
 
     private const val ZIP_HEADER_BYTES = 4
+
+    private val ARCHIVE_EXTENSIONS = setOf("zip", "cbz", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz")
+    private val ARCHIVE_MIMES =
+        setOf("application/zip", "application/x-zip-compressed", "application/vnd.android.package-archive")
 
     private val TEXT_EXTENSIONS =
         setOf(

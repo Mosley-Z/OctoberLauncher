@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.feature.widgets
 import android.content.Context
 import android.graphics.Canvas
 import com.shuiyu.octoberrain.core.common.ContentSource
+import com.shuiyu.octoberrain.core.widget.WidgetNoteContent
 
 /**
  * 整体卡片内核宿主：向微读内核提供上下文与重绘请求。
@@ -10,8 +11,15 @@ import com.shuiyu.octoberrain.core.common.ContentSource
  * 由组件实现并转交，内核无需直接依赖视图基类。
  */
 interface WereadBoardKernelHost {
+    val refreshing: Boolean
+        get() = false
+
     /** 组件上下文。 */
     val context: Context
+
+    /** Host orientation, independent of the card slot aspect ratio. */
+    val landscape: Boolean
+        get() = false
 
     /** 请求组件重绘。 */
     fun requestDraw()
@@ -198,6 +206,9 @@ interface WereadBoardKernel {
      */
     fun bookCards(): List<WereadBookCard>
 
+    /** Prepared local reading statistics; never performs IO. */
+    fun immersiveReadingStats(): ImmersiveReadingStats = ImmersiveReadingStats()
+
     /**
      * 读取指定书目的最近一条有效划线。
      *
@@ -250,6 +261,15 @@ interface WereadBoardKernel {
      * @return 是否发生翻转
      */
     fun toggleNoteExpanded(): Boolean
+
+    /** Current prepared note for the portrait-only existing reading layer; no IO. */
+    fun currentNoteContent(): WidgetNoteContent? = null
+
+    fun renderExpandedNote(
+        canvas: Canvas,
+        width: Int,
+        height: Int,
+    ): Boolean = false
 
     /**
      * 当前形态是否有可滚动内容。

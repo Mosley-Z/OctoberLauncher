@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - master
   pull_request:
   workflow_dispatch:
 
@@ -104,7 +105,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: 上传发布包与混淆映射
+      # CI未配置正式密钥时，此处产物为未签名验证包，不能用作正式Release。
+      - name: 上传release验证包与混淆映射
         uses: actions/upload-artifact@v4
         with:
           name: octoberlauncher-release-apk

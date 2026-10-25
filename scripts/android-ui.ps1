@@ -6,6 +6,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action tap -Label "#26"
 #   长按：-Action tap -Label "#26" -HoldMs 650（须使用当前页面标注截图）
 #   自绘区滑动：-Action swipe -Label "#26" -EndLabel "#30" -Screenshot <当前标注图>
+#   系统顶部边缘诊断：-Action edge-swipe -EdgeStartY 1（按实时逻辑屏幕坐标，不用于元素导航）
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action find -FindText "设置"
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action click -FindText "设置"
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\android-ui.ps1 -Action key -Key back
@@ -16,7 +17,7 @@
 #   多设备时必须用 -Serial 指定；同一 ADB serial 同一时间只允许一个操作者。
 
 param(
-    [ValidateSet('layout', 'annotate', 'resolve', 'tap', 'swipe', 'find', 'click', 'key', 'text', 'raw')]
+    [ValidateSet('layout', 'annotate', 'resolve', 'tap', 'swipe', 'edge-swipe', 'find', 'click', 'key', 'text', 'raw')]
     [string]$Action = 'layout',
     [string]$Serial = '',
     [string]$Labels = '',
@@ -24,6 +25,8 @@ param(
     [string]$EndLabel = '',
     [ValidateRange(100, 5000)]
     [int]$SwipeMs = 350,
+    [ValidateRange(0, 100)]
+    [int]$EdgeStartY = 1,
     [ValidateRange(0, 5000)]
     [int]$HoldMs = 0,
     [string]$FindText = '',
@@ -90,7 +93,8 @@ $env:TEMP = $tmpRoot
 
 # 输出目录：默认按时间戳在工作区 _ui-out 下新建，避免覆盖上一轮证据
 if (-not $OutDir) {
-    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+    if ($Serial) { $stamp += '-' + $Serial }
     $OutDir = Join-Path $root "_ui-out\$stamp"
 }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
@@ -272,12 +276,34 @@ function Get-TapCoordinate {
     throw "无法从 resolve 结果解析坐标：$Resolved"
 }
 
+# 部分墨水屏的截图固定为面板原生方向，input 使用逻辑方向；只在两者宽高互换时换算。
+function Convert-ScreenshotPoint {
+    param([int[]]$Point, [string]$Png)
+    $display = (Invoke-Adb -CommandArgs @('shell', 'dumpsys', 'input')) -join "`n"
+    if ($display -notmatch 'Viewport INTERNAL: displayId=0,[^\r\n]*orientation=(\d), logicalFrame=\[0, 0, (\d+), (\d+)\]') {
+        throw '无法核实截图与输入坐标的显示方向'
+    }
+    $rotation = [int]$matches[1]
+    $logicalWidth = [int]$matches[2]
+    $logicalHeight = [int]$matches[3]
+    Add-Type -AssemblyName System.Drawing
+    $picture = [System.Drawing.Image]::FromFile($Png)
+    try { $pw = $picture.Width; $ph = $picture.Height } finally { $picture.Dispose() }
+    if ($pw -eq $logicalWidth -and $ph -eq $logicalHeight) { return $Point }
+    if ($pw -ne $logicalHeight -or $ph -ne $logicalWidth) { throw '截图尺寸与当前显示不一致，请重新 annotate' }
+    switch ($rotation) {
+        1 { return @($Point[1], ($pw - 1 - $Point[0])) }
+        3 { return @(($ph - 1 - $Point[1]), $Point[0]) }
+        default { throw '截图方向无法匹配当前显示，请重新 annotate' }
+    }
+}
+
 # 动作：tap，按标号或选择器点击
 function Invoke-TapAction {
     if ($Label) {
         $png = Get-AnnotatedScreenshot
         $resolved = Invoke-Cli ('screen resolve --screenshot=' + (Quote-Arg $png) + ' --string=' + (Quote-Arg $Label))
-        $coordinate = Get-TapCoordinate $resolved.Trim()
+        $coordinate = Convert-ScreenshotPoint -Point (Get-TapCoordinate $resolved.Trim()) -Png $png
         if ($HoldMs -gt 0) {
             Invoke-Adb -CommandArgs @('shell', 'input', 'swipe', "$($coordinate[0])", "$($coordinate[1])", "$($coordinate[0])", "$($coordinate[1])", "$HoldMs") | Out-Null
         } else {
@@ -334,7 +360,9 @@ function Invoke-FindAction {
 # 动作：key，发送按键；名称或 Android keycode 均可
 function Invoke-KeyAction {
     if (-not $Key) { throw 'key 需要 -Key，例如 back' }
-    Invoke-Cli ('input key --device=' + (Quote-Arg $script:DeviceSerial) + ' ' + (Quote-Arg $Key)) | Out-Null
+    # 按键无需UiAutomation；避免其持久instrumentation临时抑制被测无障碍服务。
+    $keyCode = if ($Key -match '^\d+$' -or $Key -match '^KEYCODE_') { $Key } else { 'KEYCODE_' + $Key.ToUpperInvariant() }
+    Invoke-Adb -CommandArgs @('shell', 'input', 'keyevent', $keyCode) | Out-Null
     Write-Host "按键      $Key"
 }
 
@@ -352,8 +380,8 @@ function Invoke-SwipeAction {
     $png = Get-AnnotatedScreenshot
     $startResolved = Invoke-Cli ('screen resolve --screenshot=' + (Quote-Arg $png) + ' --string=' + (Quote-Arg $Label))
     $endResolved = Invoke-Cli ('screen resolve --screenshot=' + (Quote-Arg $png) + ' --string=' + (Quote-Arg $EndLabel))
-    $startPoint = Get-TapCoordinate $startResolved.Trim()
-    $endPoint = Get-TapCoordinate $endResolved.Trim()
+    $startPoint = Convert-ScreenshotPoint -Point (Get-TapCoordinate $startResolved.Trim()) -Png $png
+    $endPoint = Convert-ScreenshotPoint -Point (Get-TapCoordinate $endResolved.Trim()) -Png $png
     Invoke-Adb -CommandArgs @('shell', 'input', 'swipe', "$($startPoint[0])", "$($startPoint[1])", "$($endPoint[0])", "$($endPoint[1])", "$SwipeMs") | Out-Null
     Write-Host "滑动标号   $Label -> $EndLabel（截图 $png）"
 }
@@ -364,6 +392,26 @@ function Invoke-RawAction {
     Write-Host (Invoke-Cli $RawArgs)
 }
 
+# 系统顶部边缘诊断；不是应用元素导航。每次从设备读取逻辑显示尺寸与旋转。
+function Invoke-EdgeSwipeAction {
+    $sizeText = (Invoke-Adb -CommandArgs @('shell', 'wm', 'size')) -join "`n"
+    $sizes = [regex]::Matches($sizeText, '(?:Physical|Override) size:\s*(\d+)x(\d+)')
+    if ($sizes.Count -eq 0) { throw '无法确定屏幕尺寸' }
+    $size = $sizes[$sizes.Count - 1]
+    $width = [int]$size.Groups[1].Value
+    $height = [int]$size.Groups[2].Value
+    $display = (Invoke-Adb -CommandArgs @('shell', 'dumpsys', 'input')) -join "`n"
+    $rotation = [regex]::Match($display, 'SurfaceOrientation:\s*(\d+)')
+    if (-not $rotation.Success) { throw '无法确定输入旋转' }
+    if ([int]$rotation.Groups[1].Value -in @(1, 3)) {
+        $swap = $width; $width = $height; $height = $swap
+    }
+    $x = [int]($width / 2)
+    $endY = [int]($height * 0.8)
+    Invoke-Adb -CommandArgs @('shell', 'input', 'swipe', "$x", "$EdgeStartY", "$x", "$endY", "$SwipeMs") | Out-Null
+    Write-Host "系统边缘滑动 ($x,$EdgeStartY)->($x,$endY), logical=${width}x${height}, rotation=$($rotation.Groups[1].Value)"
+}
+
 $script:DeviceSerial = Resolve-Device
 
 switch ($Action) {
@@ -372,6 +420,7 @@ switch ($Action) {
     'resolve' { Invoke-ResolveAction | Out-Null }
     'tap' { Invoke-TapAction }
     'swipe' { Invoke-SwipeAction }
+    'edge-swipe' { Invoke-EdgeSwipeAction }
     'find' { Invoke-FindAction }
     'click' { Invoke-TapAction }
     'key' { Invoke-KeyAction }

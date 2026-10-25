@@ -10,6 +10,9 @@ import kotlin.math.roundToInt
  * 封面的缩放与横向位置。类内不含位图、不访问数据源、不持有视图，便于单独测试。
  */
 internal class WereadBoardCarousel {
+    /** 是否首尾相连；普通本书与沉浸组件均启用循环。 */
+    var looping: Boolean = false
+
     /** 当前候选书目总数。 */
     var count: Int = 0
         private set
@@ -80,7 +83,7 @@ internal class WereadBoardCarousel {
             drag = 0f
             return false
         }
-        val next = target.coerceIn(0, count - 1)
+        val next = if (looping) Math.floorMod(target, count) else target.coerceIn(0, count - 1)
         val changed = next != selectedIndex
         selectedIndex = next
         drag = 0f
@@ -92,7 +95,12 @@ internal class WereadBoardCarousel {
      *
      * @return 有效范围内的位置
      */
-    fun nearestIndex(): Int = if (count == 0) 0 else position.roundToInt().coerceIn(0, count - 1)
+    fun nearestIndex(): Int =
+        when {
+            count == 0 -> 0
+            looping -> Math.floorMod(position.roundToInt(), count)
+            else -> position.roundToInt().coerceIn(0, count - 1)
+        }
 
     /**
      * 给出需要绘制的封面层，按由远到近排序。
@@ -102,7 +110,7 @@ internal class WereadBoardCarousel {
      * @return 封面层列表，最多五层
      */
     fun slots(): List<WereadCoverSlot> {
-        if (count == 0) return emptyList()
+        if (count == 0 || looping) return if (count == 0) emptyList() else loopingSlots()
         val slots = ArrayList<WereadCoverSlot>(MAX_RING * 2 + 1)
         for (ring in MAX_RING downTo 1) {
             for (side in SIDES) {
@@ -115,11 +123,25 @@ internal class WereadBoardCarousel {
         return slots
     }
 
+    private fun loopingSlots(): List<WereadCoverSlot> {
+        val offsets =
+            when (count) {
+                1 -> listOf(0)
+                2 -> listOf(-1, 0)
+                3 -> listOf(-1, 1, 0)
+                4 -> listOf(-2, -1, 1, 0)
+                else -> listOf(-2, 2, -1, 1, 0)
+            }
+        return offsets.map { offset ->
+            WereadCoverSlot(Math.floorMod(selectedIndex + offset, count), offset.toFloat())
+        }
+    }
+
     /** 左边界对应的最小偏移。 */
-    private fun minDrag(): Float = -selectedIndex.toFloat()
+    private fun minDrag(): Float = if (looping) -1f else -selectedIndex.toFloat()
 
     /** 右边界对应的最大偏移。 */
-    private fun maxDrag(): Float = (count - 1 - selectedIndex).toFloat()
+    private fun maxDrag(): Float = if (looping) 1f else (count - 1 - selectedIndex).toFloat()
 
     companion object {
         /** 可见层数上限，中央之外每侧两层。 */

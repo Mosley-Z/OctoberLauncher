@@ -55,6 +55,13 @@ internal class WereadBoardCoverLoader(
     @Volatile
     private var released: Boolean = false
 
+    @Volatile private var visible: Boolean = true
+
+    fun setVisible(value: Boolean) {
+        visible = value
+        if (!value) covers.evictAll()
+    }
+
     /**
      * 取已解码的封面。
      *
@@ -73,7 +80,7 @@ internal class WereadBoardCoverLoader(
         books: List<WereadBookCard>,
         slots: List<WereadCoverSlot>,
     ) {
-        if (books.isEmpty() || released) return
+        if (books.isEmpty() || released || !visible) return
         val target = (widthProvider() * COVER_TARGET_RATIO).toInt().coerceIn(MIN_COVER_PX, MAX_COVER_PX)
         slots.forEach { slot -> books.getOrNull(slot.index)?.let { submit(it, target) } }
     }
@@ -92,10 +99,14 @@ internal class WereadBoardCoverLoader(
         val path = book.coverPath ?: return
         if (covers.get(bookId) != null || !requests.add(bookId)) return
         executor.execute {
+            if (!visible || released) {
+                handler.post { requests.remove(bookId) }
+                return@execute
+            }
             val decoded =
                 WereadCoverStore.bitmap(context, bookId, path, target) {
                     handler.post {
-                        if (released) return@post
+                        if (released || !visible) return@post
                         onChanged()
                     }
                 }
@@ -114,7 +125,7 @@ internal class WereadBoardCoverLoader(
         bitmap: Bitmap?,
     ) {
         requests.remove(bookId)
-        if (released) {
+        if (released || !visible) {
             if (bitmap != null && !bitmap.isRecycled) bitmap.recycle()
             return
         }

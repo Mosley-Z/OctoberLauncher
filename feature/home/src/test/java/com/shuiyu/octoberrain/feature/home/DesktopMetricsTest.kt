@@ -117,9 +117,29 @@ class DesktopMetricsTest {
 
     /** 页数上限生效，超出上限时截断到上限值。 */
     @Test
-    fun `页数受上限约束`() {
+    fun `旧页数上限不再截断应用`() {
         val metrics = grid(pageLimit = 2)
-        assertEquals(2, metrics.pageCount(1000))
+        assertEquals(50, metrics.pageCount(1000))
+    }
+
+    @Test
+    fun `首页独立列数与几何不影响其他页`() {
+        val first = grid(hasWidget = true, firstRows = 2).copy(columns = 3, cellWidth = 130)
+        val metrics = grid().copy(firstPage = first)
+        assertEquals(6, metrics.capacity(0))
+        assertEquals(20, metrics.capacity(1))
+        assertEquals(6, metrics.startIndex(1))
+        assertEquals(26, metrics.startIndex(2))
+        assertEquals(0, metrics.pageOfIndex(5))
+        assertEquals(1, metrics.pageOfIndex(6))
+        assertEquals(2, metrics.pageOfIndex(26))
+        assertEquals(130, metrics.forPage(0).cellWidth)
+        assertEquals(100, metrics.forPage(1).cellWidth)
+        for (page in 0..4) {
+            for (index in metrics.startIndex(page) until metrics.startIndex(page + 1)) {
+                assertEquals(page, metrics.pageOfIndex(index))
+            }
+        }
     }
 
     /** 列表形态每页容量等于行数，首页启用组件时容量同样缩减。 */
@@ -212,12 +232,12 @@ class DesktopMetricsTest {
         assertEquals(-1, metrics.slotAt(1, 10f, 40f))
     }
 
-    /** 行号超出行数时未命中，列方向越界被收敛到最后一列，与绘制区外的可点区域一致。 */
+    /** 行列超出可用区域均不命中，横屏左侧组件不得穿透应用列。 */
     @Test
     fun `宫格越界行与超宽横坐标`() {
         val metrics = grid()
         assertEquals(-1, metrics.slotAt(1, 30f, 667f))
-        assertEquals(3, metrics.slotAt(1, 10_000f, 40f))
+        assertEquals(-1, metrics.slotAt(1, 10_000f, 40f))
     }
 
     /** 宫格整体偏移为负时未命中，偏移后命中位置向右平移。 */
@@ -286,5 +306,85 @@ class DesktopMetricsTest {
             // 实际间距与理论比例的偏差不超过半个像素
             assertTrue(Math.abs(widgetGap - width * ratio) <= 0.5f)
         }
+    }
+
+    @Test
+    fun `横屏分栏应用命中不受左侧组件高度影响`() {
+        val landscape =
+            grid(hasWidget = true, firstRows = 3).copy(
+                columns = 1,
+                left = 520,
+                right = 780,
+                widgetBounds = android.graphics.RectF(),
+            )
+        assertEquals(20, landscape.appAreaTop(0))
+        assertEquals(-1, landscape.slotAt(0, 200f, 40f))
+        assertEquals(0, landscape.slotAt(0, 600f, 40f))
+        assertEquals(1, landscape.slotAt(0, 600f, 160f))
+        assertEquals(3, landscape.capacity(0))
+    }
+
+    @Test
+    fun `首页两列八格与全宽普通页容量独立且索引连续`() {
+        val normal =
+            grid(firstRows = 4).copy(
+                firstPage =
+                    grid(firstRows = 4).copy(
+                        columns = 2,
+                        fullRows = 4,
+                        firstRows = 4,
+                    ),
+            )
+        assertEquals(8, normal.capacity(0))
+        assertEquals(20, normal.capacity(1))
+        assertEquals(8, normal.startIndex(1))
+        assertEquals(28, normal.startIndex(2))
+        assertEquals(0, normal.pageOfIndex(7))
+        assertEquals(1, normal.pageOfIndex(8))
+        assertEquals(1, normal.pageOfIndex(27))
+        assertEquals(2, normal.pageOfIndex(28))
+        assertEquals(3, normal.pageCount(29))
+        for (index in 0 until 49) {
+            val page = normal.pageOfIndex(index)
+            assertTrue(index >= normal.startIndex(page))
+            assertTrue(index < normal.startIndex(page) + normal.capacity(page))
+        }
+    }
+
+    @Test
+    fun `首页显式小容量不改变普通页分页容量`() {
+        val normal = grid().copy(firstPage = grid().copy(columns = 1, fullRows = 2, firstRows = 2))
+        assertEquals(2, normal.capacity(0))
+        assertEquals(20, normal.capacity(1))
+        assertEquals(2, normal.startIndex(1))
+        assertEquals(22, normal.startIndex(2))
+    }
+
+    @Test
+    fun `阅读层右边界包含首页两列而非普通页较窄的页边距`() {
+        val normal = grid().copy(right = 720, firstPage = grid().copy(left = 500, right = 735, columns = 2))
+        assertEquals(735f, normal.noteRightBoundary(), .001f)
+        assertEquals(720, normal.forPage(1).right)
+        assertEquals(735f, normal.copy(firstPage = normal.firstPage?.copy(columns = 1)).noteRightBoundary(), .001f)
+        assertEquals(705f, normal.copy(firstPage = normal.firstPage?.copy(right = 705)).noteRightBoundary(), .001f)
+    }
+
+    @Test fun `variable widget pages retain slots and cumulative pagination stays invertible`() {
+        val compact = grid(hasWidget = true, firstRows = 1).copy(widgetPageGeometry = true)
+        val normal = grid().copy(firstPage = compact, pageLayouts = mapOf(1 to compact, 3 to compact))
+        assertEquals(4, normal.capacity(0))
+        assertEquals(4, normal.capacity(1))
+        assertEquals(20, normal.capacity(2))
+        assertEquals(8, normal.startIndex(2))
+        assertEquals(28, normal.startIndex(3))
+        assertEquals(4, normal.pageCount(0))
+        assertEquals(normal.appAreaTop(0), normal.appAreaTop(1))
+        (0 until 60).forEach { index ->
+            val page = normal.pageOfIndex(index)
+            org.junit.Assert.assertTrue(
+                index in normal.startIndex(page) until normal.startIndex(page) + normal.capacity(page),
+            )
+        }
+        assertEquals(24, normal.copy(pageLayouts = emptyMap()).startIndex(2))
     }
 }

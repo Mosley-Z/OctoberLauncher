@@ -9,6 +9,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.LauncherConfig
+import com.shuiyu.octoberrain.core.common.forWidgetPage
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.render.InkCanvas
 import com.shuiyu.octoberrain.core.widget.BaseWidgetView
@@ -32,6 +33,8 @@ abstract class InkWidgetView(
     /** 组件内部协程作用域，供子类处理选图等异步流程，随视图销毁取消。 */
     protected val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var reloadJob: Job? = null
+    private var reloadPending = false
+    private var reloadForced = false
     private var configSnapshot: LauncherConfig? = null
     private var dataLoaded = false
     private var loadFailed = false
@@ -52,7 +55,11 @@ abstract class InkWidgetView(
 
     /** 从全局快照重新读取配置，供组件自身写入配置后立即生效。 */
     protected fun refreshConfigSnapshot() {
-        if (AppServices.isReady()) configSnapshot = AppServices.config.state.value
+        if (AppServices.isReady()) {
+            configSnapshot =
+                AppServices.config.state.value
+                    .let { it.copy(desktop = it.desktop.forWidgetPage(pageIndex)) }
+        }
     }
 
     /** 组件内容区的纵向内边距。 */
@@ -103,24 +110,33 @@ abstract class InkWidgetView(
      */
     protected open suspend fun loadData(force: Boolean): Boolean = true
 
-    /** 重新读取数据并请求重绘，重复调用在加载完成前只执行一次。 */
+    /** 重新读取数据并请求重绘，加载期间的后续请求合并为一次补读，避免快速切图丢失最后状态。 */
     protected fun reload(force: Boolean = false) {
         if (released) return
-        if (reloadJob?.isActive == true) return
+        reloadForced = reloadForced || force
+        if (reloadJob?.isActive == true) {
+            reloadPending = true
+            return
+        }
         reloadJob =
             scope.launch {
-                val result = runCatching { withContext(Dispatchers.IO) { loadData(force) } }
-                if (released) return@launch
-                result
-                    .onSuccess {
-                        dataLoaded = true
-                        loadFailed = false
-                        requestDraw()
-                    }.onFailure {
-                        loadFailed = true
-                        requestDraw()
-                        InkLog.w("组件", "加载组件数据失败", it)
-                    }
+                do {
+                    reloadPending = false
+                    val requestedForce = reloadForced
+                    reloadForced = false
+                    val result = runCatching { withContext(Dispatchers.IO) { loadData(requestedForce) } }
+                    if (released) return@launch
+                    result
+                        .onSuccess {
+                            dataLoaded = true
+                            loadFailed = false
+                            requestDraw()
+                        }.onFailure {
+                            loadFailed = true
+                            requestDraw()
+                            InkLog.w("组件", "加载组件数据失败", it)
+                        }
+                } while (reloadPending && !released)
             }
     }
 
@@ -164,7 +180,15 @@ abstract class InkWidgetView(
 
     /** 打开内置页面。 */
     protected fun navigateTo(destination: Destination) {
-        if (AppServices.hasRouter()) AppServices.router.navigate(destination)
+        val target =
+            if (destination ==
+                Destination.WidgetPicker
+            ) {
+                Destination.PageWidgetPicker(pageIndex)
+            } else {
+                destination
+            }
+        if (AppServices.hasRouter()) AppServices.router.navigate(target)
     }
 
     /** 展示轻提示。 */

@@ -10,6 +10,13 @@ import org.junit.Test
 /** 外观快照对旧偏好文档的兼容契约。 */
 class WereadAppearanceTest {
     @Test
+    fun `missing month style uses heatmap and explicit choices survive`() {
+        assertTrue(WereadAppearance.of(documentOf("{}")).monthHeatmap)
+        assertFalse(WereadAppearance.of(documentOf("""{"int":{"month_style":0}}""")).monthHeatmap)
+        assertTrue(WereadAppearance.of(documentOf("""{"int":{"month_style":1}}""")).monthHeatmap)
+    }
+
+    @Test
     fun `appearance decodes when card enabled key is absent`() {
         val document = documentOf("""{"bool":{"app_show_signature":false},"int":{"month_style":1}}""")
         val appearance = WereadAppearance.of(document)

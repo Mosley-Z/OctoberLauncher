@@ -37,25 +37,25 @@ internal object AppearanceSpecs {
 
     val groups: List<SettingsGroupSpec> =
         listOf(
+            SettingsGroupSpec("project.lockWallpaper", "十雨锁屏壁纸"),
+            SettingsGroupSpec("project.status", "十雨状态栏高度"),
             SettingsGroupSpec(
                 id = GROUP_APPEARANCE_WALLPAPER,
                 title = "壁纸",
-                subtitle = "桌面与锁屏壁纸分别设置，文件保存在应用私有目录，更换后立即重绘",
+                subtitle = "完整图片按屏幕比例拉伸填满；沉浸不应用白色压层与变暗",
             ),
             SettingsGroupSpec(
                 id = GROUP_APPEARANCE_THEME,
-                title = "主题与图标",
+                title = "图标",
                 subtitle = "主题决定纸面配色、线条灰度与图标映射",
             ),
             SettingsGroupSpec(
                 id = GROUP_APPEARANCE_FONTS,
                 title = "字体",
-                subtitle = "字体文件导入后保存在应用私有目录",
             ),
             SettingsGroupSpec(
                 id = GROUP_APPEARANCE_TEXT,
                 title = "文字与密度",
-                subtitle = "字号缩放会整体重建界面",
             ),
             SettingsGroupSpec(
                 id = GROUP_APPEARANCE_IMAGE,
@@ -75,7 +75,7 @@ internal object AppearanceSpecs {
                     listOf(
                         "字号与状态栏调整后界面会立即重建，滚动位置回到顶部。" +
                             "壁纸与图标包只影响桌面与预览，不改变设置页样式。",
-                        "壁纸、字体与主题文件通过系统文件选择器读取；系统选择器不可用时回退到内置文件扫描，" +
+                        "壁纸与字体文件通过系统文件选择器读取；系统选择器不可用时回退到内置文件扫描，" +
                             "此时需先在权限与授权页面授予存储访问权限。",
                     ),
             ),
@@ -100,14 +100,20 @@ internal object AppearanceSpecs {
                 effect = SettingEffect.NONE,
             ),
             SettingSpec(
-                id = "appearance.wallpaper.overlay",
+                id = "appearance.wallpaper.landscapeRotation",
                 group = GROUP_APPEARANCE_WALLPAPER,
-                title = "白色压层",
-                hint = "在壁纸上叠加白色半透明层，提升图标与文字对比度",
+                title = "横屏图片转向",
+                hint = "仅旋转横屏壁纸，桌面方向在桌面与布局中设置；完整图片拉伸填满",
                 control =
-                    toggleAppearance(
-                        read = { it.wallpaperWhiteOverlay },
-                        write = { appearance, value -> appearance.copy(wallpaperWhiteOverlay = value) },
+                    choiceAppearance(
+                        options = listOf("0°", "90°", "180°", "270°"),
+                        read = { listOf(0, 90, 180, 270).indexOf(it.wallpaperLandscapeRotation).coerceAtLeast(0) },
+                        write = {
+                            appearance,
+                            index,
+                            ->
+                            appearance.copy(wallpaperLandscapeRotation = listOf(0, 90, 180, 270)[index])
+                        },
                     ),
                 effect = SettingEffect.APPEARANCE,
             ),
@@ -125,7 +131,7 @@ internal object AppearanceSpecs {
                 id = "appearance.wallpaper.dim",
                 group = GROUP_APPEARANCE_WALLPAPER,
                 title = "壁纸变暗",
-                hint = "在壁纸上叠加黑色遮罩，0 为原始亮度，100 为全黑",
+                hint = "仅普通桌面应用变暗；沉浸不应用此遮罩",
                 control =
                     sliderAppearance(
                         values = DIM_STEPS,
@@ -152,7 +158,7 @@ internal object AppearanceSpecs {
             ),
             SettingSpec(
                 id = "appearance.lockWallpaper.pick",
-                group = GROUP_APPEARANCE_WALLPAPER,
+                group = "project.lockWallpaper",
                 title = "选择锁屏壁纸",
                 hint = "锁屏密码界面背景，选择后在后台裁剪并量化",
                 control =
@@ -168,7 +174,7 @@ internal object AppearanceSpecs {
             ),
             SettingSpec(
                 id = "appearance.lockWallpaper.clear",
-                group = GROUP_APPEARANCE_WALLPAPER,
+                group = "project.lockWallpaper",
                 title = "清除锁屏壁纸",
                 control =
                     SettingControl.Action(value = { config ->
@@ -178,7 +184,7 @@ internal object AppearanceSpecs {
             ),
             SettingSpec(
                 id = "appearance.lockWallpaper.quantize",
-                group = GROUP_APPEARANCE_WALLPAPER,
+                group = "project.lockWallpaper",
                 title = "锁屏壁纸量化",
                 hint = "锁屏壁纸的灰阶档位，默认四级灰以突出键盘与提示文字",
                 control =
@@ -188,14 +194,6 @@ internal object AppearanceSpecs {
                         write = { appearance, index -> appearance.copy(lockWallpaperQuantize = index.coerceIn(0, 3)) },
                     ),
                 effect = SettingEffect.APPEARANCE,
-            ),
-            SettingSpec(
-                id = "appearance.theme.open",
-                group = GROUP_APPEARANCE_THEME,
-                title = "主题模板",
-                hint = "内置墨、纸、夜与高对比四套令牌，可追加主题文件",
-                control = SettingControl.Action(value = { SettingsUi.themeLabel(it.appearance.themeId) }),
-                effect = SettingEffect.NONE,
             ),
             SettingSpec(
                 id = "appearance.iconPack.open",
@@ -244,14 +242,6 @@ internal object AppearanceSpecs {
                 effect = SettingEffect.NONE,
             ),
             SettingSpec(
-                id = "appearance.font.clock",
-                group = GROUP_APPEARANCE_FONTS,
-                title = "钟面字体",
-                hint = "影响大时钟组件与锁屏时间",
-                control = SettingControl.Action(value = ::clockFontLabel),
-                effect = SettingEffect.NONE,
-            ),
-            SettingSpec(
                 id = "appearance.text.scale",
                 group = GROUP_APPEARANCE_TEXT,
                 title = "字号缩放",
@@ -279,9 +269,14 @@ internal object AppearanceSpecs {
                 title = "显示应用名称",
                 hint = "关闭后桌面只显示图标，适合小尺寸屏幕",
                 control =
-                    toggleAppearance(
-                        read = { it.showLabels },
-                        write = { appearance, value -> appearance.copy(showLabels = value) },
+                    SettingControl.Toggle(
+                        read = { it.appearance.showLabels },
+                        write = { config, value ->
+                            config.copy(
+                                appearance = config.appearance.copy(showLabels = value),
+                                desktop = config.desktop.copy(iconOnly = false),
+                            )
+                        },
                     ),
                 effect = SettingEffect.APPEARANCE,
             ),
@@ -294,18 +289,6 @@ internal object AppearanceSpecs {
                     toggleAppearance(
                         read = { it.highContrast },
                         write = { appearance, value -> appearance.copy(highContrast = value) },
-                    ),
-                effect = SettingEffect.APPEARANCE,
-            ),
-            SettingSpec(
-                id = "appearance.twelveHour",
-                group = GROUP_APPEARANCE_DISPLAY,
-                title = "十二小时制",
-                hint = "关闭后使用二十四小时制",
-                control =
-                    toggleAppearance(
-                        read = { it.twelveHour },
-                        write = { appearance, value -> appearance.copy(twelveHour = value) },
                     ),
                 effect = SettingEffect.APPEARANCE,
             ),
@@ -408,7 +391,7 @@ internal object AppearanceSpecs {
             ),
             SettingSpec(
                 id = "appearance.statusBar",
-                group = GROUP_APPEARANCE_DISPLAY,
+                group = "project.status",
                 title = "状态栏高度",
                 hint = "自动档位按设备状态栏实际高度计算",
                 control =

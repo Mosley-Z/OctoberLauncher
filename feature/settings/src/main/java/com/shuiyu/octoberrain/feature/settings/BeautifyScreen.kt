@@ -21,7 +21,6 @@ import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkGlyphs
-import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,11 +31,11 @@ import java.io.File
 /**
  * 美化模式页面骨架。
  *
- * 整屏显示：顶部为返回、标题、主题库入口与保存主题，中部左右分栏占据剩余高度，
- * 底部一行提供预览、导入、清空与保存，另有底部状态行替代弹窗提示。
+ * 整屏显示：顶部为返回与标题，中部左右分栏占据剩余高度，
+ * 底部一行提供预览、清空与保存，另有底部状态行替代弹窗提示。
  *
  * 各区域按职责拆到同一包内的四个文件中：左栏排序与图标见 BeautifyIconPanel.kt，
- * 右栏图片目录见 BeautifyImagePanel.kt，主题库见 BeautifyThemePanel.kt，
+ * 右栏图片目录见 BeautifyImagePanel.kt，
  * 分页装载与预览见 BeautifyPreviewPanel.kt。分页算法统一由 DesktopPagination 提供。
  */
 class BeautifyScreen : Screen {
@@ -69,9 +68,6 @@ class BeautifyScreen : Screen {
 
     /** 最近一次成功使用的图片路径，用于缩略图黑框标记。 */
     internal var selectedImagePath: String? = null
-
-    /** 主题库对话框引用的页面，用于主题变更后就地重绘。 */
-    internal var themePage: InkPage? = null
 
     /** 中部左右分栏容器，用于仅替换左栏。 */
     internal var cardRow: LinearLayout? = null
@@ -116,7 +112,6 @@ class BeautifyScreen : Screen {
 
     override fun onDestroy() {
         scope.cancel()
-        themePage = null
         root = null
     }
 
@@ -181,7 +176,7 @@ class BeautifyScreen : Screen {
         view.visibility = View.VISIBLE
     }
 
-    /** 顶部工具栏：返回、标题与主题库入口。 */
+    /** 顶部工具栏：返回与标题。 */
     private fun buildToolbar(context: Context): View {
         val tokens = DesignRuntime.tokens
         val bar =
@@ -214,52 +209,7 @@ class BeautifyScreen : Screen {
                     )
             },
         )
-        // 右侧两个等高的工具栏按钮：主题库与保存主题，横向占满标题之后的剩余宽度。
-        val actions =
-            LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                isBaselineAligned = false
-            }
-        actions.addView(toolbarButton(context, "主题库") { showThemeLibrary() })
-        actions.addView(
-            View(context),
-            LinearLayout.LayoutParams(tokens.gap / 2, 1),
-        )
-        actions.addView(toolbarButton(context, "保存主题") { promptSaveTheme() })
-        bar.addView(
-            actions,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                tokens.dp(28f),
-            ),
-        )
         return bar
-    }
-
-    /** 工具栏按钮：与主题库同高，文字略小，宽度按文字自适应且留出更多内边距。 */
-    private fun toolbarButton(
-        context: Context,
-        label: CharSequence,
-        onClick: () -> Unit,
-    ): TextView {
-        val tokens = DesignRuntime.tokens
-        return InkWidgets.textView(context, label, tokens.textCaption, InkColors.INK).apply {
-            gravity = Gravity.CENTER
-            minWidth = tokens.dp(64f)
-            minimumWidth = tokens.dp(64f)
-            setPadding(tokens.gap, 0, tokens.gap, 0)
-            background =
-                InkWidgets.background(
-                    tokens.radiusSmall,
-                    InkColors.PAPER,
-                    tokens.stroke,
-                    InkColors.INK,
-                )
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { onClick() }
-        }
     }
 
     /** 中部左右分栏：左栏应用、右栏图片来源，均各自滚动。 */
@@ -290,7 +240,7 @@ class BeautifyScreen : Screen {
         return row
     }
 
-    /** 底部操作行：预览、导入、清空与保存顺序，四个等宽按钮均带自绘线稿图标。 */
+    /** 底部操作行：预览、清空与保存顺序，三个等宽按钮均带自绘线稿图标。 */
     private fun buildBottomActions(context: Context): View {
         val tokens = DesignRuntime.tokens
         val row =
@@ -302,11 +252,6 @@ class BeautifyScreen : Screen {
             }
         row.addView(
             iconTextButton(context, "预览", BottomIcon.SEARCH) { openPreview() },
-            weightButtonParams(1f),
-        )
-        row.addView(gapView(context), weightButtonParams(0f).apply { width = tokens.gap / 2 })
-        row.addView(
-            iconTextButton(context, "导入", BottomIcon.IMPORT) { importTheme() },
             weightButtonParams(1f),
         )
         row.addView(gapView(context), weightButtonParams(0f).apply { width = tokens.gap / 2 })
@@ -434,7 +379,7 @@ class BeautifyScreen : Screen {
             }
     }
 
-    /** 紧凑按钮：白底描边、宽度自适应，用于列表与主题行内操作。 */
+    /** 紧凑按钮：白底描边、宽度自适应，用于应用列表行内操作。 */
     internal fun compactButton(
         context: Context,
         label: CharSequence,

@@ -89,8 +89,6 @@ class PlaceholderContentSource : com.shuiyu.octoberrain.core.common.ContentSourc
 
     override suspend fun weather() = null
 
-    override suspend fun usageToday() = emptyList<com.shuiyu.octoberrain.core.common.UsageEntry>()
-
     override suspend fun bookshelf(limit: Int) = emptyList<com.shuiyu.octoberrain.core.common.BookItem>()
 
     override suspend fun wereadShelf(limit: Int) = emptyList<com.shuiyu.octoberrain.core.common.WereadShelfItem>()
@@ -99,27 +97,13 @@ class PlaceholderContentSource : com.shuiyu.octoberrain.core.common.ContentSourc
 
     override suspend fun wereadHighlights(limit: Int) = emptyList<com.shuiyu.octoberrain.core.common.WereadHighlight>()
 
-    override suspend fun koreaderHeat() = null
-
     override suspend fun searchBooks(query: String) = emptyList<com.shuiyu.octoberrain.core.common.BookItem>()
 
     override suspend fun refreshAll() = Unit
 }
 
 /** 未提供托盘模块时的占位实现。 */
-class PlaceholderTrayController(
-    private val context: android.content.Context,
-) : com.shuiyu.octoberrain.core.common.TrayController {
-    override val isOpen: Boolean = false
-
-    override fun open() = Unit
-
-    override fun close() = Unit
-
-    override fun toggle() = Unit
-
-    override fun createOverlay(context: android.content.Context): android.view.View = android.view.View(context)
-
+class PlaceholderTrayController : com.shuiyu.octoberrain.core.common.TrayController {
     override fun createStatusBar(context: android.content.Context): android.view.View =
         com.shuiyu.octoberrain.core.design.InkWidgets.textView(
             context,

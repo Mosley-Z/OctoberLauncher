@@ -15,7 +15,6 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.effectiveWereadBoardPoolMask
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -26,9 +25,9 @@ import com.shuiyu.octoberrain.feature.wereadapp.WereadAppSettings
 import com.shuiyu.octoberrain.feature.wereadapp.ui.qr.KeyQrPanel
 
 /**
- * 页面内设置页，按微读原版分为初始化、自定义与锁屏密码三个页签。
+ * 页面内设置页，按微读原版分为初始化与自定义两个页签。
  *
- * 三个页签常显在顶部，切换后只重建当前页内容；每页纵向滚动，表单改动写入
+ * 两个页签常显在顶部，切换后只重建当前页内容；每页纵向滚动，表单改动写入
  * `kernel_prefs` 对应键，内核与桌面卡片按同一份偏好读取，改动即写即生效。
  *
  * @param context 创建视图的上下文
@@ -75,12 +74,6 @@ internal class WereadSettingsPage(
             addView(content)
         }
 
-    /** 锁屏密码页宿主，切到该页签时显示，避免与外层滚动容器嵌套。 */
-    private val lockHost = FrameLayout(context)
-
-    /** 锁屏密码页，首次切换到该页签时创建。 */
-    private var lockPage: WereadLockPage? = null
-
     /** API Key 输入框，保存与测试时读取。 */
     private var apiKeyInput: EditText? = null
 
@@ -97,11 +90,6 @@ internal class WereadSettingsPage(
             scroller,
             LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f),
         )
-        addView(
-            lockHost,
-            LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f),
-        )
-        lockHost.visibility = GONE
         render()
     }
 
@@ -112,12 +100,6 @@ internal class WereadSettingsPage(
 
     /** 重建当前页签内容。 */
     private fun render() {
-        if (selectedTab == TAB_LOCK) {
-            showLockPage()
-            return
-        }
-        scroller.visibility = VISIBLE
-        lockHost.visibility = GONE
         content.removeAllViews()
         scroller.scrollTo(0, 0)
         apiKeyInput = null
@@ -129,26 +111,10 @@ internal class WereadSettingsPage(
         }
     }
 
-    /** 显示锁屏密码页，首次进入时创建并加入宿主。 */
-    private fun showLockPage() {
-        scroller.visibility = GONE
-        lockHost.visibility = VISIBLE
-        if (lockPage == null) {
-            val created = WereadLockPage(context)
-            lockPage = created
-            lockHost.addView(
-                created,
-                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT),
-            )
-        }
-        lockPage?.refresh()
-    }
-
     /** 初始化页，按密钥、帮助与更新依次排列。 */
     private fun buildInitPage() {
         addInitKeySection()
         addInitUsageSection()
-        addInitUpdateSection()
     }
 
     /** 微信读书 API Key：回填输入框、扫码录入、保存与测试连接。 */
@@ -237,23 +203,6 @@ internal class WereadSettingsPage(
         addFullButton("怎么用") { showHelp() }
     }
 
-    /** 内置页随十雨桌面升级，检查与安装统一使用宿主更新服务。 */
-    private fun addInitUpdateSection() {
-        addSectionTitle("版本与更新")
-        val version = WereadAppPrefs.versionName(context)
-        val code = WereadAppPrefs.versionCode(context)
-        val versionRow =
-            InkWidgets.labelRow(context, "十雨桌面版本", "$version（$code）")
-        content.addView(versionRow)
-        addCaption("微读墨记功能与内核随十雨桌面一起更新，不单独安装原 App。")
-        addCaption("检查与下载使用十雨桌面更新设置中的清单地址。")
-        addFullButton("检查十雨桌面更新") {
-            if (AppServices.hasRouter()) {
-                AppServices.router.navigate(Destination.Update)
-            }
-        }
-    }
-
     /** 自定义页，按开关、墨台、刷新绑定、成就、导出图与排名依次排列。 */
     private fun buildCustomPage(settings: WereadAppSettings) {
         addCheckRow("仅一页模式，翻页不再隐藏卡片", settings.singlePage) { checked ->
@@ -301,13 +250,13 @@ internal class WereadSettingsPage(
         content.addView(buildCustomGoalField(settings.monthCustom, "自定义月目标（小时，如 40）", false))
     }
 
-    /** 本月呈现：打卡与热力图两档，只影响本月页。 */
+    /** 本月呈现：微读墨记与桌面本月卡片共享。 */
     private fun addCustomMonthStyleSection(settings: WereadAppSettings) {
         addSectionTitle("本月呈现")
         addRadioGroup(MONTH_STYLE_LABELS, if (settings.monthHeatmap) 1 else 0) { index ->
             update { it.copy(monthHeatmap = index == 1) }
         }
-        addCaption("打卡＝读过打对勾；热力图＝按当天时长用深浅格子表示（0/30分钟/1小时/3小时四档）。只影响本月页。")
+        addCaption("打卡＝读过打对勾；热力图＝按当天时长用深浅格子表示（0/30分钟/1小时/3小时四档）。用于微读墨记与桌面卡片的本月月历。")
     }
 
     /** 卡片档本记字号：数值显示加滑块，范围 12 到 24 号。 */
@@ -529,16 +478,9 @@ internal class WereadSettingsPage(
             .orEmpty()
     }
 
-    /** 显示帮助文本。 */
+    /** 原入口打开十雨完整使用说明。 */
     private fun showHelp() {
-        InkDialogs.confirm(
-            context,
-            "使用说明",
-            "阅读页展示整卡统计；本记形态可切换筛选、选书与导出；" +
-                "设置页修改立即生效；锁屏密码页可设置四位 PIN 与锁屏背景。",
-            confirmLabel = "知道了",
-            onConfirm = {},
-        )
+        LauncherHelpDialog(context).show()
     }
 
     /** 添加分组标题；首组不加前导间距。 */
@@ -790,11 +732,8 @@ internal class WereadSettingsPage(
         /** 自定义页签下标。 */
         const val TAB_CUSTOM: Int = 1
 
-        /** 锁屏密码页签下标。 */
-        const val TAB_LOCK: Int = 2
-
-        /** 三个页签的文案，顺序与下标一致。 */
-        val TAB_LABELS: List<String> = listOf("初始化", "自定义", "锁屏密码")
+        /** 两个页签的文案，顺序与下标一致。 */
+        val TAB_LABELS: List<String> = listOf("初始化", "自定义")
 
         /** 成就目标档位文字。 */
         val KIND_LABELS: List<String> = listOf("关", "完美", "狂暴", "自定义")

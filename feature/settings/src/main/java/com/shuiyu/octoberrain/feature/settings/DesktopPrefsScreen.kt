@@ -1,45 +1,37 @@
 package com.shuiyu.octoberrain.feature.settings
 
-import android.content.Context
-import android.net.Uri
 import android.os.SystemClock
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.AppearanceConfig
 import com.shuiyu.octoberrain.core.common.DesktopConfig
 import com.shuiyu.octoberrain.core.common.DesktopKind
-import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.GridAlign
-import com.shuiyu.octoberrain.core.common.IMAGE_CAROUSEL_OPTIONS
-import com.shuiyu.octoberrain.core.common.IconShape
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.SortMode
 import com.shuiyu.octoberrain.core.common.TrayConfig
-import com.shuiyu.octoberrain.core.common.effectiveImageCarouselSeconds
+import com.shuiyu.octoberrain.core.common.effectiveWidgetId
+import com.shuiyu.octoberrain.core.common.withFirstGrid
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkPage
-import kotlinx.coroutines.Dispatchers
+import com.shuiyu.octoberrain.core.design.InkWidgets
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 
 /**
  * 桌面偏好设置页面。
  *
- * 页面按首页布局、网格、图标与标签、交互、组件与内容五组排列，每行保持标题与右侧控件；
+ * 页面按模式方向、首页布局、页码、交互分组排列，每行保持标题与右侧控件；
  * 连续步进以 [STEP_DEBOUNCE_MS] 合并写入，避免每次点击都重建整页。
  */
-class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
+class DesktopPrefsScreen : SettingsBaseScreen("桌面与布局") {
     /** 尚未写入的桌面配置，连续步进在该对象上累加。 */
     private var pendingDesktop: DesktopConfig? = null
 
     /** 防抖写入任务。 */
     private var pendingJob: Job? = null
 
-    /** 隐藏应用数量行，子页切换开关后就地更新。 */
+    /** 隐藏应用数量行，管理子页写入后同步。 */
     private var hiddenAppsRow: SettingsRow? = null
 
     /** 离开页面时立即落盘，避免防抖窗口内的改动丢失。 */
@@ -63,27 +55,14 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
     ) {
         val startedAt = SystemClock.elapsedRealtime()
         SettingsUi.beginRowCount(page)
+        DesktopModeSettings.entry(page, beforeChange = { flushPendingDesktop() }, onModeChanged = { rebuildLater() })
         buildHomeLayout(page, config.desktop)
-        buildGrid(page, config.desktop)
         buildIconAndLabel(page)
         buildInteraction(page, config.desktop)
-        buildContent(page, config.desktop, config)
-        // 负一屏设置由声明表生成入口行，跳转行为由页面提供。
-        SettingsSpecRenderer.renderPage(
-            page = page,
-            groups = SettingsCatalog.negativeGroups,
-            config = config,
-            sink = settingEffectSink(),
-            actions =
-                mapOf(
-                    NegativeSpecs.SPEC_SETTINGS_ENTRY to {
-                        AppServices.router.navigate(Destination.NegativeSettings)
-                    },
-                ),
-        )
-        // 微读墨记入口：打开设置内全屏页面，页面结构与微读墨记应用一致。
-        WereadAppSpecs.render(page)
-        SettingsUi.note(page, "自动档位按屏幕尺寸反算，布局改动在返回桌面后生效。")
+        InkWidgets
+            .button(page.context, "恢复本页默认", filled = true) {
+                confirmResetLayout()
+            }.also { page.content.addView(it) }
         // InkLog 当前只提供 d/w/e，构建耗时与行数用调试级输出。
         InkLog.d(
             TAG,
@@ -91,138 +70,188 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         )
     }
 
-    /** 首页布局：形态、首页行数与每页上限。 */
+    /** 只显示当前形态的容量控件，切换前先落盘连续操作。 */
     private fun buildHomeLayout(
         page: InkPage,
         desktop: DesktopConfig,
     ) {
-        val section = SettingsUi.section(page, "首页布局", "形态与分页")
+        val section = SettingsUi.section(page, "桌面布局", "列 × 行，自动按可用空间计算")
         section.choose(
             label = "桌面形态",
             options = KIND_OPTIONS,
             selected = { if (SettingsUi.settings().desktop.kind == DesktopKind.LIST) 1 else 0 },
         ) { index ->
+            flushPendingDesktop()
             updateDesktop { it.copy(kind = if (index == 1) DesktopKind.LIST else DesktopKind.GRID) }
+            rebuildLater()
         }
-        section.stepper(
-            label = "首页应用行数",
-            values = FIRST_ROW_OPTIONS,
-            selected = { selectedIndex(FIRST_ROW_VALUES, desktop.firstPageRows) },
-        ) { index ->
-            scheduleDesktop { it.copy(firstPageRows = FIRST_ROW_VALUES[index]) }
-        }
-        section.stepper(
-            label = "每页应用上限",
-            values = PAGE_LIMIT_OPTIONS,
-            selected = { selectedIndex(PAGE_LIMIT_VALUES, desktop.pageLimit) },
-        ) { index ->
-            scheduleDesktop { it.copy(pageLimit = PAGE_LIMIT_VALUES[index]) }
+        if (desktop.kind == DesktopKind.LIST) {
+            buildListLayout(page, desktop)
+        } else {
+            buildGridLayout(page, desktop)
         }
     }
 
-    /** 网格：列数、行数、对齐、间距、图标尺寸与标签字号。 */
-    private fun buildGrid(
+    private fun buildGridLayout(
         page: InkPage,
         desktop: DesktopConfig,
     ) {
-        val section = SettingsUi.section(page, "网格", "行列与尺寸，自动时按屏幕反算")
-        section.stepper(
-            label = "每页列数",
-            values = COLUMN_OPTIONS,
-            selected = { selectedIndex(COLUMN_VALUES, desktop.columns) },
-        ) { index ->
-            scheduleDesktop { it.copy(columns = COLUMN_VALUES[index]) }
+        val section = SettingsUi.section(page, "宫格容量", "首页与其他页分别保存；自为自动")
+        for (landscape in listOf(false, true)) {
+            section.gridSize(
+                label = if (landscape) "首页 横屏" else "首页 竖屏",
+                initial =
+                    (if (landscape) desktop.landscapeFirstPageColumns else desktop.portraitFirstPageColumns)
+                        .let { it ?: desktop.firstPageColumns } to
+                        (
+                            (if (landscape) desktop.landscapeFirstPageRows else desktop.portraitFirstPageRows)
+                                ?: desktop.firstPageRows
+                        ),
+                fit = { columns, rows -> fitFirstDirection(landscape, columns, rows) },
+            ) { columns, rows -> scheduleDesktop { it.withFirstGrid(landscape, columns, rows) } }
         }
-        section.stepper(
-            label = "每页行数",
-            values = ROW_OPTIONS,
-            selected = { selectedIndex(ROW_VALUES, desktop.rows) },
-        ) { index ->
-            scheduleDesktop { it.copy(rows = ROW_VALUES[index]) }
+        section.gridSize(
+            label = "其他页 默认",
+            initial = desktop.columns to desktop.rows,
+            fit = { columns, rows -> fitGrid(false, columns, rows) },
+        ) { columns, rows -> scheduleDesktop { it.copy(columns = columns, rows = rows) } }
+        // 其他页按方向分别保存容量，转向后各自生效；0 沿用上面的默认值。
+        section.gridSize(
+            label = "其他页 横屏",
+            initial = desktop.landscapeColumns to desktop.landscapeRows,
+            fit = { columns, rows -> fitDirection(true, columns, rows) },
+        ) { columns, rows ->
+            scheduleDesktop { it.copy(landscapeColumns = columns, landscapeRows = rows) }
         }
-        section.choose(
-            label = "横向位置",
-            options = ALIGN_OPTIONS,
-            selected = { ALIGN_VALUES.indexOf(desktop.gridAlign).coerceAtLeast(0) },
-        ) { index ->
-            updateDesktop { it.copy(gridAlign = ALIGN_VALUES[index]) }
-        }
-        section.stepper(
-            label = "列间距",
-            values = SPACING_OPTIONS,
-            selected = { selectedIndex(SPACING_VALUES, desktop.columnSpacingDp) },
-        ) { index ->
-            scheduleDesktop { it.copy(columnSpacingDp = SPACING_VALUES[index]) }
-        }
-        section.stepper(
-            label = "行间距",
-            values = SPACING_OPTIONS,
-            selected = { selectedIndex(SPACING_VALUES, desktop.rowSpacingDp) },
-        ) { index ->
-            scheduleDesktop { it.copy(rowSpacingDp = SPACING_VALUES[index]) }
-        }
-        section.stepper(
-            label = "图标尺寸",
-            values = ICON_OPTIONS,
-            selected = { selectedIndex(ICON_VALUES, desktop.iconSizeDp) },
-        ) { index ->
-            scheduleDesktop { it.copy(iconSizeDp = ICON_VALUES[index]) }
-        }
-        section.stepper(
-            label = "应用名字号",
-            values = LABEL_OPTIONS,
-            selected = { selectedIndex(LABEL_VALUES, desktop.labelTextSp) },
-        ) { index ->
-            scheduleDesktop { it.copy(labelTextSp = LABEL_VALUES[index]) }
+        section.gridSize(
+            label = "其他页 竖屏",
+            initial = desktop.portraitColumns to desktop.portraitRows,
+            fit = { columns, rows -> fitDirection(false, columns, rows) },
+        ) { columns, rows ->
+            scheduleDesktop { it.copy(portraitColumns = columns, portraitRows = rows) }
         }
     }
 
-    /** 图标与标签：标签开关、对比度与图标外形。 */
+    private fun fitFirstDirection(
+        landscape: Boolean,
+        columns: Int,
+        rows: Int,
+    ): Pair<Int, Int> {
+        if (landscape != isLandscape()) return columns to rows
+        val desktop = (pendingDesktop ?: SettingsUi.settings().desktop).withFirstGrid(landscape, columns, rows)
+        val snapshot = previewLayout(desktop)
+        return (if (columns == 0) 0 else snapshot.firstPageColumns) to
+            (if (rows == 0) 0 else snapshot.firstPageRows)
+    }
+
+    private fun fitGrid(
+        first: Boolean,
+        columns: Int,
+        rows: Int,
+    ): Pair<Int, Int> {
+        val base = pendingDesktop ?: SettingsUi.settings().desktop
+        if (first && base.effectiveWidgetId.isBlank()) return columns to rows
+        val target =
+            if (first) {
+                base.copy(firstPageColumns = columns, firstPageRows = rows)
+            } else {
+                base.copy(
+                    columns = columns,
+                    rows = rows,
+                    landscapeColumns = 0,
+                    landscapeRows = 0,
+                    portraitColumns = 0,
+                    portraitRows = 0,
+                )
+            }
+        val snapshot = previewLayout(target)
+        val actualColumns = if (first) snapshot.firstPageColumns else snapshot.columns
+        val actualRows = if (first) snapshot.firstPageRows else snapshot.rowsPerPage
+        return (if (columns == 0) 0 else actualColumns) to (if (rows == 0) 0 else actualRows)
+    }
+
+    /**
+     * 方向容量回读：只在与当前屏幕方向一致时用预览快照收敛，另一方向原样保留。
+     *
+     * 参数 landscape 表示目标方向；columns 与 rows 为请求的行列，0 表示自动。
+     * 返回按当前视口换算后的实际值，避免用户设置的格数被悄悄放大。
+     */
+    private fun fitDirection(
+        landscape: Boolean,
+        columns: Int,
+        rows: Int,
+    ): Pair<Int, Int> {
+        val current = isLandscape()
+        if (current != landscape) return columns to rows
+        val base = pendingDesktop ?: SettingsUi.settings().desktop
+        val target =
+            if (landscape) {
+                base.copy(landscapeColumns = columns, landscapeRows = rows)
+            } else {
+                base.copy(portraitColumns = columns, portraitRows = rows)
+            }
+        val snapshot = previewLayout(target)
+        return (if (columns == 0) 0 else snapshot.columns) to (if (rows == 0) 0 else snapshot.rowsPerPage)
+    }
+
+    /** 当前屏幕是否横屏，与版面换算使用同一判据。 */
+    private fun isLandscape(): Boolean {
+        val context = contextOrNull() ?: return false
+        return context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    }
+
+    private fun buildListLayout(
+        page: InkPage,
+        desktop: DesktopConfig,
+    ) {
+        val section = SettingsUi.section(page, "列表布局", "数量与左右留白")
+        val values = (0..12).toList()
+        val labels = values.map { if (it == 0) "自动" else "$it 条" }
+
+        fun countRow(first: Boolean) {
+            section.stepper(
+                label = if (first) "首页条数" else "其他页条数",
+                values = labels,
+                selected = { if (first) desktop.listFirstRows else desktop.listRows },
+                normalize = { value -> fitListCount(first, value) },
+            ) { value ->
+                scheduleDesktop { if (first) it.copy(listFirstRows = value) else it.copy(listRows = value) }
+            }
+        }
+        countRow(true)
+        countRow(false)
+        section.choose("文字对齐", ALIGN_OPTIONS, { ALIGN_VALUES.indexOf(SettingsUi.settings().desktop.listAlign) }) {
+            updateDesktop { old -> old.copy(listAlign = ALIGN_VALUES[it]) }
+        }
+        section.choose("左右边距", listOf("窄", "标准", "宽"), { listOf(12, 20, 28).indexOf(desktop.listMarginDp) }) {
+            updateDesktop { old -> old.copy(listMarginDp = listOf(12, 20, 28)[it]) }
+        }
+    }
+
+    private fun fitListCount(
+        first: Boolean,
+        value: Int,
+    ): Int {
+        if (value == 0) return 0
+        val base = pendingDesktop ?: SettingsUi.settings().desktop
+        val target = if (first) base.copy(listFirstRows = value) else base.copy(listRows = value)
+        val snapshot = previewLayout(target)
+        return if (first) snapshot.firstPageRows else snapshot.rowsPerPage
+    }
+
+    private fun previewLayout(desktop: DesktopConfig): com.shuiyu.octoberrain.core.common.DesktopLayoutSnapshot =
+        if (AppServices.hasLayoutProvider()) {
+            AppServices.layoutProvider.preview(SettingsUi.settings().copy(desktop = desktop))
+        } else {
+            DesktopPagination.fallbackSnapshot(SettingsUi.settings().copy(desktop = desktop))
+        }
+
+    /** 页码显示属于布局，图标和名称样式统一由外观页管理。 */
     private fun buildIconAndLabel(page: InkPage) {
-        val section = SettingsUi.section(page, "图标与标签", "名称、对比度与图标外形")
-        section.toggle(
-            label = "显示应用名称",
-            get = { SettingsUi.settings().appearance.showLabels },
-        ) { enabled ->
-            updateAppearance { it.copy(showLabels = enabled) }
-        }
-        section.toggle(
-            label = "仅显示图标",
-            get = { SettingsUi.settings().desktop.iconOnly },
-        ) { enabled ->
-            updateDesktop { it.copy(iconOnly = enabled) }
-        }
-        section.toggle(
-            label = "高对比度",
-            get = { SettingsUi.settings().appearance.highContrast },
-        ) { enabled ->
-            updateAppearance { it.copy(highContrast = enabled) }
-        }
-        section.toggle(
+        SettingsUi.section(page, "页面指示").toggle(
             label = "页码指示",
             get = { SettingsUi.settings().desktop.showPageIndicator },
-        ) { enabled ->
-            updateDesktop { it.copy(showPageIndicator = enabled) }
-        }
-        section.choose(
-            label = "图标形状",
-            options = SHAPE_OPTIONS,
-            selected = { SHAPE_VALUES.indexOf(SettingsUi.settings().appearance.iconShape).coerceAtLeast(0) },
-        ) { index ->
-            updateAppearance { it.copy(iconShape = SHAPE_VALUES[index]) }
-        }
-        section.stepper(
-            label = "图标对比度",
-            values = CONTRAST_OPTIONS,
-            selected = {
-                SettingsUi
-                    .settings()
-                    .appearance.iconContrast
-                    .coerceIn(0, CONTRAST_VALUES.lastIndex)
-            },
-        ) { index ->
-            updateAppearance { it.copy(iconContrast = CONTRAST_VALUES[index]) }
-        }
+        ) { enabled -> updateDesktop { it.copy(showPageIndicator = enabled) } }
     }
 
     /** 交互：排序、长按延迟、滑动阈值与音量键翻页。 */
@@ -231,6 +260,13 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         desktop: DesktopConfig,
     ) {
         val section = SettingsUi.section(page, "交互", "排序与长按手势")
+        hiddenAppsRow =
+            section.action(
+                label = "管理隐藏应用",
+                value = "${desktop.hiddenEntryCount()} 个",
+            ) {
+                showHiddenApps()
+            }
         section.choose(
             label = "排序方式",
             options = SORT_OPTIONS,
@@ -268,68 +304,9 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         }
     }
 
-    /** 组件与内容：当前组件、组件图片、隐藏应用、负一屏书架入口与恢复默认。 */
-    private fun buildContent(
-        page: InkPage,
-        desktop: DesktopConfig,
-        config: LauncherConfig,
-    ) {
-        val section = SettingsUi.section(page, "组件与内容", "组件图片、隐藏应用与书架")
-        section.info("当前组件", widgetLabel(desktop.widgetId))
-        if (desktop.widgetId == WIDGET_IMAGE) {
-            section.action(
-                label = "组件图片",
-                value = imageFileName(desktop.widgetImagePath) ?: "未选择",
-            ) {
-                pickWidgetImage()
-            }
-            if (desktop.widgetImagePath != null) {
-                section.action(label = "清除组件图片", hint = "删除已复制的图片") {
-                    clearWidgetImage()
-                }
-            }
-            // 多图轮播间隔只作用于图片组件，候选与 IntegrationsConfig 中的常量一致。
-            section.choose(
-                label = "轮播间隔",
-                options = IMAGE_CAROUSEL_LABELS,
-                hint = "多张图片按文件名顺序轮播的切换间隔",
-                selected = {
-                    IMAGE_CAROUSEL_OPTIONS.indexOf(desktop.effectiveImageCarouselSeconds).coerceAtLeast(0)
-                },
-            ) { index ->
-                updateDesktop { it.copy(imageCarouselSeconds = IMAGE_CAROUSEL_OPTIONS[index]) }
-            }
-        }
-        hiddenAppsRow =
-            section.action(
-                label = "管理隐藏应用",
-                value = "${desktop.hiddenPackages.size} 个",
-            ) {
-                showHiddenApps()
-            }
-        // 书架行数与书源属于负一屏墨台设置，此处只提供入口与当前值概览。
-        val shelfPage = config.desktop.negativePage
-        val shelfSourceLabel = if (shelfPage.shelfSource == "local") "本地" else "微信读书"
-        section.action(
-            label = "负一屏书架",
-            value = "${shelfPage.effectiveShelfRows} 行 · $shelfSourceLabel",
-        ) {
-            AppServices.router.navigate(Destination.NegativeSettings)
-        }
-        section.button(label = "恢复本页默认", filled = true) {
-            confirmResetLayout()
-        }
-    }
-
     /** 写入桌面配置并请求局部刷新，用于一次性改动。 */
     private fun updateDesktop(transform: (DesktopConfig) -> DesktopConfig) {
         SettingsUi.edit { config -> config.copy(desktop = transform(config.desktop)) }
-        SettingsUi.refresh()
-    }
-
-    /** 写入外观配置并请求局部刷新。 */
-    private fun updateAppearance(transform: (AppearanceConfig) -> AppearanceConfig) {
-        SettingsUi.edit { config -> config.copy(appearance = transform(config.appearance)) }
         SettingsUi.refresh()
     }
 
@@ -373,59 +350,6 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         commitPendingDesktop()
     }
 
-    /** 选择并复制组件图片。 */
-    private fun pickWidgetImage() {
-        val context = contextOrNull() ?: return
-        SettingsUi.pickFile(context, "选择组件图片", IMAGE_MIME_TYPES, IMAGE_EXTENSIONS) { uri ->
-            copyWidgetImage(uri)
-        }
-    }
-
-    /**
-     * 复制所选图片到应用私有目录并写入配置。
-     *
-     * 参数 uri 为文件选择器返回的图片地址。
-     */
-    private fun copyWidgetImage(uri: Uri) {
-        val context = contextOrNull() ?: return
-        scope.launch {
-            val path =
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        val directory = File(context.filesDir, WIDGET_DIRECTORY).apply { mkdirs() }
-                        removeCopiedImages(directory)
-                        val target = File(directory, "image.${imageExtension(context, uri)}")
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            FileOutputStream(target).use { output -> input.copyTo(output) }
-                        } ?: error("无法读取所选图片")
-                        target.absolutePath
-                    }.getOrNull()
-                }
-            if (path == null) {
-                SettingsUi.toast(context, "图片复制失败，请更换图片")
-                return@launch
-            }
-            updateDesktop { it.copy(widgetImagePath = path) }
-            SettingsUi.toast(context, "组件图片已更新")
-            rebuildLater()
-        }
-    }
-
-    /** 清除组件图片与已复制的副本。 */
-    private fun clearWidgetImage() {
-        val context = contextOrNull() ?: return
-        val current = SettingsUi.settings().desktop.widgetImagePath
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                removeCopiedImages(File(context.filesDir, WIDGET_DIRECTORY))
-                current?.let { path -> runCatching { File(path).delete() } }
-            }
-            updateDesktop { it.copy(widgetImagePath = null) }
-            SettingsUi.toast(context, "组件图片已清除")
-            rebuildLater()
-        }
-    }
-
     /** 展示隐藏应用管理子页。 */
     private fun showHiddenApps() {
         val context = contextOrNull() ?: return
@@ -440,6 +364,7 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
      * 参数 page 为子页内容容器；开关切换后由行控件就地更新显示。
      */
     private fun buildHiddenList(page: InkPage) {
+        buildFileVisibility(page)
         val apps =
             AppServices.catalog.apps.value
                 .sortedBy { it.label.lowercase() }
@@ -447,28 +372,48 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
             SettingsUi.note(page, "应用列表尚未加载完成。")
             return
         }
-        val section = SettingsUi.section(page, "应用", "关闭开关后该应用从桌面隐藏")
+        val section = SettingsUi.section(page, "安装应用", "开为显示，关闭后该应用从桌面隐藏")
         apps.forEach { app ->
             section.toggle(
                 label = app.label,
                 get = {
-                    SettingsUi
+                    !SettingsUi
                         .settings()
                         .desktop.hiddenPackages
                         .contains(app.packageName)
                 },
-            ) { hidden ->
+            ) { visible ->
                 updateDesktop { desktop ->
                     val packages =
-                        if (hidden) {
-                            desktop.hiddenPackages + app.packageName
-                        } else {
+                        if (visible) {
                             desktop.hiddenPackages - app.packageName
+                        } else {
+                            desktop.hiddenPackages + app.packageName
                         }
                     desktop.copy(hiddenPackages = packages)
                 }
-                hiddenAppsRow?.setValue("${SettingsUi.settings().desktop.hiddenPackages.size} 个")
+                hiddenAppsRow?.setValue("${SettingsUi.settings().desktop.hiddenEntryCount()} 个")
             }
+        }
+    }
+
+    /** The project file entry is separate from installed system file managers. */
+    private fun buildFileVisibility(page: InkPage) {
+        SettingsUi.section(page, "内置入口", "开为显示，关闭后从桌面隐藏").toggle(
+            label = "文件",
+            get = { FILES_ENTRY_KEY !in SettingsUi.settings().desktop.hiddenSpecials },
+        ) { visible ->
+            updateDesktop { desktop ->
+                val hidden =
+                    if (visible) {
+                        desktop.hiddenSpecials - FILES_ENTRY_KEY
+                    } else {
+                        desktop.hiddenSpecials +
+                            FILES_ENTRY_KEY
+                    }
+                desktop.copy(hiddenSpecials = hidden)
+            }
+            hiddenAppsRow?.setValue("${SettingsUi.settings().desktop.hiddenEntryCount()} 个")
         }
     }
 
@@ -490,53 +435,27 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
                         rows = 0,
                         columnSpacingDp = 0,
                         rowSpacingDp = 0,
-                        iconSizeDp = 0,
-                        labelTextSp = 0f,
                         gridAlign = GridAlign.CENTER,
                         firstPageRows = 0,
+                        firstPageColumns = 0,
+                        portraitFirstPageColumns = null,
+                        portraitFirstPageRows = null,
+                        landscapeFirstPageColumns = null,
+                        landscapeFirstPageRows = null,
+                        portraitColumns = 0,
+                        portraitRows = 0,
+                        landscapeColumns = 0,
+                        landscapeRows = 0,
+                        listRows = 0,
+                        listFirstRows = 0,
+                        listAlign = GridAlign.LEFT,
+                        listMarginDp = 20,
                     )
                 }
                 SettingsUi.toast(context, "布局已恢复默认")
                 rebuildNow()
             },
         )
-    }
-
-    /** 读取组件名称。 */
-    private fun widgetLabel(id: String): String =
-        when (id) {
-            "clock" -> "大时钟"
-            WIDGET_IMAGE -> "图片"
-            "none" -> "关闭"
-            else -> id
-        }
-
-    /** 读取组件图片文件名，路径为空时返回 null。 */
-    private fun imageFileName(path: String?): String? = path?.let { File(it).name }?.takeIf { it.isNotEmpty() }
-
-    /** 根据 MIME 类型或扩展名推断图片扩展名。 */
-    private fun imageExtension(
-        context: Context,
-        uri: Uri,
-    ): String {
-        val mime = runCatching { context.contentResolver.getType(uri) }.getOrNull()
-        return when (mime) {
-            "image/jpeg" -> "jpg"
-            "image/webp" -> "webp"
-            "image/bmp" -> "bmp"
-            else -> {
-                val extension = uri.lastPathSegment?.substringAfterLast('.', "")?.lowercase()
-                if (!extension.isNullOrEmpty() && extension in IMAGE_EXTENSIONS) extension else "png"
-            }
-        }
-    }
-
-    /** 删除组件图片目录内的旧副本。 */
-    private fun removeCopiedImages(directory: File) {
-        directory
-            .listFiles()
-            ?.filter { it.isFile && it.name.startsWith("image.") }
-            ?.forEach { it.delete() }
     }
 
     /**
@@ -563,48 +482,10 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         /** 连续步进的合并窗口。 */
         private const val STEP_DEBOUNCE_MS = 160L
 
-        private const val WIDGET_IMAGE = "image"
-        private const val WIDGET_DIRECTORY = "widgets"
-
-        private val IMAGE_MIME_TYPES = arrayOf("image/*")
-        private val IMAGE_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "bmp")
-
-        /** 多图轮播间隔的显示文本，顺序与 [IMAGE_CAROUSEL_OPTIONS] 一致。 */
-        private val IMAGE_CAROUSEL_LABELS = IMAGE_CAROUSEL_OPTIONS.map { "$it 秒" }
-
         private val KIND_OPTIONS = listOf<CharSequence>("宫格", "列表")
-
-        private val FIRST_ROW_VALUES = listOf(0, 2, 3, 4)
-        private val FIRST_ROW_OPTIONS = listOf<CharSequence>("自动", "2 行", "3 行", "4 行")
-
-        private val PAGE_LIMIT_VALUES = listOf(3, 5, 8, 10, 15, 20)
-        private val PAGE_LIMIT_OPTIONS = PAGE_LIMIT_VALUES.map { "$it 页" }
-
-        private val COLUMN_VALUES = listOf(0, 3, 4, 5, 6, 7)
-        private val COLUMN_OPTIONS = listOf<CharSequence>("自动", "3 列", "4 列", "5 列", "6 列", "7 列")
-
-        private val ROW_VALUES = listOf(0, 2, 3, 4, 5, 6)
-        private val ROW_OPTIONS = listOf<CharSequence>("自动", "2 行", "3 行", "4 行", "5 行", "6 行")
-
-        private val SPACING_VALUES = listOf(0, 4, 8, 12, 16, 20, 24)
-        private val SPACING_OPTIONS = listOf<CharSequence>("自动", "4 dp", "8 dp", "12 dp", "16 dp", "20 dp", "24 dp")
-
-        private val ICON_VALUES = listOf(0, 40, 48, 56, 64, 72, 80)
-        private val ICON_OPTIONS =
-            listOf<CharSequence>("自动", "40 dp", "48 dp", "56 dp", "64 dp", "72 dp", "80 dp")
-
-        private val LABEL_VALUES = listOf(0f, 10f, 11f, 12f, 13f, 14f, 15f, 16f)
-        private val LABEL_OPTIONS =
-            listOf<CharSequence>("跟随主题", "10 sp", "11 sp", "12 sp", "13 sp", "14 sp", "15 sp", "16 sp")
 
         private val ALIGN_VALUES = listOf(GridAlign.LEFT, GridAlign.CENTER, GridAlign.RIGHT)
         private val ALIGN_OPTIONS = listOf<CharSequence>("靠左", "居中", "靠右")
-
-        private val SHAPE_VALUES = listOf(IconShape.PILL, IconShape.ROUNDED, IconShape.SQUARE)
-        private val SHAPE_OPTIONS = listOf<CharSequence>("药丸", "圆角", "直角")
-
-        private val CONTRAST_VALUES = listOf(0, 1, 2, 3)
-        private val CONTRAST_OPTIONS = listOf<CharSequence>("关闭", "低", "中", "高")
 
         private val SORT_MODES = listOf(SortMode.INSTALL_TIME, SortMode.LABEL, SortMode.PACKAGE, SortMode.MANUAL)
         private val SORT_OPTIONS = listOf<CharSequence>("安装时间", "名称", "包名", "手动")
@@ -621,3 +502,8 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面偏好") {
         private val SWIPE_OPTIONS = SWIPE_VALUES.map { "${it.toInt()} dp" }
     }
 }
+
+private const val FILES_ENTRY_KEY = "special:files"
+
+private fun DesktopConfig.hiddenEntryCount(): Int =
+    hiddenPackages.size + if (FILES_ENTRY_KEY in hiddenSpecials) 1 else 0

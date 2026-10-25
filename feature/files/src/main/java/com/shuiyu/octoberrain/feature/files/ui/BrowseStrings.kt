@@ -34,9 +34,6 @@ internal object BrowseStrings {
     /** 普通文件打开能力尚未接入时的提示。 */
     const val OPEN_PENDING = "打开文件将在后续版本提供"
 
-    /** 详情页尚未接入时的提示。 */
-    const val DETAIL_PENDING = "详情将在后续版本提供"
-
     /** 存储权限未授予时的说明。 */
     const val PERMISSION = "需要存储权限才能浏览文件"
 
@@ -78,9 +75,6 @@ internal object BrowseStrings {
     /** 长按面板的打开与详情行。 */
     const val OPEN = "打开"
     const val DETAIL = "详情"
-
-    /** 图片角标。 */
-    const val IMAGE_BADGE = "图"
 
     /** 缩略图加载中的占位文案。 */
     const val IMAGE_LOADING = "图片"

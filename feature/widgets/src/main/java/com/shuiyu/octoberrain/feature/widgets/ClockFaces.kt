@@ -23,12 +23,22 @@ enum class ClockFace(
     FLIP("flip", "翻页"),
     BOXED("boxed", "方框"),
     ANALOG("analog", "指针"),
+    BOOK_PAGE("book_page", "书页数字"),
+    DIVIDED("divided", "分隔时分"),
+    DOT_MATRIX("dot_matrix", "点阵时刻"),
+    STUDY_DIAL("study_dial", "书房指针"),
+    CHINESE("chinese", "中文时刻"),
+    TIME_DATE("time_date", "时日并排"),
     ;
 
     companion object {
         /** 按配置标识查找样式，未知或缺失时回退到大字样式。 */
         fun fromId(id: String?): ClockFace = entries.firstOrNull { it.id == id } ?: DEFAULT
     }
+
+    /** 新钟面包含日期排版，不再由宿主重复绘制日期。 */
+    val includesDate: Boolean
+        get() = ordinal >= BOOK_PAGE.ordinal
 }
 
 /**
@@ -41,6 +51,7 @@ data class ClockTime(
     val minute: Int,
     val second: Int,
     val twelveHour: Boolean = false,
+    val date: ClockDate = ClockDate(),
 ) {
     /** 小时文本：十二小时制去掉前导零，二十四小时制保持两位。 */
     val hourText: String
@@ -71,6 +82,7 @@ data class ClockTime(
                 minute = calendar.get(Calendar.MINUTE),
                 second = calendar.get(Calendar.SECOND),
                 twelveHour = twelveHour,
+                date = ClockDate.from(calendar),
             )
     }
 }
@@ -98,6 +110,7 @@ internal object ClockFaces {
             ClockFace.FLIP -> drawFlip(canvas, area, time, paint, baseSize)
             ClockFace.BOXED -> drawBoxed(canvas, area, time, paint, baseSize)
             ClockFace.ANALOG -> drawAnalog(canvas, area, time, paint, baseSize)
+            else -> ClockDesignFaces.draw(face, canvas, area, time, paint)
         }
     }
 

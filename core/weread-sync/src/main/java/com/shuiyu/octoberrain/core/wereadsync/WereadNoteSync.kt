@@ -24,7 +24,10 @@ class WereadNoteSync(
         private set
 
     /** 索引分页失败保留旧索引；单本正文失败保留旧正文，并返回未完成数量。 */
-    fun sync(force: Boolean = false): WereadNoteBatch? {
+    fun sync(
+        force: Boolean = false,
+        bookIds: Set<String>? = null,
+    ): WereadNoteBatch? {
         this.force = force
         warnings = emptyList()
         val overview = notebooks() ?: return null
@@ -38,12 +41,13 @@ class WereadNoteSync(
             }.toString()
         var remaining = 0
         var updated = 0
-        for ((position, book) in books.withIndex()) {
+        val selected = if (bookIds == null) books else books.filter { it.text("bookId") in bookIds }
+        for ((position, book) in selected.withIndex()) {
             val result = syncBook(book)
             updated += result.updatedFiles
             if (!result.complete) {
                 // 一次离线即可结束本轮网络访问，余下书籍只检查本地缓存，下次从缺失处续补。
-                remaining = books.drop(position).count { !cached(it) }
+                remaining = selected.drop(position).count { !cached(it) }
                 warnings = warnings + "笔记正文同步中断，已保存内容保留，下次同步可继续补齐"
                 break
             }

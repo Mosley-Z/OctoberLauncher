@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
@@ -63,7 +64,8 @@ class AppearanceRepositoryImpl(
         quantize: Int,
     ): Bitmap? {
         val path = config.state.value.appearance.wallpaperPath ?: return null
-        return loadWallpaperFile(path, width, height, quantize)
+        val rotation = if (width > height) config.state.value.appearance.wallpaperLandscapeRotation else 0
+        return loadWallpaperFile(path, width, height, quantize, stretch = true, rotation = rotation)
     }
 
     override suspend fun setLockWallpaper(uri: Uri): Boolean {
@@ -128,6 +130,7 @@ class AppearanceRepositoryImpl(
                         iconPackId = appearance.iconPackId,
                         labelFontPath = appearance.labelFontPath,
                         clockFont = appearance.clockFont,
+                        wallpaperLandscapeRotation = appearance.wallpaperLandscapeRotation,
                     )
                 val text = AppJson.format.encodeToString(payload)
                 context.contentResolver.openOutputStream(uri)?.use { output ->
@@ -163,6 +166,10 @@ class AppearanceRepositoryImpl(
                                 iconPackId = payload.iconPackId ?: current.appearance.iconPackId,
                                 labelFontPath = payload.labelFontPath ?: current.appearance.labelFontPath,
                                 clockFont = payload.clockFont ?: current.appearance.clockFont,
+                                wallpaperLandscapeRotation =
+                                    payload.wallpaperLandscapeRotation
+                                        ?.takeIf { it in listOf(0, 90, 180, 270) }
+                                        ?: current.appearance.wallpaperLandscapeRotation,
                             ),
                     )
                 }
@@ -318,8 +325,10 @@ class AppearanceRepositoryImpl(
         width: Int,
         height: Int,
         quantize: Int,
+        stretch: Boolean = false,
+        rotation: Int = 0,
     ): Bitmap? =
-        runCatching { decodeWallpaper(path, width, height, quantize) }
+        runCatching { decodeWallpaper(path, width, height, quantize, stretch, rotation) }
             .onFailure { InkLog.w("外观", "壁纸解码失败", it) }
             .getOrNull()
 
@@ -335,6 +344,8 @@ class AppearanceRepositoryImpl(
         width: Int,
         height: Int,
         quantize: Int,
+        stretch: Boolean = false,
+        rotation: Int = 0,
     ): Bitmap? {
         val size = ImageDecoder.sizeIgnoringLimit(path)
         val baseSample = size?.let { ImageSizing.requestSample(it[0], it[1], width, height) }
@@ -345,7 +356,7 @@ class AppearanceRepositoryImpl(
                 }
             }
         val decoded = sample?.let { ImageDecoder.decodeWithSample(path, it, keepAlpha = true) }
-        return decoded?.let { renderWallpaper(it, width, height, quantize) }
+        return decoded?.let { renderWallpaper(it, width, height, quantize, stretch, rotation) }
     }
 
     /** 当前进程可用堆字节数，用于解码前的预算判断。 */
@@ -361,14 +372,27 @@ class AppearanceRepositoryImpl(
         width: Int,
         height: Int,
         quantize: Int,
+        stretch: Boolean,
+        rotation: Int,
     ): Bitmap? {
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
         canvas.drawColor(Color.WHITE)
         val paint = Paint(Paint.FILTER_BITMAP_FLAG).apply { isAntiAlias = true }
         val target = Rect(0, 0, width, height)
-        val window = WallpaperGeometry.centerCrop(decoded.width, decoded.height, width, height)
-        if (window == null) {
+        val window = if (stretch) null else WallpaperGeometry.centerCrop(decoded.width, decoded.height, width, height)
+        if (stretch && rotation in listOf(90, 180, 270)) {
+            val source = android.graphics.RectF(0f, 0f, decoded.width.toFloat(), decoded.height.toFloat())
+            val rotated = android.graphics.RectF()
+            val turn = Matrix().apply { setRotate(rotation.toFloat()) }
+            turn.mapRect(rotated, source)
+            val fit =
+                Matrix().apply {
+                    setRectToRect(rotated, android.graphics.RectF(target), Matrix.ScaleToFit.FILL)
+                    preConcat(turn)
+                }
+            canvas.drawBitmap(decoded, fit, paint)
+        } else if (window == null) {
             canvas.drawBitmap(decoded, null, target, paint)
         } else {
             val source = Rect(window.left, window.top, window.right, window.bottom)
@@ -392,6 +416,7 @@ class AppearanceRepositoryImpl(
         val iconPackId: String? = null,
         val labelFontPath: String? = null,
         val clockFont: String? = null,
+        val wallpaperLandscapeRotation: Int? = null,
     )
 
     private companion object {

@@ -1,10 +1,20 @@
 package com.shuiyu.octoberrain.feature.settings
 
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.DesktopConfig
 import com.shuiyu.octoberrain.core.common.DesktopLayoutSnapshot
+import com.shuiyu.octoberrain.core.common.DesktopOrientation
 import com.shuiyu.octoberrain.core.common.EntryType
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LauncherEntry
+import com.shuiyu.octoberrain.core.common.effectiveLandscapeColumns
+import com.shuiyu.octoberrain.core.common.effectiveLandscapeRows
+import com.shuiyu.octoberrain.core.common.effectivePortraitColumns
+import com.shuiyu.octoberrain.core.common.effectivePortraitRows
+import com.shuiyu.octoberrain.core.common.effectiveWidgetId
+import com.shuiyu.octoberrain.core.common.firstGridColumns
+import com.shuiyu.octoberrain.core.common.firstGridRows
+import com.shuiyu.octoberrain.core.device.DeviceRuntime
 
 /**
  * 桌面分页的统一来源。
@@ -45,15 +55,57 @@ internal object DesktopPagination {
         entries: List<LauncherEntry> = appEntries(),
     ): DesktopLayoutSnapshot {
         val desktop = config.desktop
-        val columns = desktop.columns.takeIf { it > 0 } ?: DEFAULT_COLUMNS
-        val rows = desktop.rows.takeIf { it > 0 } ?: DEFAULT_ROWS
-        val firstPageRows = desktop.firstPageRows.takeIf { it > 0 } ?: rows
-        val pages = paginate(entries, columns, firstPageRows, rows)
+        val list = desktop.kind == com.shuiyu.octoberrain.core.common.DesktopKind.LIST
+        val landscape = desktop.orientation != DesktopOrientation.PORTRAIT
+        val directionColumns = if (landscape) desktop.effectiveLandscapeColumns else desktop.effectivePortraitColumns
+        val directionRows = if (landscape) desktop.effectiveLandscapeRows else desktop.effectivePortraitRows
+        val columns = if (list) 1 else directionColumns.takeIf { it > 0 } ?: DEFAULT_COLUMNS
+        val rows = (if (list) desktop.listRows else directionRows).takeIf { it > 0 } ?: DEFAULT_ROWS
+        val widgetColumns = if (list) 1 else desktop.firstGridColumns(landscape)
+        val widgetRows =
+            if (list) {
+                desktop.listFirstRows.takeIf { it > 0 } ?: rows
+            } else {
+                desktop.firstGridRows(landscape, if (DeviceRuntime.isReady()) DeviceRuntime.profile.model else "")
+            }
+        return fallbackPages(desktop, entries, columns to rows, widgetColumns to widgetRows)
+    }
+
+    private fun fallbackPages(
+        desktop: DesktopConfig,
+        entries: List<LauncherEntry>,
+        full: Pair<Int, Int>,
+        widget: Pair<Int, Int>,
+    ): DesktopLayoutSnapshot {
+        fun grid(page: Int): Pair<Int, Int> {
+            val id = if (page == 0) desktop.effectiveWidgetId else desktop.pageWidgets[page]?.widgetId.orEmpty()
+            return if (id.isNotBlank()) widget else full
+        }
+        val lastWidgetPage =
+            desktop.pageWidgets
+                .filterValues { it.widgetId.isNotBlank() }
+                .keys
+                .maxOrNull() ?: 0
+        val pages = mutableListOf<List<LauncherEntry>>()
+        val pageRows = mutableListOf<Int>()
+        val pageColumns = mutableListOf<Int>()
+        var index = 0
+        while (index < entries.size || pages.size <= lastWidgetPage) {
+            val (columns, rows) = grid(pages.size)
+            pageRows += rows
+            pageColumns += columns
+            val end = minOf(index + rows * columns, entries.size)
+            pages += entries.subList(index, end).toList()
+            index = end
+        }
         return DesktopLayoutSnapshot(
-            columns = columns,
-            firstPageRows = firstPageRows,
-            rowsPerPage = rows,
-            pages = pages.ifEmpty { listOf(emptyList()) },
+            columns = full.first,
+            firstPageColumns = grid(0).first,
+            firstPageRows = grid(0).second,
+            rowsPerPage = full.second,
+            pages = pages,
+            pageRows = pageRows,
+            pageColumns = pageColumns,
         )
     }
 
@@ -69,13 +121,14 @@ internal object DesktopPagination {
         columns: Int,
         firstPageRows: Int,
         rowsPerPage: Int,
+        firstPageColumns: Int = columns,
     ): List<List<LauncherEntry>> {
         val safeColumns = columns.coerceAtLeast(1)
         val safeFirstRows = firstPageRows.coerceAtLeast(1)
         val safeRows = rowsPerPage.coerceAtLeast(1)
         val pages = mutableListOf<List<LauncherEntry>>()
         var index = 0
-        var pageSize = safeColumns * safeFirstRows
+        var pageSize = firstPageColumns.coerceAtLeast(1) * safeFirstRows
         while (index < entries.size) {
             val end = (index + pageSize).coerceAtMost(entries.size)
             pages.add(entries.subList(index, end))
@@ -95,8 +148,13 @@ internal object DesktopPagination {
         snapshot: DesktopLayoutSnapshot,
         pageIndex: Int,
     ): Int {
-        val rows = if (pageIndex == 0) snapshot.firstPageRows else snapshot.rowsPerPage
-        return (snapshot.columns * rows.coerceAtLeast(1)).coerceAtLeast(1)
+        val rows =
+            snapshot.pageRows.getOrNull(pageIndex)
+                ?: if (pageIndex == 0) snapshot.firstPageRows else snapshot.rowsPerPage
+        val columns =
+            snapshot.pageColumns.getOrNull(pageIndex)
+                ?: if (pageIndex == 0) snapshot.firstPageColumns else snapshot.columns
+        return (columns * rows.coerceAtLeast(1)).coerceAtLeast(1)
     }
 
     /** 把快照的每页条目换算为条目键，供美化模式装载页结构。 */

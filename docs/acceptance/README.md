@@ -1,9 +1,31 @@
 # 验收记录索引
 
+现存架构见[架构导航](../architecture/README.md)，生效工作方法见[开发导航](../development/README.md)，历史分类见[归档导航](../archive/README.md)。本目录不承担逐轮更新日志。
+
 返回[文档导览](../README.md)。新记录从[验收模板](../templates/acceptance.md)建立，必须关联源码、任务和证据；原始日志/截图仍放原证据目录。
+
+`_analysis/`原始设备数据与分析证据仅保留维护者本地，不随公开源码分发；历史记录中的相关路径用于本地核对。
 
 | 文件 | 主题 | 使用边界 |
 | --- | --- | --- |
+| [2026-10-25-ux148-safe-area-note-expansion.md](2026-10-25-ux148-safe-area-note-expansion.md) | P4安全区、本记整卡展开与局部换条 | P4方向/真实界面和合成Widget探针，S4离线；物理盖板仍需实触 |
+| [2026-10-25-ux147-cleanup-landscape-assessment.md](2026-10-25-ux147-cleanup-landscape-assessment.md) | 已选设置清理与横屏/本记方案 | 最终P4与APK权限验证，S4离线；第二部分只读评估待确认 |
+| [2026-10-25-ux146-settings-consolidation.md](2026-10-25-ux146-settings-consolidation.md) | 设置合并、说明/重复项/权限待选审计 | 双机页面与 P4 真实解锁；区分 debug 交互和最终 release 入口复核 |
+| [2026-10-25-ux145-desktop-settings-file-actions.md](2026-10-25-ux145-desktop-settings-file-actions.md) | 最近十书循环、设置主页与卸载/文件操作 | 双机真实系统卸载、文件详情和删除；区分debug功能与release烟测 |
+| [2026-10-25-ux143-144-integration.md](2026-10-25-ux143-144-integration.md) | 小组件最终集成与双机验证 | 首页自动布局、图片手势、双向封面与账号统计；区分实体触屏、Android探针和JVM边界 |
+| [2026-10-25-ux142-direction-grid-and-widget-reflow.md](2026-10-25-ux142-direction-grid-and-widget-reflow.md) | UX142方向十二宫格与关闭组件补位 | 其他页方向容量、无组件整页版面与页数收敛；S4、备份导入端到端与美化逐屏点验另行组织 |
+| [2026-10-25-ux141-todo-week-calendar.md](2026-10-25-ux141-todo-week-calendar.md) | UX141月历改名与共享待办周历 | 七日窗口、箭头语义、投影排序与共享存储；S4、竖屏逐条点验与同屏实时同步另行组织 |
+| [2026-10-24-ux138-files-entry-visibility.md](2026-10-24-ux138-files-entry-visibility.md) | UX138文件入口恢复与显隐 | 一次迁移及既有开关统一语义；本包APK/ZIP证据单独记录，不改UX137历史 |
+| [2026-10-24-ux137-apk-open-choice.md](2026-10-24-ux137-apk-open-choice.md) | UX137 APK打开选择 | 工程通过，P4覆盖安装；文件入口待用户，选择及系统安装等实机分支未测 |
+| [2026-10-24-ux136-files-grid-thumbnails.md](2026-10-24-ux136-files-grid-thumbnails.md) | UX136文件宫格与EPUB封面 | 缩略图优先最终包，S4横竖屏样本；P4文件入口及Picker未实机覆盖 |
+| [2026-10-24-ux135-landscape-spacing-time.md](2026-10-24-ux135-landscape-spacing-time.md) | UX135横屏应用位置与时间分行 | 应用累计左移、展开右界跟随及HH/冒号/mm分行；只认本轮包与实际验证 |
+| [2026-10-24-ux134-landscape-sidebar.md](2026-10-24-ux134-landscape-sidebar.md) | UX134普通横屏侧栏与本记纸面 | 当前实现、模式边界及独立时间来源；工程及设备证据以本轮记录为准 |
+| [2026-10-24-ux133-approved-landscape.md](2026-10-24-ux133-approved-landscape.md) | UX133获批横屏周月空间及本记展开 | 第3/4项确认后实现与本轮统一门禁；设备结果按当前包记录，不改写首轮历史 |
+| [2026-10-24-ux133-desktop-followup.md](2026-10-24-ux133-desktop-followup.md) | UX133桌面收尾整改 | 授权项1/2/4/5当前实现待统一验证；周月空间第3项仅方案 |
+| [2026-10-23-immersive-refinement.md](2026-10-23-immersive-refinement.md) | UX116沉浸桌面精修 | 用户背景/图标、五层书封、真实缓存统计与最终双机专项 |
+| [2026-10-23-reading-desktop-development-summary.md](2026-10-23-reading-desktop-development-summary.md) | 阅读桌面本轮开发总结 | 实现清单、双机证据、未覆盖与完整帮助页 |
+| [2026-10-23-reading-desktop-visual-alignment.md](2026-10-23-reading-desktop-visual-alignment.md) | UX112–115入口与视觉整改 | 重复入口、连续展开、沉浸构图与双机边界 |
+| [2026-10-23-launcher-guide.md](2026-10-23-launcher-guide.md) | UX111完整离线说明 | 原怎么用入口、目录/滚动/返回与打包核对 |
 | [2026-10-23-reader-optical.md](2026-10-23-reader-optical.md) | S4/P4原片逐帧光学阶段测量 | 各20翻页/20手动全刷；实际PTS、摄影配准与阈值敏感性，不含触点等待 |
 | [2026-10-23-reader-final-closure.md](2026-10-23-reader-final-closure.md) | 1.0.29–1.0.31开发与最终验收收口 | 双机恢复/卡关闭；性能未达和局部未测明列 |
 | [2026-10-23-reader-final-s4.md](2026-10-23-reader-final-s4.md) | S4最终候选性能、复杂样本与状态 | 802b/215b基线和4e98最终包分列；光学视频另行分析 |

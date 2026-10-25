@@ -20,7 +20,7 @@ import com.shuiyu.octoberrain.core.design.InkGlyphs
 /**
  * 无障碍悬浮状态栏：在桌面之外的普通应用上方显示刷新环、时间与电量。
  *
- * 构造参数 onRefresh 为整屏闪烁回调，onTray 为打开悬浮托盘的回调；
+ * 构造参数 onRefresh 为整屏闪烁回调；
  * 排布与桌面状态栏一致，背景透明并给文字与图标加白色描边，
  * 只保留刷新、时间、电量与充电标记。尺寸取自设计令牌。
  */
@@ -28,7 +28,6 @@ import com.shuiyu.octoberrain.core.design.InkGlyphs
 class OverlayStatusBarView(
     context: Context,
     private val onRefresh: () -> Unit,
-    private val onTray: () -> Unit,
 ) : FrameLayout(context) {
     private val timeView: HaloTextView
     private val batteryView: HaloTextView
@@ -69,13 +68,10 @@ class OverlayStatusBarView(
             ),
         )
 
-        // 中段：留白区域点击展开托盘
+        // 中段：保留原有布局留白
         val spacer =
             View(context).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { onTray() }
             }
         row.addView(spacer)
 

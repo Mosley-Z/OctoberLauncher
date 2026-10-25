@@ -1,5 +1,0 @@
---------- beginning of main
---------- beginning of system
-10-22 08:31:15.887 20705 20705 I ReaderProbe: send={"fixture":"docxzip","action":"SEND","mime":"application/zip","authority":"com.shuiyu.octoberrain.readerprobe.fixture","readGrant":true,"persistable":false,"revokeAfter":false,"launched":true,"revoke":"skipped","revokeCheck":-2,"revokeError":""}
-10-22 08:31:20.596 20705 20730 I ReaderFixture: open type=docxzip
-10-22 08:31:20.665 20705 20730 I ReaderFixture: open type=docxzip

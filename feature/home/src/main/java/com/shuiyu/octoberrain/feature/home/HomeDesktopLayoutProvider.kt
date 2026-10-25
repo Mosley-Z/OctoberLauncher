@@ -21,7 +21,22 @@ internal object HomeDesktopLayoutProvider : DesktopLayoutProvider {
     private var cached: DesktopLayoutSnapshot? = null
 
     /** 读取快照：优先返回桌面视图写入的最新结果，缺失时即时推算。 */
-    override fun snapshot(): DesktopLayoutSnapshot = cached ?: fallback()
+    private var cachedConfig: com.shuiyu.octoberrain.core.common.LauncherConfig? = null
+    private var viewportWidth = 0
+    private var viewportHeight = 0
+
+    override fun snapshot(): DesktopLayoutSnapshot =
+        cached?.takeIf { cachedConfig == AppServices.config.state.value } ?: fallback()
+
+    override fun preview(config: com.shuiyu.octoberrain.core.common.LauncherConfig): DesktopLayoutSnapshot {
+        val tokens = DesignRuntime.tokens
+        val width = viewportWidth.takeIf { it > 0 } ?: DeviceRuntime.profile.widthPx
+        val height =
+            viewportHeight.takeIf { it > 0 }
+                ?: (DeviceRuntime.profile.heightPx - tokens.statusBarHeight)
+        val entries = DesktopEntries.build(AppServices.catalog.apps.value, config.desktop)
+        return build(DesktopMetrics.compute(width, height, config), entries)
+    }
 
     /**
      * 写入最新快照。
@@ -34,6 +49,13 @@ internal object HomeDesktopLayoutProvider : DesktopLayoutProvider {
         entries: List<LauncherEntry>,
     ) {
         cached = build(metrics, entries)
+        cachedConfig = AppServices.config.state.value
+        viewportWidth = metrics.viewportWidth.takeIf { it > 0 } ?: (metrics.left + metrics.right)
+        viewportHeight = metrics.viewportHeight.takeIf { it > 0 }
+            ?: (
+                metrics.bottom + DesignRuntime.tokens.pageBottom +
+                    if (cachedConfig?.desktop?.showPageIndicator == true) DesignRuntime.tokens.indicatorHeight else 0
+            )
     }
 
     /**
@@ -73,22 +95,19 @@ internal object HomeDesktopLayoutProvider : DesktopLayoutProvider {
         val columns = if (metrics.isList) 1 else metrics.columns.coerceAtLeast(1)
         val firstRows = metrics.rowsOf(0).coerceAtLeast(1)
         val rowsPerPage = metrics.fullRows.coerceAtLeast(1)
-        val firstCapacity = metrics.capacity(0).coerceAtLeast(1)
-        val perPage = (columns * rowsPerPage).coerceAtLeast(1)
-        val pages = ArrayList<List<LauncherEntry>>()
-        val limit = metrics.pageLimit.coerceAtLeast(1)
-        var index = 0
-        while (pages.size < limit && index < entries.size) {
-            val capacity = if (pages.isEmpty()) firstCapacity else perPage
-            val end = min(index + capacity, entries.size)
-            pages.add(entries.subList(index, end).toList())
-            index = end
-        }
+        val pages =
+            (0 until metrics.pageCount(entries.size)).map { page ->
+                val start = metrics.startIndex(page).coerceAtMost(entries.size)
+                entries.subList(start, min(start + metrics.capacity(page), entries.size)).toList()
+            }
         return DesktopLayoutSnapshot(
             columns = columns,
+            firstPageColumns = metrics.columnsOf(0),
             firstPageRows = firstRows,
             rowsPerPage = rowsPerPage,
             pages = pages,
+            pageColumns = pages.indices.map(metrics::columnsOf),
+            pageRows = pages.indices.map(metrics::rowsOf),
         )
     }
 }

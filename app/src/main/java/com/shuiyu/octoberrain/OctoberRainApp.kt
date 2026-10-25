@@ -86,13 +86,16 @@ class OctoberRainApp : Application() {
         AppServices.router = LauncherRouter
         AppServices.content = PlaceholderContentSource()
         AppServices.lock = LockGateImpl(this, config)
-        AppServices.tray = PlaceholderTrayController(this)
+        AppServices.tray = PlaceholderTrayController()
         AppServices.refresh = InkRefreshController
         AppServices.backup = BackupServiceImpl(this)
         AppServices.iconOverrides = iconOverrides
         AppServices.themes = themes
         HostWereadSync.attach(filesDir)
         AppServices.wereadSync = HostWereadSync
+        AppServices.wereadKeyEntry =
+            com.shuiyu.octoberrain.feature.wereadapp.ui.qr
+                .OnboardingKeyEntryAdapter()
         HostWereadTodos.attach(filesDir)
         AppServices.wereadTodos = HostWereadTodos
 

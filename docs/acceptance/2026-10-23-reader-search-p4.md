@@ -5,7 +5,7 @@
 - 验收者：P4测试子智能体，独占`P4L202610130006`；Android11、WebView83、物理552×768无override。无Gradle/源码/S4操作，不改017/STATUS。
 - 初始搜索包：`_analysis/verify/office-next/search-release.apk`，2,168,944B，SHA-256 `8809a550ce3451244de0c975b74744af02ea52f8588695e4d356b8685e48a3aa`（下称8809）。
 - 补Manifest包：`_analysis/verify/office-next/final-release.apk`，2,169,236B，SHA-256 `d633e0283a55d0373c540dc04f949de40970d35b03a9621f33a6cba12303f33f`（下称d633）。与8809业务源码相同，仅补Office VIEW/SEND MIME过滤；均覆盖安装保留数据。
-- 样本：[预期](../../_analysis/verify/search-014/expected.json)、[独立校验](../../_analysis/verify/search-014/validation.json)。全部合成数据；部署独立Download/p4-search-20261023和既有p4-office-20261023目录。
+- 样本：预期（本地证据：`_analysis/verify/search-014/expected.json`）、独立校验（本地证据：`_analysis/verify/search-014/validation.json`）。全部合成数据；部署独立Download/p4-search-20261023和既有p4-office-20261023目录。
 - 证据：`_analysis/verify/search-014/p4/ui/p4-search-<下表后缀>/`；原始UI观测在`_ui-out/p4-search-*`，用项目脚本及明确Serial，已复制专属证据目录。CSV自然升级与冻结包压力结论见后文。
 
 | 用例/包 | 操作与精确预期 | 实际/证据后缀 | 结论 |
@@ -48,7 +48,7 @@
 - 本包smoke：两份legacy CSV仍142行1列，GB18030中文保持；Office实际XLSX隐式VIEW正常；Workbook搜索2条、灰底粗框通过，证据`frozen-utf8/frozen-gb/frozen-workbook-result/frozen-workbook-highlight`。
 - Workbook6000×10合成样本本包完成200次有效窗口翻页：起始行1→4001，10批各20次、每批逻辑行精确增加400。独占serial期间没有其他翻页动作，校验结果见`turn-results.jsonl`、`pressure-summary.json`和`pressure-turn-200-verified/`、`pressure-200-screen/`。
 - 同包通过显式MainActivity VIEW入口完成30次打开/关闭：每次等就绪显示4001/6000行，再返回到无reader_status的6节点HOME；序号1–30连续、无重复、全部closed=true，见`cycle-results.jsonl`与各`pressure-cycle-*-ready/closed`。观察过程无OOM/ANR/崩溃，不把准备阶段的点击忽略计为翻页或开关成功。最新隐式Entry路由验证另见fbd4段。
-- 阶段PSS包含主PID和服务记录中绑定renderer PID；初始/20页主PSS取系统PSS汇总的该PID行，40页起明确PID输出。翻页11个阶段采样合计116,792–123,766KiB；这是阶段采样范围，不是全时峰值。完整分项见[内存摘要](../../_analysis/verify/search-014/p4/memory-summary.json)，原始`*-host.txt/*-renderer-*.txt/*-services.txt`保留关联。
+- 阶段PSS包含主PID和服务记录中绑定renderer PID；初始/20页主PSS取系统PSS汇总的该PID行，40页起明确PID输出。翻页11个阶段采样合计116,792–123,766KiB；这是阶段采样范围，不是全时峰值。完整分项见内存摘要（本地证据：`_analysis/verify/search-014/p4/memory-summary.json`），原始`*-host.txt/*-renderer-*.txt/*-services.txt`保留关联。
 
 | 阶段 | 主PSS KiB | 绑定renderer PSS KiB | 合计KiB |
 | --- | --- | --- | --- |
@@ -92,6 +92,6 @@
 | 第20次打开/关闭 | 81,578 / 90,449 | 66,745 / 无绑定 | 148,323 / 90,449 |
 | 第30次打开/关闭 | 78,452 / 87,741 | 66,790 / 无绑定 | 145,242 / 87,741 |
 
-- 阶段PSS取主PID及服务绑定renderer，原始关联与[独立摘要](../../_analysis/verify/search-014/p4/entry-fix/memory-summary.json)保留；本轮路由观察无OOM/ANR/崩溃，采样不是全时峰值。
+- 阶段PSS取主PID及服务绑定renderer，原始关联与独立摘要（本地证据：`_analysis/verify/search-014/p4/entry-fix/memory-summary.json`）保留；本轮路由观察无OOM/ANR/崩溃，采样不是全时峰值。
 - 最终设备端base.apk SHA256精确匹配fbd4补丁；每6页CHECKED、552×768无override、HOME。对应`entry-fix/installed-apk-sha256.txt/final-size.txt/final-front.txt`及`ui/p4-search-entryfix-refresh-checked/`、`ui/p4-search-entryfix-final-home-layout/`。
 - 本轮重新安装的probe原本不存在，已卸载Success且pm path为空；仅本轮`/data/local/tmp/p4-entryfix-send.bin`临时文件已删除。未改网络/锁屏/字体，未读取用户正文/全偏好/DB；合成Download文件与自身阅读记录保留。P4已恢复并再次释放，无残留脚本；后续只有验收文档差异，未推送/升版/发布。

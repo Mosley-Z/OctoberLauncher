@@ -5,9 +5,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.BookItem
 import com.shuiyu.octoberrain.core.common.ContentSource
 import com.shuiyu.octoberrain.core.common.InkLog
-import com.shuiyu.octoberrain.core.common.KoreaderHeat
 import com.shuiyu.octoberrain.core.common.ReadingSnapshot
-import com.shuiyu.octoberrain.core.common.UsageEntry
 import com.shuiyu.octoberrain.core.common.WeatherSnapshot
 import com.shuiyu.octoberrain.core.common.WereadBillSnapshot
 import com.shuiyu.octoberrain.core.common.WereadBucketSnapshot
@@ -26,10 +24,6 @@ import com.shuiyu.octoberrain.feature.content.data.BookshelfRepository
 import com.shuiyu.octoberrain.feature.content.data.ContentPaths
 import com.shuiyu.octoberrain.feature.content.data.FileLibrary
 import com.shuiyu.octoberrain.feature.content.data.KernelWereadReader
-import com.shuiyu.octoberrain.feature.content.data.KoreaderEntry
-import com.shuiyu.octoberrain.feature.content.data.KoreaderRepository
-import com.shuiyu.octoberrain.feature.content.data.KoreaderStats
-import com.shuiyu.octoberrain.feature.content.data.UsageRepository
 import com.shuiyu.octoberrain.feature.content.data.WeatherClient
 import com.shuiyu.octoberrain.feature.content.data.WereadClient
 import com.shuiyu.octoberrain.feature.content.data.WereadStats
@@ -45,7 +39,7 @@ import java.io.File
 /**
  * 内容数据源实现。
  *
- * 聚合书架、KOReader、微信读书、天气、使用统计与文件管理六类数据，对宿主提供
+ * 聚合书架、微信读书、天气与文件管理数据，对宿主提供
  * [ContentSource] 契约，对模块内页面提供扩展读取能力。所有读取都带超时与降级
  * 回退：超时或异常时返回空结果，避免阻塞桌面首屏与页面切换。
  */
@@ -61,7 +55,6 @@ class ContentSourceImpl(
 
         private const val TAG = "内容数据源"
         private const val TIMEOUT_SCAN_MS = 8000L
-        private const val TIMEOUT_KOREADER_MS = 7000L
 
         /** 书架请求：同步书架后还会补齐至多八本书的进度，总耗时按请求与补齐相加预留。 */
         private const val TIMEOUT_SHELF_MS = 38000L
@@ -78,10 +71,9 @@ class ContentSourceImpl(
         /** 笔记分页：概览一次请求加至多五本书的明细请求。 */
         private const val TIMEOUT_NOTES_MS = 65000L
 
-        /** 阅读快照：KOReader 读取失败后回退微信读书，需要覆盖两条链路。 */
+        /** 阅读快照：按微信读书来源读取，缺失时保留空态。 */
         private const val TIMEOUT_READING_SNAPSHOT_MS = 42000L
         private const val TIMEOUT_WEATHER_MS = 12000L
-        private const val TIMEOUT_USAGE_MS = 5000L
 
         /** 书架数据内存缓存有效期，三十分钟。 */
         private const val SHELF_CACHE_TTL_MS = 30L * 60L * 1000L
@@ -108,8 +100,6 @@ class ContentSourceImpl(
 
     private val appContext = context.applicationContext ?: context
     private val bookshelf = BookshelfRepository(appContext)
-    private val koreader = KoreaderRepository(appContext)
-    private val usage = UsageRepository(appContext)
 
     /** 本地书架缓存按目录与有效期区分，不因切换展示来源或行数清空。 */
     @Volatile
@@ -203,32 +193,11 @@ class ContentSourceImpl(
         return items
     }
 
-    /** 读取 KOReader 最近书目。 */
-    suspend fun koreaderEntries(limit: Int = 20): List<KoreaderEntry> =
-        guarded(
-            fallback = emptyList(),
-            label = "KOReader 书目",
-            timeoutMs = TIMEOUT_KOREADER_MS,
-        ) {
-            koreader.recentEntries(limit, deadlineMs = TIMEOUT_KOREADER_MS - 1000L)
-        }
-
-    /** 读取 KOReader 阅读统计。 */
-    suspend fun koreaderStats(): KoreaderStats? =
-        guarded(
-            fallback = null,
-            label = "KOReader 统计",
-            timeoutMs = TIMEOUT_KOREADER_MS,
-        ) {
-            koreader.stats()
-        }
-
     /** 清空全部数据缓存，供手动刷新与配置变更后调用。 */
     fun invalidate() {
         localBooksCache = null
         wereadShelfCache = null
         bookshelf.invalidate()
-        koreader.invalidate()
         wereadClient.invalidate()
         weatherClient.invalidate()
         version.update { it + 1L }
@@ -295,7 +264,7 @@ class ContentSourceImpl(
             label = "阅读快照",
             timeoutMs = TIMEOUT_READING_SNAPSHOT_MS,
         ) {
-            koreader.readingSnapshot() ?: wereadReadingSnapshot()
+            wereadReadingSnapshot()
         }
 
     override suspend fun weather(): WeatherSnapshot? =
@@ -305,15 +274,6 @@ class ContentSourceImpl(
             timeoutMs = TIMEOUT_WEATHER_MS,
         ) {
             weatherClient.current()
-        }
-
-    override suspend fun usageToday(): List<UsageEntry> =
-        guarded(
-            fallback = emptyList(),
-            label = "使用统计",
-            timeoutMs = TIMEOUT_USAGE_MS,
-        ) {
-            usage.today()
         }
 
     override suspend fun bookshelf(limit: Int): List<BookItem> {
@@ -518,15 +478,6 @@ class ContentSourceImpl(
         )
     }
 
-    override suspend fun koreaderHeat(): KoreaderHeat? =
-        guarded(
-            fallback = null,
-            label = "KOReader 阅读热力",
-            timeoutMs = TIMEOUT_KOREADER_MS,
-        ) {
-            koreader.stats()?.let { KoreaderHeat(days = it.days, maxMinutes = it.maxMinutes) }
-        }
-
     override suspend fun searchBooks(query: String): List<BookItem> {
         if (!localShelfAvailable()) return emptyList()
         val keyword = query.trim()
@@ -559,7 +510,7 @@ class ContentSourceImpl(
             .onFailure { error -> InkLog.w(TAG, "微读数据目录同步失败：${error.message}") }
     }
 
-    /** 微信读书侧的阅读快照，作为 KOReader 缺失时的补充；来源关闭时返回 null。 */
+    /** 微信读书侧的阅读快照，来源关闭时返回 null。 */
     private suspend fun wereadReadingSnapshot(): ReadingSnapshot? {
         if (!wereadAvailable()) return null
         if (!wereadClient.isConfigured()) return null

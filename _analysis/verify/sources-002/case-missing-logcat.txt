@@ -1,4 +1,0 @@
---------- beginning of main
---------- beginning of system
-10-22 08:33:48.973 21307 21307 I ReaderProbe: send={"fixture":"missing.txt","action":"SEND","mime":"text/plain","authority":"com.shuiyu.octoberrain.readerprobe.fixture","readGrant":true,"persistable":false,"revokeAfter":false,"launched":true,"revoke":"skipped","revokeCheck":-2,"revokeError":""}
-10-22 08:33:53.677 21307 21331 I ReaderFixture: open type=txt

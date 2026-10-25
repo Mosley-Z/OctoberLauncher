@@ -88,12 +88,15 @@ class BackupServiceImpl(
             val rawConfig =
                 entries[ENTRY_CONFIG]
                     ?: return@withContext BackupResult(false, "备份文件缺少 config.json")
+            val rawRoot =
+                runCatching {
+                    AppJson.format.parseToJsonElement(rawConfig.toString(Charsets.UTF_8))
+                }.getOrNull() ?: return@withContext BackupResult(false, "配置解析失败，文件可能已损坏")
             val decoded =
                 runCatching {
-                    AppJson.format.decodeFromString(
-                        LauncherConfig.serializer(),
-                        rawConfig.toString(Charsets.UTF_8),
-                    )
+                    AppJson.format.decodeFromJsonElement(LauncherConfig.serializer(), rawRoot).let { config ->
+                        config.copy(tray = preserveLegacyTrayGate(rawRoot, config.tray))
+                    }
                 }.getOrNull()
             if (decoded == null) {
                 return@withContext BackupResult(false, "配置解析失败，文件可能已损坏")
@@ -102,7 +105,8 @@ class BackupServiceImpl(
             var merged =
                 ConfigMigration.migrate(
                     decoded,
-                    hasShelfSource(AppJson.format.parseToJsonElement(rawConfig.toString(Charsets.UTF_8))),
+                    hasShelfSource(rawRoot),
+                    DesktopLayoutMigration.presentFields(rawRoot),
                 )
             val themeEntry = entries[ENTRY_THEME]
             if (themeEntry != null) {
@@ -121,7 +125,11 @@ class BackupServiceImpl(
                     integrations = merged.integrations.copy(wereadApiKey = local.integrations.wereadApiKey),
                     lock = merged.lock.copy(pinHash = local.lock.pinHash, salt = local.lock.salt),
                 )
-            AppServices.config.edit { merged.copy(version = LauncherConfig.CURRENT_VERSION) }
+            AppServices.config.edit {
+                RetiredIntegrations.sanitize(
+                    merged.copy(version = LauncherConfig.CURRENT_VERSION),
+                )
+            }
             BackupResult(
                 ok = true,
                 message = manifestWarning(entries[ENTRY_MANIFEST]) ?: "备份已恢复",
@@ -159,7 +167,7 @@ class BackupServiceImpl(
                 return@withContext BackupResult(false, "备份文件缺少可恢复的主题数据")
             }
             val target = appearance
-            AppServices.config.edit { it.copy(appearance = target) }
+            AppServices.config.edit { RetiredIntegrations.sanitize(it.copy(appearance = target)) }
             BackupResult(true, "主题已恢复", listOf("外观与主题"))
         }
 

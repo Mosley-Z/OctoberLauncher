@@ -1,18 +1,14 @@
 package com.shuiyu.octoberrain.feature.settings
 
-import com.shuiyu.octoberrain.feature.settings.SettingsCatalog.GROUP_TRAY_GENERAL
 import com.shuiyu.octoberrain.feature.settings.SettingsCatalog.GROUP_TRAY_REFRESH
 import com.shuiyu.octoberrain.feature.settings.SettingsCatalog.GROUP_TRAY_STATUS
 
 /**
- * 快捷托盘页的设置项声明。
+ * 状态栏与墨水屏刷新设置项声明。
  *
- * 托盘、状态栏与自动刷新三组的读写均在托盘分区内完成。
+ * 保留原tray存储分区，状态栏与自动刷新按既有页面归属读写。
  */
 internal object TraySpecs {
-    /** 前光档位选项文本。 */
-    private val LEVEL_OPTIONS: List<String> = listOf("关闭", "1", "2", "3", "4", "5", "6", "7")
-
     /** 自动刷新间隔档位，单位分钟。 */
     private val REFRESH_VALUES: List<Int> = listOf(0, 5, 10, 15, 30)
 
@@ -24,7 +20,6 @@ internal object TraySpecs {
 
     val groups: List<SettingsGroupSpec> =
         listOf(
-            SettingsGroupSpec(id = GROUP_TRAY_GENERAL, title = "托盘", subtitle = "下拉栏与媒体控制"),
             SettingsGroupSpec(id = GROUP_TRAY_STATUS, title = "状态栏", subtitle = "顶部图标显示项"),
             SettingsGroupSpec(
                 id = GROUP_TRAY_REFRESH,
@@ -41,108 +36,14 @@ internal object TraySpecs {
     val specs: List<SettingSpec> =
         listOf(
             SettingSpec(
-                id = "tray.enabled",
-                group = GROUP_TRAY_GENERAL,
-                title = "启用托盘",
-                hint = "关闭后从屏幕顶部下拉不再打开托盘",
-                control =
-                    toggleTray(
-                        read = { it.enabled },
-                        write = { tray, value -> tray.copy(enabled = value) },
-                    ),
-            ),
-            SettingSpec(
-                id = "tray.notificationLimit",
-                group = GROUP_TRAY_GENERAL,
-                title = "通知显示数量",
-                hint = "托盘中最多展开的通知条数",
-                control =
-                    choiceTray(
-                        options = listOf("关闭", "1 条", "2 条", "3 条", "4 条"),
-                        read = { it.notificationLimit.coerceIn(0, 4) },
-                        write = { tray, index -> tray.copy(notificationLimit = index) },
-                    ),
-                effect = SettingEffect.REBUILD,
-            ),
-            SettingSpec(
-                id = "tray.mediaEnabled",
-                group = GROUP_TRAY_GENERAL,
-                title = "媒体控制",
-                hint = "在托盘中显示播放控制与曲目信息",
-                control =
-                    toggleTray(
-                        read = { it.mediaEnabled },
-                        write = { tray, value -> tray.copy(mediaEnabled = value) },
-                    ),
-            ),
-            SettingSpec(
-                id = "tray.brightnessCold",
-                group = GROUP_TRAY_GENERAL,
-                title = "前光冷光默认档",
-                hint = "打开托盘时冷光通道的初始亮度",
-                control =
-                    choiceTray(
-                        options = LEVEL_OPTIONS,
-                        read = { it.brightnessCold.coerceIn(0, 7) },
-                        write = { tray, index -> tray.copy(brightnessCold = index) },
-                    ),
-                effect = SettingEffect.REBUILD,
-            ),
-            SettingSpec(
-                id = "tray.brightnessWarm",
-                group = GROUP_TRAY_GENERAL,
-                title = "前光暖光默认档",
-                hint = "打开托盘时暖光通道的初始亮度",
-                control =
-                    choiceTray(
-                        options = LEVEL_OPTIONS,
-                        read = { it.brightnessWarm.coerceIn(0, 7) },
-                        write = { tray, index -> tray.copy(brightnessWarm = index) },
-                    ),
-                effect = SettingEffect.REBUILD,
-            ),
-            SettingSpec(
-                id = "tray.volumeKeyFlip",
-                group = GROUP_TRAY_GENERAL,
-                title = "音量键翻页",
-                hint = "阅读或列表界面用音量键翻页",
-                control =
-                    toggleTray(
-                        read = { it.volumeKeyFlip },
-                        write = { tray, value -> tray.copy(volumeKeyFlip = value) },
-                    ),
-            ),
-            SettingSpec(
                 id = "tray.overlayEnabled",
                 group = GROUP_TRAY_STATUS,
-                title = "悬浮窗按钮",
-                hint = "状态栏显示悬浮球入口，需要悬浮窗权限",
+                title = "悬浮状态栏",
+                hint = "在其他应用上方显示现有时间、电量与刷新入口",
                 control =
                     toggleTray(
                         read = { it.overlayEnabled },
                         write = { tray, value -> tray.copy(overlayEnabled = value) },
-                    ),
-            ),
-            SettingSpec(
-                id = "tray.showWifi",
-                group = GROUP_TRAY_STATUS,
-                title = "显示无线网络",
-                hint = "状态栏绘制无线网络信号图标",
-                control =
-                    toggleTray(
-                        read = { it.showWifi },
-                        write = { tray, value -> tray.copy(showWifi = value) },
-                    ),
-            ),
-            SettingSpec(
-                id = "tray.showBluetooth",
-                group = GROUP_TRAY_STATUS,
-                title = "显示蓝牙",
-                hint = "状态栏绘制蓝牙连接状态图标",
-                control =
-                    toggleTray(
-                        read = { it.showBluetooth },
-                        write = { tray, value -> tray.copy(showBluetooth = value) },
                     ),
             ),
             SettingSpec(

@@ -115,7 +115,7 @@ internal object WereadAppPrefs {
         }.getOrDefault(0L)
 
     /** 月历是否使用热力图样式。 */
-    fun monthHeatmap(context: Context): Boolean = store(context).getInt(KEY_MONTH_STYLE, 0) == 1
+    fun monthHeatmap(context: Context): Boolean = store(context).getInt(KEY_MONTH_STYLE, 1) == 1
 
     /** 全屏档本记正文的号值，按字号档位换算。 */
     fun noteFullSize(context: Context): Int {
@@ -146,7 +146,7 @@ internal object WereadAppPrefs {
             noteSign = store.getBool(KEY_SHOW_SIGNATURE, true),
             noteDate = store.getBool(KEY_SHOW_DATE, true),
             rankShelfOnly = store.getBool(KEY_RANK_SHELF_ONLY, false),
-            monthHeatmap = store.getInt(KEY_MONTH_STYLE, 0) == 1,
+            monthHeatmap = store.getInt(KEY_MONTH_STYLE, 1) == 1,
             noteCardSize = store.getInt(KEY_NOTE_CARD_SIZE, NOTE_CARD_SIZE_DEFAULT),
             switchMode = store.getInt(KEY_SWITCH_MODE, 0).coerceIn(0, 1),
             updateChannel = store.getInt(KEY_UPDATE_CHANNEL, 0).coerceIn(0, 1),
@@ -246,7 +246,7 @@ internal data class WereadAppSettings(
     /** 榜单是否只统计书架上的书。 */
     val rankShelfOnly: Boolean = false,
     /** 月历是否使用热力图。 */
-    val monthHeatmap: Boolean = false,
+    val monthHeatmap: Boolean = true,
     /** 卡片档本记正文字号。 */
     val noteCardSize: Int = 17,
     /** 卡片切换方式，0 循环模式、1 列表模式；由 App 层读取。 */

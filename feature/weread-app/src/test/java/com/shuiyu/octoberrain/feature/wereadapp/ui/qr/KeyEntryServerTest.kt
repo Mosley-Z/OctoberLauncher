@@ -1,6 +1,7 @@
 package com.shuiyu.octoberrain.feature.wereadapp.ui.qr
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -76,6 +77,8 @@ class KeyEntryServerTest {
             val body = readBody(URL(address), "GET", null)
             assertTrue("缺少表单元素", body.contains("<form"))
             assertTrue("缺少密钥输入框", body.contains("name=\"key\""))
+            assertTrue("需要手机粘贴区域", body.contains("<textarea"))
+            assertFalse("获取方法只应为文字引导", body.contains("<a "))
         } finally {
             stopServer()
         }
@@ -87,7 +90,7 @@ class KeyEntryServerTest {
         val address = startServer()
         try {
             val body = readBody(URL(address), "POST", "key=wrk-abcdefgh12345678")
-            assertTrue("缺少成功提示", body.contains("密钥已接收"))
+            assertTrue("缺少成功提示", body.contains("密钥已提交"))
             assertTrue("未收到回调", latch.await(5, TimeUnit.SECONDS))
             assertEquals("wrk-abcdefgh12345678", received.get())
         } finally {

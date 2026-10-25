@@ -33,9 +33,13 @@ class ClockWidget
     internal constructor(
         context: Context,
         private val layout: ClockLayout,
+        private val fixedFace: ClockFace? = null,
     ) : InkWidgetView(context) {
         /** 自动选择布局的时钟，组件清单使用该构造。 */
         constructor(context: Context) : this(context, ClockLayout.AUTO)
+
+        /** 组件库中的六款独立条目固定钟面，不改旧时钟的外观配置。 */
+        constructor(context: Context, face: ClockFace) : this(context, ClockLayout.AUTO, face)
 
         /** 兼容既有调用点的构造，compact 为 true 时固定单行布局。 */
         constructor(
@@ -109,8 +113,8 @@ class ClockWidget
         ) {
             val now = Calendar.getInstance()
             val appearance = config.appearance
-            val typeface = DesignRuntime.typeface(appearance.clockFont)
-            val face = ClockFace.fromId(appearance.clockFace)
+            val face = fixedFace ?: ClockFace.fromId(appearance.clockFace)
+            val typeface = clockTypeface(face, appearance.clockFont)
             val time = ClockTime.from(now, appearance.twelveHour)
             val date = dateText(now)
 
@@ -120,12 +124,18 @@ class ClockWidget
             val bottom = height - pad
             if (right <= left || bottom <= top) return
 
-            val datePaint = textPaint(tokens.textBody, InkColors.INK_2)
-            if (effectiveLayout() == ClockLayout.COMPACT) {
-                drawCompact(canvas, face, time, date, left, right, top, bottom, typeface, datePaint)
-                return
+            if (face.includesDate) {
+                val paint = DesignRuntime.textPaint(tokens.textHeading, InkColors.INK, typeface)
+                paint.textScaleX = clockNumberScale(face, appearance.clockFont)
+                ClockFaces.draw(face, canvas, RectF(left, top, right, bottom), time, paint, paint.textSize)
+            } else {
+                val datePaint = textPaint(tokens.textBody, InkColors.INK_2)
+                if (effectiveLayout() == ClockLayout.COMPACT) {
+                    drawCompact(canvas, face, time, date, left, right, top, bottom, typeface, datePaint)
+                } else {
+                    drawStackedLayout(canvas, face, time, date, left, right, top, bottom, height, typeface, datePaint)
+                }
             }
-            drawStackedLayout(canvas, face, time, date, left, right, top, bottom, height, typeface, datePaint)
         }
 
         /**

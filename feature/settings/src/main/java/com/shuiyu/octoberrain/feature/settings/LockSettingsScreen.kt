@@ -1,6 +1,7 @@
 package com.shuiyu.octoberrain.feature.settings
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
@@ -8,6 +9,7 @@ import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LockConfig
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkPage
+import kotlinx.coroutines.launch
 
 /**
  * 锁屏与安全设置页面。
@@ -15,7 +17,7 @@ import com.shuiyu.octoberrain.core.design.InkPage
  * 行控件由 [SettingsCatalog.lockGroups] 的声明生成；
  * 启用开关与 PIN 设置流程保留在本页，因为需要在写入前检查是否已有 PIN。
  */
-class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
+class LockSettingsScreen : SettingsBaseScreen("锁屏密码") {
     /** 主线程消息队列，用于把后台摘要计算结果交回界面。 */
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -30,6 +32,73 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
             sink = settingEffectSink(),
             actions = lockActions(),
             customs = lockCustoms(),
+        )
+        SettingsUi.section(page, "手动锁定").action("立即锁定") {
+            val context = contextOrNull() ?: return@action
+            if (!SettingsUi.settings().lock.enabled || !hasPin()) {
+                SettingsUi.toast(context, "请先设置密码并启用锁屏")
+            } else {
+                AppServices.lock.lock()
+            }
+        }
+        SettingsSpecRenderer.renderPage(
+            page,
+            listOf(SettingsGroupSpec("project.lockWallpaper", "十雨锁屏壁纸")),
+            config,
+            settingEffectSink(),
+            actions =
+                mapOf(
+                    "appearance.lockWallpaper.pick" to { pickLockWallpaper() },
+                    "appearance.lockWallpaper.clear" to { clearLockWallpaper() },
+                ),
+        )
+    }
+
+    /** 选择锁屏壁纸：调用系统文件选择器，选中后写入锁屏壁纸配置。 */
+    private fun pickLockWallpaper() {
+        val context = contextOrNull() ?: return
+        SettingsUi.pickFile(context, "选择锁屏壁纸", arrayOf("image/*"), setOf("jpg", "jpeg", "png", "webp", "bmp")) { uri ->
+            applyLockWallpaper(uri)
+        }
+    }
+
+    /** 异步应用锁屏壁纸，完成后刷新摘要并请求整屏重绘。 */
+    private fun applyLockWallpaper(uri: Uri) {
+        val context = contextOrNull() ?: return
+        SettingsUi.toast(context, "正在设置锁屏壁纸…")
+        scope.launch {
+            val applied =
+                runCatching {
+                    AppServices.appearance.setLockWallpaper(uri)
+                }.getOrDefault(false)
+            if (applied) {
+                SettingsUi.toast(context, "锁屏壁纸已更新")
+                AppServices.refresh.requestFullRefresh()
+                rebuildLater()
+            } else {
+                SettingsUi.toast(context, "锁屏壁纸读取失败，请换一张图片")
+            }
+        }
+    }
+
+    /** 清除锁屏壁纸，锁屏界面恢复纸色背景；未设置时直接提示。 */
+    private fun clearLockWallpaper() {
+        val context = contextOrNull() ?: return
+        val appearance = SettingsUi.settings().appearance
+        if (appearance.lockWallpaperPath.isBlank()) {
+            SettingsUi.toast(context, "当前没有设置锁屏壁纸")
+            return
+        }
+        InkDialogs.confirm(
+            context,
+            "清除锁屏壁纸",
+            "锁屏密码界面将恢复为纸色背景。",
+            confirmLabel = "清除",
+            onConfirm = {
+                runCatching { AppServices.appearance.clearLockWallpaper() }
+                AppServices.refresh.requestFullRefresh()
+                rebuildLater()
+            },
         )
     }
 
@@ -60,9 +129,6 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
             },
         )
 
-    /** 是否已设置 PIN，读取失败按未设置处理。 */
-    private fun hasPin(): Boolean = runCatching { AppServices.lock.hasPin() }.getOrDefault(false)
-
     /** 打开 PIN 设置流程，两次输入一致后写入。 */
     private fun setPin() {
         val context = contextOrNull() ?: return
@@ -91,7 +157,13 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
     ) {
         Thread(
             {
-                val saved = runCatching { AppServices.lock.setPin(pin) }.isSuccess
+                val saved =
+                    runCatching {
+                        val previous = SettingsUi.settings().lock.pinHash
+                        AppServices.lock.setPin(pin)
+                        val lock = SettingsUi.settings().lock
+                        lock.enabled && !lock.pinHash.isNullOrBlank() && lock.pinHash != previous
+                    }.getOrDefault(false)
                 mainHandler.post {
                     if (saved) {
                         updateLock { it.copy(enabled = true) }
@@ -119,8 +191,12 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
             message = "清除后启动器将不再要求解锁，已保存的摘要会被删除。",
             confirmLabel = "清除",
             onConfirm = {
-                runCatching { AppServices.lock.clearPin() }
-                updateLock { it.copy(enabled = false) }
+                val saved =
+                    runCatching {
+                        AppServices.lock.clearPin()
+                        !AppServices.lock.hasPin() && !SettingsUi.settings().lock.enabled
+                    }.getOrDefault(false)
+                SettingsUi.toast(context, if (saved) "密码已清除，锁屏已关闭" else "清除失败，请重试")
                 rebuildLater()
             },
         )
@@ -143,18 +219,12 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
             numeric = true,
             password = true,
         ) { text ->
-            val digits = text.filter { it.isDigit() }.take(PIN_LENGTH)
-            if (digits.length != PIN_LENGTH) {
+            if (text.length != PIN_LENGTH || text.any { it !in '0'..'9' }) {
                 SettingsUi.toast(context, "PIN 必须为四位数字")
             } else {
-                onDone(digits)
+                onDone(text)
             }
         }
-    }
-
-    /** 写入锁屏配置分区。 */
-    private fun updateLock(transform: (LockConfig) -> LockConfig) {
-        SettingsUi.edit { config -> config.copy(lock = transform(config.lock)) }
     }
 
     private companion object {
@@ -162,3 +232,11 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏与安全") {
         const val PIN_LENGTH = 4
     }
 }
+
+/** 写入锁屏配置分区。 */
+private fun updateLock(transform: (LockConfig) -> LockConfig) {
+    SettingsUi.edit { config -> config.copy(lock = transform(config.lock)) }
+}
+
+/** 是否已设置 PIN，读取失败按未设置处理。 */
+private fun hasPin(): Boolean = runCatching { AppServices.lock.hasPin() }.getOrDefault(false)

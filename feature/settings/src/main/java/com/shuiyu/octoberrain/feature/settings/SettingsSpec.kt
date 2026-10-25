@@ -31,9 +31,6 @@ internal object SettingsCatalog {
     /** 外观页图片与缓存分组。 */
     const val GROUP_APPEARANCE_IMAGE = "appearance.image"
 
-    /** 托盘页托盘分组。 */
-    const val GROUP_TRAY_GENERAL = "tray.general"
-
     /** 托盘页状态栏分组。 */
     const val GROUP_TRAY_STATUS = "tray.status"
 
@@ -64,9 +61,6 @@ internal object SettingsCatalog {
     /** 阅读与数据页本地目录分组。 */
     const val GROUP_BOOKSHELF_LOCAL = "bookshelf.local"
 
-    /** 负一屏页卡片分组。 */
-    const val GROUP_NEGATIVE_CARDS = "negative.cards"
-
     // ---- 页面分组与设置项 ----
 
     /** 外观与主题页的分组，声明位于 [AppearanceSpecs]。 */
@@ -81,9 +75,6 @@ internal object SettingsCatalog {
     /** 系统设置页的分组，声明位于 [SystemSpecs]。 */
     val systemGroups: List<SettingsGroupSpec> = SystemSpecs.groups
 
-    /** 负一屏页的分组，声明位于 [NegativeSpecs]。 */
-    val negativeGroups: List<SettingsGroupSpec> = NegativeSpecs.groups
-
     /** 阅读与数据页的分组，声明位于 [BookshelfSpecs]。 */
     val bookshelfGroups: List<SettingsGroupSpec> = BookshelfSpecs.groups
 
@@ -95,7 +86,7 @@ internal object SettingsCatalog {
     val specs: List<SettingSpec>
         get() =
             AppearanceSpecs.specs + TraySpecs.specs + LockSpecs.specs +
-                SystemSpecs.specs + NegativeSpecs.specs + BookshelfSpecs.specs
+                SystemSpecs.specs + BookshelfSpecs.specs
 
     /** 按分组读取设置项，保持声明顺序。 */
     fun specsOf(group: String): List<SettingSpec> = specs.filter { it.group == group }
@@ -105,7 +96,7 @@ internal object SettingsCatalog {
 
     /** 全部分组的文本，供测试与文档核对。 */
     val groups: List<SettingsGroupSpec> =
-        appearanceGroups + trayGroups + lockGroups + systemGroups + negativeGroups + bookshelfGroups
+        appearanceGroups + trayGroups + lockGroups + systemGroups + bookshelfGroups
 }
 
 /** 设置分组声明。 */

@@ -6,14 +6,20 @@ import android.net.Uri
 import android.util.Base64
 import com.shuiyu.octoberrain.core.common.AppJson
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.AppearanceConfig
 import com.shuiyu.octoberrain.core.common.BeautifyTheme
 import com.shuiyu.octoberrain.core.common.ConfigStore
+import com.shuiyu.octoberrain.core.common.DesktopConfig
 import com.shuiyu.octoberrain.core.common.GridAlign
 import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.SortMode
 import com.shuiyu.octoberrain.core.common.ThemeLayout
 import com.shuiyu.octoberrain.core.common.ThemeRepository
 import com.shuiyu.octoberrain.core.common.ThemeScope
+import com.shuiyu.octoberrain.core.common.ThemeWallpaper
+import com.shuiyu.octoberrain.core.common.firstGridColumns
+import com.shuiyu.octoberrain.core.common.firstGridRows
+import com.shuiyu.octoberrain.core.render.ImageDecoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
@@ -63,7 +69,7 @@ class ThemeRepositoryImpl(
         withContext(Dispatchers.IO) {
             runCatching {
                 val trimmed = name.trim().ifEmpty { "未命名主题" }
-                themes().firstOrNull { it.name == trimmed }?.let { deleteTheme(it.id) }
+                val previous = themes().firstOrNull { it.name == trimmed }
                 val id = "theme-" + System.currentTimeMillis()
                 val dir = File(root, id).apply { mkdirs() }
                 val iconsDir = File(dir, "icons").apply { mkdirs() }
@@ -73,38 +79,15 @@ class ThemeRepositoryImpl(
                     runCatching {
                         if (AppServices.hasLayoutProvider()) AppServices.layoutProvider.snapshot() else null
                     }.getOrNull()
-                val fullOrder =
-                    desktop.order.ifEmpty {
-                        snapshot
-                            ?.pages
-                            ?.flatten()
-                            ?.map { it.key }
-                            .orEmpty()
-                    }
-                val order =
-                    when (scope) {
-                        ThemeScope.HOME ->
-                            snapshot?.pages?.firstOrNull()?.map { it.key }
-                                ?: fullOrder.take(firstPageCapacity(desktop))
-                        ThemeScope.ALL -> fullOrder
-                    }
-                val iconEntries = configValue.appearance.iconOverrides.entries
-                val source = iconEntries.associate { IconTargets.normalizeStoredKey(it.key) to it.value }
+                val order = themeOrder(desktop, snapshot, scope)
+                val source = configValue.appearance.iconOverrides.mapKeys { IconTargets.normalizeStoredKey(it.key) }
                 val targetPackages =
                     if (scope == ThemeScope.HOME) {
                         order.map { IconTargets.normalizeStoredKey(it) }.toSet()
                     } else {
                         source.keys
                     }
-                val copied = mutableMapOf<String, String>()
-                source.forEach { (targetId, path) ->
-                    if (targetId !in targetPackages) return@forEach
-                    val from = File(path)
-                    if (!from.exists()) return@forEach
-                    val to = File(iconsDir, IconFileNames.fileName(targetId))
-                    from.copyTo(to, overwrite = true)
-                    copied[targetId] = to.absolutePath
-                }
+                val copied = saveIcons(source.filterKeys { it in targetPackages }, iconsDir)
                 val theme =
                     BeautifyTheme(
                         id = id,
@@ -114,11 +97,42 @@ class ThemeRepositoryImpl(
                         order = order,
                         layout = desktop.toThemeLayout(),
                         scope = scope,
+                        transparentIconTargets =
+                            configValue.appearance.transparentIconTargets
+                                .filter {
+                                    scope ==
+                                        ThemeScope.ALL ||
+                                        it in targetPackages
+                                }.toSet(),
+                        showLabels = configValue.appearance.showLabels,
+                        wallpaper = saveWallpaper(dir, configValue.appearance),
                     )
                 writeTheme(dir, theme)
+                previous?.let { deleteTheme(it.id) }
                 theme
             }.getOrNull()
         }
+
+    private fun themeOrder(
+        desktop: DesktopConfig,
+        snapshot: com.shuiyu.octoberrain.core.common.DesktopLayoutSnapshot?,
+        scope: ThemeScope,
+    ): List<String> {
+        val fullOrder =
+            desktop.order.ifEmpty {
+                snapshot
+                    ?.pages
+                    ?.flatten()
+                    ?.map { it.key }
+                    .orEmpty()
+            }
+        return when (scope) {
+            ThemeScope.HOME ->
+                snapshot?.pages?.firstOrNull()?.map { it.key }
+                    ?: fullOrder.take(firstPageCapacity(desktop))
+            ThemeScope.ALL -> fullOrder
+        }
+    }
 
     /**
      * 应用主题。
@@ -135,28 +149,31 @@ class ThemeRepositoryImpl(
                 // 补位需要主题应用前的设备顺序，并剔除配置里残留但已卸载的应用条目；
                 // 否则上一次导入写入的外来顺序会让补位失去参照。
                 val deviceOrder = installedEntries(config.state.value.desktop.order)
+                val wallpaper = theme.wallpaper?.let { applyWallpaper(it) }
                 val applied = resolveIcons(theme, deviceOrder)
                 config.edit { current ->
                     // 顺序属于设备自身偏好，主题只贡献图标与外观参数；
                     // 若把对方设备的顺序整表写入，本机不存在的应用会占位并让后续补位失去参照。
-                    val layout = theme.layout
-                    val desktop =
-                        if (layout == null) {
-                            current.desktop
-                        } else {
-                            current.desktop.copy(
-                                columns = layout.columns,
-                                rows = layout.rows,
-                                columnSpacingDp = layout.columnSpacingDp,
-                                rowSpacingDp = layout.rowSpacingDp,
-                                iconSizeDp = layout.iconSizeDp,
-                                labelTextSp = layout.labelTextSp,
-                                firstPageRows = layout.firstPageRows,
-                                gridAlign = layout.gridAlign,
-                            )
-                        }
+                    val desktop = applyThemeLayout(current.desktop, theme.layout, theme.scope)
                     current.copy(
-                        appearance = current.appearance.copy(iconOverrides = applied),
+                        appearance =
+                            mergeThemeAppearance(current.appearance, theme, applied, deviceOrder).let { appearance ->
+                                if (wallpaper ==
+                                    null
+                                ) {
+                                    appearance
+                                } else {
+                                    appearance.copy(
+                                        wallpaperPath = wallpaper.path,
+                                        wallpaperDim = wallpaper.dim,
+                                        wallpaperQuantize = wallpaper.quantize,
+                                        wallpaperWhiteOverlay = false,
+                                        wallpaperLandscapeRotation =
+                                            wallpaper.landscapeRotation
+                                                ?: appearance.wallpaperLandscapeRotation,
+                                    )
+                                }
+                            },
                         desktop = desktop,
                     )
                 }
@@ -230,7 +247,8 @@ class ThemeRepositoryImpl(
     ): String? {
         val from = File(path)
         if (!from.exists()) return null
-        val to = File(overrideDir, IconFileNames.fileName(targetId))
+        // 独立路径使相同目标切换主题时也能触发图标缓存刷新。
+        val to = File(overrideDir, "theme-${System.nanoTime()}-${IconFileNames.fileName(targetId)}")
         return runCatching {
             from.copyTo(to, overwrite = true)
             to.absolutePath
@@ -256,7 +274,11 @@ class ThemeRepositoryImpl(
                 overrideDir.listFiles()?.forEach { it.deleteRecursively() }
                 config.edit { current ->
                     current.copy(
-                        appearance = current.appearance.copy(iconOverrides = emptyMap()),
+                        appearance =
+                            current.appearance.copy(
+                                iconOverrides = emptyMap(),
+                                transparentIconTargets = emptySet(),
+                            ),
                         desktop =
                             current.desktop.copy(
                                 order = emptyList(),
@@ -303,19 +325,37 @@ class ThemeRepositoryImpl(
                         put("order", JsonArray(theme.order.map { JsonPrimitive(it) }))
                         put("icons", iconsObject)
                         put("scope", JsonPrimitive(theme.scope.name))
+                        theme.transparentIconTargets?.let {
+                            put(
+                                "transparentIconTargets",
+                                JsonArray(it.map(::JsonPrimitive)),
+                            )
+                        }
+                        theme.showLabels?.let { put("showLabels", JsonPrimitive(it)) }
+                        theme.wallpaper?.let { wallpaper ->
+                            put(
+                                "wallpaper",
+                                buildJsonObject {
+                                    put("dim", JsonPrimitive(wallpaper.dim))
+                                    put("quantize", JsonPrimitive(wallpaper.quantize))
+                                    put("whiteOverlay", JsonPrimitive(false))
+                                    wallpaper.landscapeRotation?.let { put("landscapeRotation", JsonPrimitive(it)) }
+                                    wallpaper.path?.let { path ->
+                                        requireValidImage(File(path))
+                                        put(
+                                            "image",
+                                            JsonPrimitive(
+                                                Base64.encodeToString(File(path).readBytes(), Base64.NO_WRAP),
+                                            ),
+                                        )
+                                    }
+                                },
+                            )
+                        }
                         theme.layout?.let { layout ->
                             put(
                                 "layout",
-                                buildJsonObject {
-                                    put("columns", JsonPrimitive(layout.columns))
-                                    put("rows", JsonPrimitive(layout.rows))
-                                    put("columnSpacingDp", JsonPrimitive(layout.columnSpacingDp))
-                                    put("rowSpacingDp", JsonPrimitive(layout.rowSpacingDp))
-                                    put("iconSizeDp", JsonPrimitive(layout.iconSizeDp))
-                                    put("labelTextSp", JsonPrimitive(layout.labelTextSp))
-                                    put("firstPageRows", JsonPrimitive(layout.firstPageRows))
-                                    put("gridAlign", JsonPrimitive(layout.gridAlign.name))
-                                },
+                                AppJson.format.encodeToJsonElement(ThemeLayout.serializer(), layout),
                             )
                         }
                     }
@@ -352,19 +392,7 @@ class ThemeRepositoryImpl(
                 val layout =
                     runCatching {
                         payload["layout"]?.jsonObject?.let { obj ->
-                            ThemeLayout(
-                                columns = obj["columns"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                                rows = obj["rows"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                                columnSpacingDp = obj["columnSpacingDp"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                                rowSpacingDp = obj["rowSpacingDp"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                                iconSizeDp = obj["iconSizeDp"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                                labelTextSp = obj["labelTextSp"]?.jsonPrimitive?.content?.toFloatOrNull() ?: 0f,
-                                firstPageRows = obj["firstPageRows"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-                                gridAlign =
-                                    runCatching {
-                                        GridAlign.valueOf(obj["gridAlign"]?.jsonPrimitive?.content ?: "CENTER")
-                                    }.getOrDefault(GridAlign.CENTER),
-                            )
+                            AppJson.format.decodeFromJsonElement(ThemeLayout.serializer(), obj)
                         }
                     }.getOrNull()
                 val id = "theme-" + System.currentTimeMillis()
@@ -372,19 +400,116 @@ class ThemeRepositoryImpl(
                 val iconsDir = File(dir, "icons").apply { mkdirs() }
                 val copied = mutableMapOf<String, String>()
                 icons.forEach { (storedKey, value) ->
-                    runCatching {
-                        val bytes = Base64.decode(value.jsonPrimitive.content, Base64.DEFAULT)
-                        val targetId = IconTargets.normalizeStoredKey(storedKey)
-                        val to = File(iconsDir, IconFileNames.fileName(targetId))
-                        to.writeBytes(bytes)
-                        copied[targetId] = to.absolutePath
-                    }
+                    val bytes = Base64.decode(value.jsonPrimitive.content, Base64.DEFAULT)
+                    val targetId = IconTargets.normalizeStoredKey(storedKey)
+                    val to = File(iconsDir, IconFileNames.fileName(targetId))
+                    to.writeBytes(bytes)
+                    requireValidImage(to)
+                    copied[targetId] = to.absolutePath
                 }
-                val theme = BeautifyTheme(id, uniqueName(name), createdAt, copied, order, layout, scope)
+                val transparent =
+                    payload["transparentIconTargets"]
+                        ?.jsonArray
+                        ?.map {
+                            IconTargets.normalizeStoredKey(it.jsonPrimitive.content)
+                        }?.toSet()
+                val showLabels = payload["showLabels"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
+                val wallpaper = payload["wallpaper"]?.jsonObject?.let { importWallpaper(it, dir) }
+                val theme =
+                    BeautifyTheme(
+                        id,
+                        uniqueName(name),
+                        createdAt,
+                        copied,
+                        order,
+                        layout,
+                        scope,
+                        transparent,
+                        showLabels,
+                        wallpaper,
+                    )
                 writeTheme(dir, theme)
                 true
             }.getOrDefault(false)
         }
+
+    private fun saveIcons(
+        source: Map<String, String>,
+        directory: File,
+    ): Map<String, String> {
+        val copied = mutableMapOf<String, String>()
+        source.forEach { (targetId, path) ->
+            val from = File(path)
+            if (from.exists()) {
+                val to = File(directory, IconFileNames.fileName(targetId))
+                from.copyTo(to, overwrite = true)
+                copied[targetId] = to.absolutePath
+            }
+        }
+        return copied
+    }
+
+    private fun importWallpaper(
+        obj: JsonObject,
+        dir: File,
+    ): ThemeWallpaper {
+        require(obj["path"]?.jsonPrimitive?.content.isNullOrBlank() || obj.containsKey("image")) { "主题缺少壁纸资源" }
+        val decoded =
+            AppJson.format.decodeFromJsonElement(
+                ThemeWallpaper.serializer(),
+                JsonObject(obj.filterKeys { it != "image" && it != "path" }),
+            )
+        val path =
+            obj["image"]?.jsonPrimitive?.content?.let { encoded ->
+                val image = File(dir, "wallpaper.img")
+                image.writeBytes(Base64.decode(encoded, Base64.DEFAULT))
+                requireValidImage(image)
+                image.absolutePath
+            }
+        return decoded.copy(path = path)
+    }
+
+    /** 保存壁纸为主题私有资源，缺失或不可解码时整个保存失败。 */
+    private fun saveWallpaper(
+        dir: File,
+        appearance: AppearanceConfig,
+    ): ThemeWallpaper {
+        val path =
+            appearance.wallpaperPath?.takeIf { it.isNotBlank() }?.let { source ->
+                requireValidImage(File(source))
+                File(source).copyTo(File(dir, "wallpaper.img"), overwrite = true).absolutePath
+            }
+        return ThemeWallpaper(
+            path,
+            appearance.wallpaperDim,
+            appearance.wallpaperQuantize,
+            false,
+            appearance.wallpaperLandscapeRotation,
+        )
+    }
+
+    /** 应用前准备独立副本，主题删除不会破坏产品壁纸。 */
+    private fun applyWallpaper(wallpaper: ThemeWallpaper): ThemeWallpaper {
+        val path =
+            wallpaper.path?.let { source ->
+                requireValidImage(File(source))
+                val directory = File(context.filesDir, "wallpaper").apply { mkdirs() }
+                File(source).copyTo(File(directory, "theme-${System.nanoTime()}.img"), overwrite = false).absolutePath
+            }
+        return wallpaper.copy(
+            path = path,
+            dim = wallpaper.dim.coerceIn(0f, 1f),
+            quantize = wallpaper.quantize.coerceIn(0, 3),
+            landscapeRotation = wallpaper.landscapeRotation?.takeIf { it in listOf(0, 90, 180, 270) },
+        )
+    }
+
+    private fun requireValidImage(file: File) {
+        require(file.isFile && ImageDecoder.size(file.absolutePath) != null) { "主题图片不可用" }
+        val bitmap = ImageDecoder.decode(file.absolutePath, 64, keepAlpha = true)
+        requireNotNull(bitmap) { "主题图片解码失败" }
+        bitmap.recycle()
+    }
 
     /** 读取主题描述，文件缺失或解析失败返回 null。 */
     private fun readTheme(dir: File): BeautifyTheme? {
@@ -414,8 +539,24 @@ class ThemeRepositoryImpl(
 
     /** 首页可容纳的条目数量，布局服务缺失时用于裁剪顺序。 */
     private fun firstPageCapacity(desktop: com.shuiyu.octoberrain.core.common.DesktopConfig): Int {
-        val columns = desktop.columns.coerceAtLeast(3)
-        val rows = desktop.firstPageRows.coerceAtLeast(1)
+        val columns =
+            if (desktop.kind == com.shuiyu.octoberrain.core.common.DesktopKind.LIST) {
+                1
+            } else {
+                desktop.firstGridColumns(
+                    desktop.orientation != com.shuiyu.octoberrain.core.common.DesktopOrientation.PORTRAIT,
+                )
+            }
+        val rows =
+            (
+                if (desktop.kind == com.shuiyu.octoberrain.core.common.DesktopKind.LIST) {
+                    desktop.listFirstRows
+                } else {
+                    desktop.firstGridRows(
+                        desktop.orientation != com.shuiyu.octoberrain.core.common.DesktopOrientation.PORTRAIT,
+                    )
+                }
+            ).coerceAtLeast(1)
         return columns * rows
     }
 }
@@ -427,7 +568,6 @@ private const val APP_PREFIX = "app:"
 private val SPECIAL_ENTRIES =
     listOf(
         "special:weread",
-        "special:koreader",
         "special:files",
         "special:settings",
     )
@@ -477,10 +617,130 @@ private fun com.shuiyu.octoberrain.core.common.DesktopConfig.toThemeLayout(): Th
     ThemeLayout(
         columns = columns,
         rows = rows,
-        columnSpacingDp = columnSpacingDp,
-        rowSpacingDp = rowSpacingDp,
+        firstPageColumns = firstPageColumns,
+        portraitFirstPageRows = portraitFirstPageRows,
+        portraitFirstPageColumns = portraitFirstPageColumns,
+        landscapeFirstPageRows = landscapeFirstPageRows,
+        landscapeFirstPageColumns = landscapeFirstPageColumns,
+        listRows = listRows,
+        listFirstRows = listFirstRows,
+        listAlign = listAlign,
+        listMarginDp = listMarginDp,
+        columnSpacingDp = 0,
+        rowSpacingDp = 0,
         iconSizeDp = iconSizeDp,
         labelTextSp = labelTextSp,
         firstPageRows = firstPageRows,
         gridAlign = gridAlign,
+        portraitColumns = portraitColumns,
+        portraitRows = portraitRows,
+        landscapeColumns = landscapeColumns,
+        landscapeRows = landscapeRows,
     )
+
+/** HOME只替换主题涉及目标；透明仅精确匹配，不参与图片的位置补位。 */
+internal fun mergeThemeAppearance(
+    current: AppearanceConfig,
+    theme: BeautifyTheme,
+    images: Map<String, String>,
+    deviceOrder: List<String>,
+): AppearanceConfig {
+    val known = deviceOrder.map(IconTargets::normalizeStoredKey).toSet()
+    val involved = theme.order.map(IconTargets::normalizeStoredKey).toSet() + images.keys
+    val transparent =
+        theme.transparentIconTargets
+            ?.map(IconTargets::normalizeStoredKey)
+            ?.filter {
+                it in known &&
+                    (theme.scope == ThemeScope.ALL || it in involved)
+            }?.toSet()
+    val baseImages =
+        if (theme.scope ==
+            ThemeScope.ALL
+        ) {
+            emptyMap()
+        } else {
+            current.iconOverrides.filterKeys { it !in involved }
+        }
+    val mergedImages = (baseImages + images).filterKeys { transparent == null || it !in transparent }
+    val baseTransparent =
+        when {
+            transparent == null -> current.transparentIconTargets
+            theme.scope == ThemeScope.ALL -> emptySet()
+            else -> current.transparentIconTargets - involved
+        }
+    return current.copy(
+        iconOverrides = mergedImages,
+        transparentIconTargets = (baseTransparent + transparent.orEmpty()) - mergedImages.keys,
+        showLabels = theme.showLabels ?: current.showLabels,
+    )
+}
+
+/** HOME不改其他页容量；旧列表主题仍从原rows字段恢复对应容量。 */
+internal fun applyThemeLayout(
+    current: DesktopConfig,
+    layout: ThemeLayout?,
+    scope: ThemeScope,
+): DesktopConfig {
+    if (layout == null) return current
+    val homeOnly = scope == ThemeScope.HOME
+    val capacity = resolveDirectionCapacity(current, layout, homeOnly)
+    return current.copy(
+        columns = if (homeOnly) current.columns else layout.columns,
+        rows = if (homeOnly) current.rows else layout.rows,
+        firstPageColumns = layout.firstPageColumns ?: layout.columns,
+        firstPageRows = layout.firstPageRows,
+        portraitFirstPageRows = layout.portraitFirstPageRows,
+        portraitFirstPageColumns = layout.portraitFirstPageColumns,
+        landscapeFirstPageRows = layout.landscapeFirstPageRows,
+        landscapeFirstPageColumns = layout.landscapeFirstPageColumns,
+        listRows = if (homeOnly) current.listRows else layout.listRows ?: layout.rows,
+        listFirstRows = layout.listFirstRows ?: layout.firstPageRows,
+        listAlign = layout.listAlign ?: current.listAlign,
+        listMarginDp = layout.listMarginDp ?: current.listMarginDp,
+        portraitColumns = capacity.portraitColumns,
+        portraitRows = capacity.portraitRows,
+        landscapeColumns = capacity.landscapeColumns,
+        landscapeRows = capacity.landscapeRows,
+        columnSpacingDp = 0,
+        rowSpacingDp = 0,
+        iconSizeDp = layout.iconSizeDp,
+        labelTextSp = layout.labelTextSp,
+        gridAlign = layout.gridAlign,
+    )
+}
+
+/** 方向容量的合并结果。 */
+private data class DirectionCapacity(
+    val portraitColumns: Int,
+    val portraitRows: Int,
+    val landscapeColumns: Int,
+    val landscapeRows: Int,
+)
+
+/**
+ * 合并主题里的方向容量。
+ *
+ * 参数 current 为当前桌面配置；layout 为主题布局；homeOnly 表示仅应用首页范围。
+ * 只应用首页时其他页容量保持不变；主题缺少方向字段时沿用当前值。
+ */
+private fun resolveDirectionCapacity(
+    current: DesktopConfig,
+    layout: ThemeLayout,
+    homeOnly: Boolean,
+): DirectionCapacity {
+    if (homeOnly) {
+        return DirectionCapacity(
+            current.portraitColumns,
+            current.portraitRows,
+            current.landscapeColumns,
+            current.landscapeRows,
+        )
+    }
+    return DirectionCapacity(
+        layout.portraitColumns ?: current.portraitColumns,
+        layout.portraitRows ?: current.portraitRows,
+        layout.landscapeColumns ?: current.landscapeColumns,
+        layout.landscapeRows ?: current.landscapeRows,
+    )
+}

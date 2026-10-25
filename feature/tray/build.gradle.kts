@@ -29,8 +29,5 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
-    implementation(project(":core:device"))
     implementation(project(":core:design"))
-    implementation(project(":core:render"))
-    implementation(project(":core:data"))
 }

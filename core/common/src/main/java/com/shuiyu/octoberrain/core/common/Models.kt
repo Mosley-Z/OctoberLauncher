@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 /**
  * 默认不在桌面显示的系统应用。
  *
- * 包含 S4 固件的原生文件管理器与图墨桌面；文件管理由墨盘承担，
+ * 包含 S4 固件的原生文件管理器与图墨桌面；
  * 用户可在设置的「隐藏应用」中恢复显示。
  */
 val DEFAULT_HIDDEN_PACKAGES: Set<String> =
@@ -17,15 +17,13 @@ val DEFAULT_HIDDEN_PACKAGES: Set<String> =
 /**
  * 默认隐藏的内置入口。
  *
- * 微信读书、文件与书架入口不再显示在桌面：书架由负一屏承担，
- * 文件管理交由墨盘，微信读书阅读应用本身保留在应用列表中。
+ * 微信读书与旧书架入口默认隐藏；文件与设置入口默认显示。
+ * 文件入口可在桌面偏好的隐藏管理中关闭或恢复，安装应用显隐独立保存。
  */
 val DEFAULT_HIDDEN_SPECIALS: Set<String> =
     setOf(
         "special:weread",
-        "special:files",
         "special:bookshelf",
-        "special:koreader",
     )
 
 /**
@@ -229,6 +227,24 @@ enum class SortMode {
 @Serializable
 data class DesktopConfig(
     val kind: DesktopKind = DesktopKind.GRID,
+    val mode: DesktopMode = DesktopMode.NORMAL,
+    val orientation: DesktopOrientation = DesktopOrientation.PORTRAIT,
+    val favoriteEntryKeys: List<String> = emptyList(),
+    val favoriteCount: Int = 4,
+    /**
+     * 旧版组件轮换列表，已停用。
+     *
+     * 保留字段只为读取旧配置与备份；桌面不再按列表轮换组件，也不占用组件槽位，
+     * 加载时由配置迁移清空。
+     */
+    val widgetCycleIds: List<String> = emptyList(),
+    /**
+     * 旧版组件切换手势，已停用。
+     *
+     * 保留字段只为读取旧配置与备份；加载时由配置迁移改写为关闭，
+     * 组件选择统一由组件库决定。
+     */
+    val widgetSwitchGesture: WidgetSwitchGesture = WidgetSwitchGesture.OFF,
     val widgetId: String = "clock",
     val iconOnly: Boolean = false,
     val sortMode: SortMode = SortMode.INSTALL_TIME,
@@ -242,6 +258,12 @@ data class DesktopConfig(
     val swipeMinDp: Int = 48,
     /** 自定义图片组件的图片路径，空表示使用占位图。 */
     val widgetImagePath: String? = null,
+    /**
+     * 图片组件的手动切图方向，默认关闭，取值见 [IMAGE_SWIPE_OFF] 等常量。
+     *
+     * 只记录手指滑动方向与图片切换的对应关系，不参与轮播间隔计算。
+     */
+    val imageSwipeDirection: Int = IMAGE_SWIPE_OFF,
     /** 图片组件多图轮播的切换间隔，单位秒，取值见 [IMAGE_CAROUSEL_OPTIONS]。 */
     val imageCarouselSeconds: Int = IMAGE_CAROUSEL_DEFAULT,
     /**
@@ -250,12 +272,38 @@ data class DesktopConfig(
      * 第零位本周、第一位本月、第二位本书、第三位本记、第四位待办，默认五形态全开。
      */
     val wereadBoardPoolMask: Int = WEREAD_BOARD_POOL_DEFAULT,
+    /**
+     * 待办周历的每周起始星期，ISO 取值 1 为周一、7 为周日。
+     *
+     * 只记录星期，不含具体的日期窗口；临时平移出的七天不写入配置。
+     */
+    val todoWeekStartDay: Int = TODO_WEEK_START_DEFAULT,
     val columnSpacingDp: Int = 0,
     val rowSpacingDp: Int = 0,
     val iconSizeDp: Int = 0,
     val labelTextSp: Float = 0f,
     val gridAlign: GridAlign = GridAlign.CENTER,
     val firstPageRows: Int = 0,
+    /** 首页列数独立于其他页，0按屏幕自动计算。 */
+    val firstPageColumns: Int = 0,
+    val portraitFirstPageRows: Int? = null,
+    val portraitFirstPageColumns: Int? = null,
+    val landscapeFirstPageRows: Int? = null,
+    val landscapeFirstPageColumns: Int? = null,
+    val pageWidgets: Map<Int, PageWidgetConfig> = emptyMap(),
+    /** 其他页竖屏列数，0继承 [columns] 的既有行为。 */
+    val portraitColumns: Int = 0,
+    /** 其他页竖屏行数，0继承 [rows] 的既有行为。 */
+    val portraitRows: Int = 0,
+    /** 其他页横屏列数，0继承 [columns] 的既有行为。 */
+    val landscapeColumns: Int = 0,
+    /** 其他页横屏行数，0继承 [rows] 的既有行为。 */
+    val landscapeRows: Int = 0,
+    /** 列表容量独立于宫格；0为自动。 */
+    val listRows: Int = 0,
+    val listFirstRows: Int = 0,
+    val listAlign: GridAlign = GridAlign.LEFT,
+    val listMarginDp: Int = 20,
     val longPressMenuMs: Int = 400,
     val editHoldMs: Int = 1200,
     val negativePage: NegativePageConfig = NegativePageConfig(),
@@ -325,6 +373,26 @@ val IMAGE_CAROUSEL_OPTIONS: List<Int> = listOf(5, 10, 15, 30, 60)
 /** 图片组件多图轮播间隔的默认值，单位秒。 */
 const val IMAGE_CAROUSEL_DEFAULT: Int = 15
 
+/** 图片组件手动切图关闭，点击与轮播行为保持不变。 */
+const val IMAGE_SWIPE_OFF: Int = 0
+
+/** 图片组件只按左右方向切图。 */
+const val IMAGE_SWIPE_HORIZONTAL: Int = 1
+
+/** 图片组件只按上下方向切图。 */
+const val IMAGE_SWIPE_VERTICAL: Int = 2
+
+/** 图片组件同时按左右与上下方向切图。 */
+const val IMAGE_SWIPE_BOTH: Int = 3
+
+/**
+ * 图片组件手动切图方向的生效值。
+ *
+ * 配置值落在 0 到 3 之外时回退 [IMAGE_SWIPE_OFF]，旧版本配置缺少该字段时保持关闭。
+ */
+val DesktopConfig.effectiveImageSwipeDirection: Int
+    get() = imageSwipeDirection.takeIf { it in IMAGE_SWIPE_OFF..IMAGE_SWIPE_BOTH } ?: IMAGE_SWIPE_OFF
+
 /**
  * 图片组件多图轮播间隔的生效值。
  *
@@ -343,6 +411,68 @@ const val WEREAD_BOARD_POOL_LIMIT: Int = 0b11111
 /** 微读整体卡片当前可用的形态位，零值时退回全部形态。 */
 val DesktopConfig.effectiveWereadBoardPoolMask: Int
     get() = (wereadBoardPoolMask and WEREAD_BOARD_POOL_LIMIT).takeIf { it != 0 } ?: WEREAD_BOARD_POOL_DEFAULT
+
+/** 待办周历每周起始星期的默认值，周一。 */
+const val TODO_WEEK_START_DEFAULT: Int = 1
+
+/**
+ * 待办周历每周起始星期的生效值。
+ *
+ * 配置值不在 ISO 星期范围 1 到 7 内时回退 [TODO_WEEK_START_DEFAULT]，
+ * 旧版本配置缺少该字段时同样取默认值。
+ */
+val DesktopConfig.effectiveTodoWeekStartDay: Int
+    get() = todoWeekStartDay.takeIf { it in 1..7 } ?: TODO_WEEK_START_DEFAULT
+
+/**
+ * 其他页竖屏列数的生效值，配置为 0 时沿用 [DesktopConfig.columns]。
+ */
+val DesktopConfig.effectivePortraitColumns: Int
+    get() = portraitColumns.takeIf { it > 0 } ?: columns
+
+/**
+ * 其他页竖屏行数的生效值，配置为 0 时沿用 [DesktopConfig.rows]。
+ */
+val DesktopConfig.effectivePortraitRows: Int
+    get() = portraitRows.takeIf { it > 0 } ?: rows
+
+/**
+ * 其他页横屏列数的生效值，配置为 0 时沿用 [DesktopConfig.columns]。
+ */
+val DesktopConfig.effectiveLandscapeColumns: Int
+    get() = landscapeColumns.takeIf { it > 0 } ?: columns
+
+/**
+ * 其他页横屏行数的生效值，配置为 0 时沿用 [DesktopConfig.rows]。
+ */
+val DesktopConfig.effectiveLandscapeRows: Int
+    get() = landscapeRows.takeIf { it > 0 } ?: rows
+
+/**
+ * 当前实际生效的组件标识。
+ *
+ * 只取 [DesktopConfig.widgetId]；旧轮换列表已停用，不再参与判断。
+ * 空白结果表示桌面不占用组件槽位，其他页与首页都按整页容量排版。
+ */
+val DesktopConfig.effectiveWidgetId: String
+    get() = widgetId.takeIf { it in BUILT_IN_WIDGET_IDS }.orEmpty()
+
+/** 内置组件槽位契约，未知或退役标识不占桌面空间。 */
+val BUILT_IN_WIDGET_IDS: Set<String> =
+    setOf(
+        "clock",
+        "calendar",
+        "todo_week",
+        "image",
+        "placeholder",
+        WEREAD_BOARD_WIDGET_ID,
+        "clock_book_page",
+        "clock_divided",
+        "clock_dot_matrix",
+        "clock_study_dial",
+        "clock_chinese",
+        "clock_time_date",
+    )
 
 /**
  * 外观配置。
@@ -364,6 +494,8 @@ val DesktopConfig.effectiveWereadBoardPoolMask: Int
 data class AppearanceConfig(
     val wallpaperPath: String? = null,
     val wallpaperWhiteOverlay: Boolean = false,
+    /** 横屏图片转向，独立于桌面方向。 */
+    val wallpaperLandscapeRotation: Int = 0,
     val labelFontPath: String? = null,
     val clockFont: String = "default",
     val twelveHour: Boolean = false,
@@ -392,6 +524,8 @@ data class AppearanceConfig(
      * 图标加载时优先使用覆盖图片，清除后回退系统图标。
      */
     val iconOverrides: Map<String, String> = emptyMap(),
+    /** 透明状态独立于图片路径；键遵守IconTargets规范化规则。 */
+    val transparentIconTargets: Set<String> = emptySet(),
     /** 缩略图质量档位：0 省内存、1 平衡、2 清晰；默认平衡，与既有 256 长边一致。 */
     val thumbnailQuality: Int = THUMBNAIL_QUALITY_DEFAULT,
     /** 缩略图写入磁盘前是否量化为四档灰；默认开启，与既有行为一致。 */
@@ -411,24 +545,16 @@ data class AppearanceConfig(
 }
 
 /**
- * 快捷托盘配置。
+ * 状态栏与刷新配置，保留tray存储分区以兼容旧配置。
  *
- * 参数 brightnessCold 与 brightnessWarm 为前光两通道档位，取值 0 到 10；
- * notificationLimit 为托盘内通知条数上限；overlayEnabled 为悬浮层开关；
+ * overlayEnabled 为已有悬浮状态栏开关；
  * autoRefreshMinutes 为定时整屏刷新间隔，0 表示关闭；
  * refreshOnAppExit 表示从其他应用回到桌面后执行一次整屏刷新，
  * refreshOnAppExitDelayMs 为该次刷新的延迟毫秒数，用于等待窗口合成完成。
  */
 @Serializable
 data class TrayConfig(
-    val enabled: Boolean = true,
-    val notificationLimit: Int = 4,
-    val brightnessCold: Int = 5,
-    val brightnessWarm: Int = 5,
-    val mediaEnabled: Boolean = true,
     val overlayEnabled: Boolean = false,
-    val showWifi: Boolean = true,
-    val showBluetooth: Boolean = true,
     val showBatteryPercent: Boolean = true,
     val autoRefreshMinutes: Int = 10,
     val volumeKeyFlip: Boolean = false,
@@ -439,11 +565,10 @@ data class TrayConfig(
 /**
  * 通知展示配置。
  *
- * 参数 foldByApp 表示同一应用的多条通知在托盘内折叠为一组；
+ * 参数 foldByApp 表示同一应用的多条通知折叠为一组，供角标计数；
  * mergeConversation 表示按会话合并同一聊天应用的连续通知；
  * stripSummary 表示丢弃系统汇总类通知的证据文本；
- * badgeMax 为桌面角标显示的最大数值，超出显示为加号；
- * showAppLabel 表示通知条目是否附带应用名。
+ * badgeMax 为桌面角标显示的最大数值，超出显示为加号。
  */
 @Serializable
 data class NotificationConfig(
@@ -451,7 +576,6 @@ data class NotificationConfig(
     val mergeConversation: Boolean = true,
     val stripSummary: Boolean = true,
     val badgeMax: Int = 99,
-    val showAppLabel: Boolean = true,
     val badgeEnabled: Boolean = true,
 )
 
@@ -694,7 +818,6 @@ data class WereadDeskConfig(
 data class IntegrationsConfig(
     val wereadApiKey: String = "",
     val wereadEnabled: Boolean = true,
-    val koreaderEnabled: Boolean = true,
     /**
      * 书架是否收录本地目录中的书籍。
      *
@@ -718,6 +841,8 @@ data class IntegrationsConfig(
     val wereadStatsRange: String = WEREAD_STATS_DEFAULT,
     val updateChannel: String = "stable",
     val updateUrl: String = "",
+    /** 可选国内更新清单地址，按顺序尝试；GitHub内置地址始终作为兜底。 */
+    val updateFallbackUrls: List<String> = emptyList(),
     /** 墨单卡片的外观与筛选配置，同时作用于负一屏墨单与桌面整体卡片的墨单形态。 */
     val wereadMenu: WereadMenuConfig = WereadMenuConfig(),
     /** 微读墨记墨台的分区顺序与开关，负一屏三项与桌面整体卡片共用。 */
@@ -769,6 +894,8 @@ data class IntegrationsConfig(
 data class OnboardingConfig(
     val completed: Boolean = false,
     val createdAt: Long = 0L,
+    val step: Int = 0,
+    val wereadDecision: Boolean? = null,
 )
 
 /**
@@ -819,7 +946,7 @@ data class LauncherConfig(
 ) {
     companion object {
         /** 当前配置结构版本，读取旧配置时据此执行迁移。 */
-        const val CURRENT_VERSION = 13
+        const val CURRENT_VERSION = 16
     }
 }
 
@@ -861,7 +988,6 @@ enum class EntryType {
 enum class SpecialEntry {
     BOOKSHELF,
     FILES,
-    KOREADER,
     SEARCH,
     SETTINGS,
     WEREAD,
@@ -890,12 +1016,10 @@ enum class Capability {
     BLUETOOTH,
     FRONT_LIGHT,
     NOTIFICATIONS,
-    USAGE_ACCESS,
     LOCATION,
     STORAGE,
     OVERLAY,
     WEREAD,
-    KOREADER,
     MEDIA,
     WEATHER,
     BATTERY,
@@ -956,7 +1080,7 @@ data class MediaState(
  * 通知条目。
  *
  * 参数 key 为去重键；postedAt 为投递时间；
- * appLabel 为应用显示名，供托盘与桌面角标展示；
+ * appLabel 为应用显示名，供共享通知模型识别应用；
  * groupKey 为会话归并键，同一会话的连续通知共享该键；
  * conversationTitle 为会话名或群名，普通通知为空；
  * isSummary 表示系统汇总通知，isOngoing 表示常驻通知；
@@ -978,7 +1102,7 @@ data class NotificationItem(
 )
 
 /**
- * 阅读快照，覆盖 KOReader 与本地书架。
+ * 阅读快照，覆盖微信读书与本地书架。
  *
  * 参数 source 为来源标识；progress 为 0 到 1 的阅读进度；
  * todayMinutes 与 monthMinutes 为阅读时长。
@@ -1022,13 +1146,6 @@ data class WeatherDay(
     val code: String,
 )
 
-/** 使用统计条目。 */
-data class UsageEntry(
-    val label: String,
-    val packageName: String,
-    val minutes: Int,
-)
-
 /** 书架条目。 */
 @Serializable
 data class BookItem(
@@ -1066,12 +1183,6 @@ data class WereadHighlight(
     val createdAt: Long,
 )
 
-/** KOReader 月热力数据。 */
-data class KoreaderHeat(
-    val days: List<Int>,
-    val maxMinutes: Int,
-)
-
 /** 书架合集。 */
 data class BookCollection(
     val id: String,
@@ -1106,6 +1217,21 @@ data class ThemeLayout(
     val labelTextSp: Float = 0f,
     val firstPageRows: Int = 0,
     val gridAlign: GridAlign = GridAlign.CENTER,
+    /** null表示旧主题未提供该项；显式0为自动。 */
+    val firstPageColumns: Int? = null,
+    val portraitFirstPageRows: Int? = null,
+    val portraitFirstPageColumns: Int? = null,
+    val landscapeFirstPageRows: Int? = null,
+    val landscapeFirstPageColumns: Int? = null,
+    val listRows: Int? = null,
+    val listFirstRows: Int? = null,
+    val listAlign: GridAlign? = null,
+    val listMarginDp: Int? = null,
+    /** null表示旧主题未提供方向容量；显式0为自动。 */
+    val portraitColumns: Int? = null,
+    val portraitRows: Int? = null,
+    val landscapeColumns: Int? = null,
+    val landscapeRows: Int? = null,
 )
 
 /**
@@ -1124,4 +1250,20 @@ data class BeautifyTheme(
     val order: List<String> = emptyList(),
     val layout: ThemeLayout? = null,
     val scope: ThemeScope = ThemeScope.ALL,
+    /** null为旧主题缺字段；空集合为显式清空。 */
+    val transparentIconTargets: Set<String>? = null,
+    val showLabels: Boolean? = null,
+    /** null不覆盖当前壁纸；对象内path=null显式纯白。 */
+    val wallpaper: ThemeWallpaper? = null,
+)
+
+/** 主题私有桌面壁纸及处理参数，图片转向独立于桌面方向，不携带锁屏配置。 */
+@Serializable
+data class ThemeWallpaper(
+    val path: String? = null,
+    val dim: Float = 0f,
+    val quantize: Int = 0,
+    val whiteOverlay: Boolean = false,
+    /** 旧主题缺失时保留本机选择。 */
+    val landscapeRotation: Int? = null,
 )

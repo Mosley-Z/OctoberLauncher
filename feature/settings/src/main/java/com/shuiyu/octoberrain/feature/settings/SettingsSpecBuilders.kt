@@ -153,15 +153,3 @@ internal fun labelFontLabel(config: LauncherConfig): CharSequence {
     return fonts.firstOrNull { it.path == path }?.label
         ?: runCatching { java.io.File(path).name }.getOrDefault("已导入字体")
 }
-
-/** 钟面字体显示名。 */
-internal fun clockFontLabel(config: LauncherConfig): CharSequence {
-    val id = config.appearance.clockFont
-    val faces =
-        runCatching {
-            com.shuiyu.octoberrain.core.common.AppServices.fonts
-                .fonts()
-        }.getOrDefault(com.shuiyu.octoberrain.core.common.FontInfo.BUILTIN)
-    return faces.firstOrNull { it.id == id }?.label
-        ?: runCatching { java.io.File(id.removePrefix("file:")).name }.getOrDefault(id)
-}

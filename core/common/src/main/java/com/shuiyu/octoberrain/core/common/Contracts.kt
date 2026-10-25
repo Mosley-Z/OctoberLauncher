@@ -257,7 +257,7 @@ interface WereadContent {
 }
 
 /**
- * 内容数据入口，覆盖本地书架、KOReader、微信读书、天气与使用统计。
+ * 内容数据入口，覆盖本地书架、微信读书、天气与文件。
  *
  * 微信读书读取能力由 [WereadContent] 提供；所有方法在主线程之外调用，实现内部
  * 自行处理缓存与失败。
@@ -272,14 +272,8 @@ interface ContentSource : WereadContent {
     /** 当前天气，无网络或未授权返回 null。 */
     suspend fun weather(): WeatherSnapshot?
 
-    /** 当日应用使用时长降序。 */
-    suspend fun usageToday(): List<UsageEntry>
-
     /** 书架条目，按最近加入排序。 */
     suspend fun bookshelf(limit: Int = 20): List<BookItem>
-
-    /** KOReader 月热力。 */
-    suspend fun koreaderHeat(): KoreaderHeat?
 
     /** 搜索书籍。 */
     suspend fun searchBooks(query: String): List<BookItem>
@@ -380,6 +374,14 @@ sealed interface Destination {
      */
     data object LauncherPrefs : Destination
 
+    data object ProjectWidgets : Destination
+
+    data object ProjectRefresh : Destination
+
+    data object ProjectContent : Destination
+
+    data object ProjectAbout : Destination
+
     data object Appearance : Destination
 
     data object DesktopPrefs : Destination
@@ -396,13 +398,14 @@ sealed interface Destination {
 
     data object WidgetPicker : Destination
 
-    data object ThemePicker : Destination
+    data class PageWidgetPicker(
+        val page: Int,
+    ) : Destination
 
     data object IconPackPicker : Destination
 
     /**
      * 美化模式：左侧按桌面顺序列出应用，右侧浏览图片为应用换图标，
-     * 并支持保存、应用、导入与导出主题。
      */
     data object Beautify : Destination
 
@@ -489,25 +492,14 @@ sealed interface Destination {
         val section: WereadSection = WereadSection.OVERVIEW,
     ) : Destination
 
-    data object Koreader : Destination
-
     data object Search : Destination
 
     data class AppInfo(
         val packageName: String,
     ) : Destination
 
-    /** 最近任务与使用统计页。 */
-    data object Recents : Destination
-
     /** 配置备份与恢复页。 */
     data object Backup : Destination
-
-    /** 通知展示设置页。 */
-    data object NotificationPrefs : Destination
-
-    /** 钟面样式选择页。 */
-    data object ClockStyle : Destination
 
     /** 本书页：单本书的阅读统计与笔记汇总，入口来自负一屏书架与排行。 */
     data object Book : Destination
@@ -537,15 +529,18 @@ private val destinationLabels: Map<Destination, String> =
         Destination.Settings to "设置",
         Destination.SystemSettings to "系统设置",
         Destination.LauncherPrefs to "桌面偏好",
+        Destination.ProjectWidgets to "桌面组件",
+        Destination.ProjectRefresh to "墨水屏刷新",
+        Destination.ProjectContent to "内容、权限与备份",
+        Destination.ProjectAbout to "关于十雨",
         Destination.Appearance to "外观",
         Destination.DesktopPrefs to "桌面设置",
-        Destination.TrayPrefs to "托盘设置",
+        Destination.TrayPrefs to "状态栏与通知",
         Destination.LockSettings to "锁屏设置",
         Destination.Permissions to "权限",
         Destination.About to "关于",
         Destination.Update to "更新",
         Destination.WidgetPicker to "选择组件",
-        Destination.ThemePicker to "主题",
         Destination.IconPackPicker to "图标包",
         Destination.Beautify to "美化模式",
         Destination.BeautifyPreview to "预览",
@@ -553,13 +548,9 @@ private val destinationLabels: Map<Destination, String> =
         Destination.Bookshelf to "书架",
         Destination.BookshelfSettings to "书架设置",
         Destination.Weread to "微信读书",
-        Destination.Koreader to "KOReader",
         Destination.Search to "搜索",
         Destination.Negative to "负一屏",
-        Destination.Recents to "最近任务",
         Destination.Backup to "备份与恢复",
-        Destination.NotificationPrefs to "通知展示",
-        Destination.ClockStyle to "钟面样式",
         Destination.Book to "本书",
         Destination.Note to "本记",
         Destination.NegativeSettings to "负一屏设置",
@@ -583,6 +574,7 @@ fun Destination.displayLabel(): String =
         is Destination.Album -> "相册"
         is Destination.WereadTab -> "微信读书"
         is Destination.AppInfo -> "应用信息"
+        is Destination.PageWidgetPicker -> "选择组件"
         else -> destinationLabels[this] ?: "页面"
     }
 
@@ -696,24 +688,8 @@ interface LockGate {
     fun onScreenOff()
 }
 
-/** 托盘入口，由托盘模块实现。 */
+/** Existing desktop status-bar factory. */
 interface TrayController {
-    /** 是否已展开。 */
-    val isOpen: Boolean
-
-    /** 展开托盘。 */
-    fun open()
-
-    /** 收起托盘。 */
-    fun close()
-
-    /** 切换托盘。 */
-    fun toggle()
-
-    /** 创建托盘覆盖视图。 */
-    fun createOverlay(context: Context): View
-
-    /** 创建状态栏视图。 */
     fun createStatusBar(context: Context): View
 }
 
@@ -925,12 +901,19 @@ data class DesktopLayoutSnapshot(
     val rowsPerPage: Int,
     /** 按页划分的条目，首页为下标 0。 */
     val pages: List<List<LauncherEntry>>,
+    /** 首页可采用独立列数；旧调用默认沿用其他页列数。 */
+    val firstPageColumns: Int = columns,
+    val pageColumns: List<Int> = emptyList(),
+    val pageRows: List<Int> = emptyList(),
 )
 
 /** 桌面布局入口，由 feature/home 实现。 */
 interface DesktopLayoutProvider {
     /** 读取当前桌面分页快照，应用或配置变化后实时反映。 */
     fun snapshot(): DesktopLayoutSnapshot
+
+    /** 以当前实际视口预计算配置，供设置限制容量；不得写配置。 */
+    fun preview(config: LauncherConfig): DesktopLayoutSnapshot = snapshot()
 }
 
 /**
@@ -1043,20 +1026,11 @@ interface Permissions {
     /** 打开无障碍设置。 */
     fun openAccessibilitySettings()
 
-    /** 打开悬浮窗设置。 */
-    fun openOverlaySettings()
-
-    /** 打开应用通知设置。 */
-    fun openAppNotificationSettings()
-
     /** 打开电池优化设置。 */
     fun openBatterySettings()
 
     /** 打开本应用设置页。 */
     fun openAppSettings()
-
-    /** 打开使用情况访问设置。 */
-    fun openUsageSettings()
 
     /** 打开存储管理设置。 */
     fun openStorageSettings()
@@ -1152,6 +1126,12 @@ interface IconOverrideStore {
         packageName: String,
         uri: android.net.Uri,
     ): Boolean
+
+    /** 切换透明状态；启用时移除图片覆盖。 */
+    fun setTransparent(
+        targetId: String,
+        enabled: Boolean,
+    )
 
     /** 清除指定应用的覆盖图标。 */
     fun clearOverride(packageName: String)
@@ -1292,9 +1272,12 @@ data class UpdateInfo(
     val downloadUrl: String,
     val sha256: String,
     val sizeBytes: Long,
+    /** 相同签名、版本及摘要的备用下载地址，供国内镜像使用。 */
+    val downloadUrls: List<String> = emptyList(),
 )
 
 /** 更新日志条目。 */
+@kotlinx.serialization.Serializable
 data class ChangelogEntry(
     val version: String,
     val date: String,

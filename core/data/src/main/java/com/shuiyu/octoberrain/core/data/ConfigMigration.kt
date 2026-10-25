@@ -2,7 +2,6 @@ package com.shuiyu.octoberrain.core.data
 
 import com.shuiyu.octoberrain.core.common.DEFAULT_HIDDEN_PACKAGES
 import com.shuiyu.octoberrain.core.common.DEFAULT_NEGATIVE_MODULES
-import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.IntegrationsConfig
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.NEGATIVE_MODULE_ID_ALIASES
@@ -27,8 +26,6 @@ import com.shuiyu.octoberrain.core.common.rewriteRemovedWidgetIds
  * 8. v10 到 v11：书架书源从两个启用开关合并为负一屏的单一书源。
  */
 object ConfigMigration {
-    private const val TAG = "配置迁移"
-
     /** 第二版配置的版本号。 */
     private const val VERSION_V2 = 2
 
@@ -91,8 +88,9 @@ object ConfigMigration {
     fun migrate(
         config: LauncherConfig,
         shelfSourcePresent: Boolean = false,
+        desktopLayoutFields: Set<String> = emptySet(),
     ): LauncherConfig {
-        if (config.version >= LauncherConfig.CURRENT_VERSION) return config
+        if (config.version > LauncherConfig.CURRENT_VERSION) return config
         var migrated = config
         if (migrated.version < VERSION_V2) {
             migrated = migrateV1ToV2(migrated)
@@ -128,12 +126,10 @@ object ConfigMigration {
         if (migrated.version < VERSION_V13) {
             migrated = migrated.copy(version = VERSION_V13)
         }
-        if (migrated.version != LauncherConfig.CURRENT_VERSION) {
-            // 高于当前版本的配置在函数入口已原样返回；此分支只防御未来新增版本号却缺少迁移步骤的构建，
-            // 保留原版本与字段，避免以当前版本号覆盖后导致高版本字段在下次读写中丢失。
-            InkLog.w(TAG, "配置版本 ${migrated.version} 缺少迁移步骤，保留原版本与字段")
-        }
-        return migrated
+        migrated = DesktopLayoutMigration.migrate(migrated, desktopLayoutFields)
+        migrated = FilesEntryMigration.migrate(migrated)
+        migrated = RetiredIntegrations.sanitize(migrated).copy(version = LauncherConfig.CURRENT_VERSION)
+        return if (migrated == config) config else migrated
     }
 
     /**

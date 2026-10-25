@@ -11,6 +11,19 @@ import org.junit.Test
  * 覆盖书目数量、边界位置、拖动范围、落位提交与各层缩放、间距换算。
  */
 class WereadBoardCarouselTest {
+    @Test
+    fun tenBookCycleStartsAtFirstAndWrapsBothDirections() {
+        val carousel = WereadBoardCarousel().apply { looping = true }
+        carousel.reset(10, 0)
+        assertEquals(0, carousel.selectedIndex)
+        carousel.commit(-1)
+        assertEquals(9, carousel.selectedIndex)
+        carousel.commit(10)
+        assertEquals(0, carousel.selectedIndex)
+        repeat(10) { carousel.commit(carousel.selectedIndex + 1) }
+        assertEquals(0, carousel.selectedIndex)
+    }
+
     /** 空列表不产生任何封面层。 */
     @Test
     fun emptyListHasNoSlots() {
@@ -127,5 +140,77 @@ class WereadBoardCarouselTest {
         val farLeft = WereadBoardCarousel.offsetAt(2f) - WereadBoardCarousel.scaleAt(2f) / 2f
         val sideLeft = WereadBoardCarousel.offsetAt(1f) - WereadBoardCarousel.scaleAt(1f) / 2f
         assertTrue(farLeft < sideLeft)
+    }
+
+    @Test
+    fun immersiveFirstBookHasBothNeighborsAcrossBoundary() {
+        val carousel =
+            WereadBoardCarousel().apply {
+                looping = true
+                reset(8, 0)
+            }
+        val slots = carousel.slots()
+        assertEquals(listOf(-2f, 2f, -1f, 1f, 0f), slots.map { it.position })
+        assertEquals(listOf(6, 2, 7, 1, 0), slots.map { it.index })
+        carousel.setPosition(-.8f)
+        assertEquals(7, carousel.nearestIndex())
+        carousel.commit(carousel.nearestIndex())
+        carousel.setPosition(7.8f)
+        assertEquals(0, carousel.nearestIndex())
+    }
+
+    @Test
+    fun immersiveSmallShelvesNeverDuplicateBooks() {
+        for (count in 1..5) {
+            val carousel =
+                WereadBoardCarousel().apply {
+                    looping = true
+                    reset(count, 0)
+                }
+            assertEquals(count, carousel.slots().size)
+            assertEquals(
+                count,
+                carousel
+                    .slots()
+                    .map { it.index }
+                    .distinct()
+                    .size,
+            )
+            assertEquals(0, carousel.slots().last().index)
+        }
+    }
+
+    @Test
+    fun immersiveOuterCoversRemainVisibleAndHittable() {
+        val frame = WereadBoardFrame.of(440f, 440f, 0f).copy(expandedCoverRings = true)
+        val near = coverBoundsOf(frame, WereadCoverSlot(1, 1f))
+        val far = coverBoundsOf(frame, WereadCoverSlot(2, 2f))
+        assertTrue(far.right > near.right)
+        val point = (near.right + far.right) / 2
+        assertTrue(far.contains(point, far.centerY))
+        assertFalse(near.contains(point, far.centerY))
+    }
+
+    /** 左滑换下一本、右滑换上一本，短滑回弹。 */
+    @Test
+    fun dragDirectionMapsToNeighborBook() {
+        assertEquals(1, swipeDirectionOf(0.5f))
+        assertEquals(-1, swipeDirectionOf(-0.5f))
+        assertEquals(0, swipeDirectionOf(0.2f))
+        assertEquals(0, swipeDirectionOf(-0.2f))
+    }
+
+    /** 循环轮播在首尾两侧都能取到相邻书。 */
+    @Test
+    fun loopingNeighborsWrapAround() {
+        val carousel =
+            WereadBoardCarousel().apply {
+                looping = true
+                reset(3, 0)
+            }
+        assertTrue(carousel.commit(-1))
+        assertEquals(2, carousel.selectedIndex)
+        assertTrue(carousel.commit(3))
+        assertEquals(0, carousel.selectedIndex)
     }
 }

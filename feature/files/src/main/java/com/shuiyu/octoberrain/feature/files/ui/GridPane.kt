@@ -13,8 +13,8 @@ import kotlinx.coroutines.CoroutineScope
 /**
  * 网格浏览面板。
  *
- * 固定四列四行、每页 16 项；单元格按内容区宽度均分，缩略图高度取四分之三宽度，
- * 内容区不足以容纳四行时按 [FileMetrics.gridCellDrawH] 压缩缩略图。
+ * 竖屏三列、横屏五列，行数按实测可用高度选择；单元格按内容区宽度均分，缩略图始终为列格内居中的正方形，
+ * 可用内容区变化时按 [FileMetrics.gridCellDrawH] 压缩缩略图。
  * 目录绘制文件夹图标，图片绘制居中裁剪的缩略图，其余文件绘制文件名与扩展名标签。
  *
  * 参数与 [BrowsePane] 一致。
@@ -28,10 +28,10 @@ internal class GridPane(
 ) : BrowsePane(context, tokens, prefs, scope, callbacks) {
     private val smallPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = tokens.smallText
+            textSize = tokens.gridLabelText
             color = InkColors.INK
         }
-    private val badgePaint =
+    private val placeholderPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = tokens.smallText * 0.72f
             color = InkColors.INK
@@ -48,18 +48,14 @@ internal class GridPane(
             strokeWidth = tokens.stroke.toFloat()
             color = InkColors.INK
         }
-    private val paperPaint =
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = InkColors.PAPER
-        }
     private val highlightPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = InkColors.INK_4
         }
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    /** 网格每页固定 16 项。 */
-    override val pageSize: Int get() = FileMetrics.GRID_PAGE
+    /** Grid capacity follows the currently measured geometry. */
+    override val pageSize: Int get() = geometry?.pageSize ?: 1
 
     override fun onDrawContent(
         canvas: Canvas,
@@ -84,7 +80,7 @@ internal class GridPane(
         var index = -1
         if (y >= area.top && y < area.top + metrics.gridDrawH) {
             for (slot in 0 until metrics.pageSize) {
-                if (cellRect(area, metrics, slot).contains(x, y)) {
+                if (metrics.gridCell(slot, area.left, area.top).hit.contains(x, y)) {
                     index = pagerState.firstIndex + slot
                     break
                 }
@@ -92,6 +88,8 @@ internal class GridPane(
         }
         return index
     }
+
+    override val includeEpubThumbnails: Boolean get() = true
 
     override fun thumbEdge(metrics: FileMetrics): Int = minOf(metrics.cellW, metrics.gridCellDrawH)
 
@@ -103,14 +101,15 @@ internal class GridPane(
         slot: Int,
         item: FileItem,
     ) {
-        val cell = cellRect(area, metrics, slot)
-        if (item === pressedItemOrNull) canvas.drawRect(cell, highlightPaint)
+        val geometry = metrics.gridCell(slot, area.left, area.top)
+        val cell = geometry.thumbnail.toAndroidRect()
+        if (item === pressedItemOrNull) canvas.drawRect(geometry.hit.toAndroidRect(), highlightPaint)
         when {
             item.dir -> drawFolder(canvas, cell)
-            item.isImage -> drawImage(canvas, cell, item)
+            item.isImage || (item.isEpub && bitmapOf(item) != null) -> drawImage(canvas, cell, item)
             else -> drawFilePlaceholder(canvas, cell, item)
         }
-        drawLabel(canvas, cell, item)
+        drawLabel(canvas, geometry.label.toAndroidRect(), item, cell.width())
     }
 
     /** 绘制文件夹图标，图标取单元格短边的四成。 */
@@ -129,7 +128,7 @@ internal class GridPane(
         )
     }
 
-    /** 绘制图片缩略图，未就绪时绘制占位框，完成后绘制图片角标。 */
+    /** 绘制图片缩略图，未就绪时绘制占位框，不叠加图片角标。 */
     private fun drawImage(
         canvas: Canvas,
         cell: Rect,
@@ -138,11 +137,10 @@ internal class GridPane(
         val bitmap = bitmapOf(item)
         if (bitmap == null) {
             canvas.drawRect(cell, linePaint)
-            PaneDraw.centered(canvas, BrowseStrings.IMAGE_LOADING, badgePaint, cell)
+            PaneDraw.centered(canvas, BrowseStrings.IMAGE_LOADING, placeholderPaint, cell)
         } else {
             PaneDraw.cropped(canvas, bitmap, cell, bitmapPaint)
         }
-        drawBadge(canvas, cell)
     }
 
     /** 绘制非图片文件占位框，框内显示大写扩展名。 */
@@ -154,20 +152,7 @@ internal class GridPane(
         canvas.drawRect(cell, linePaint)
         val extension = item.extension().removePrefix(".")
         val label = if (extension.isEmpty()) BrowseStrings.OPEN else extension.uppercase()
-        PaneDraw.centered(canvas, label, badgePaint, cell)
-    }
-
-    /** 在单元格右下角绘制图片角标。 */
-    private fun drawBadge(
-        canvas: Canvas,
-        cell: Rect,
-    ) {
-        val width = tokens.dp(18f)
-        val height = tokens.dp(14f)
-        val badge = Rect(cell.right - width, cell.top, cell.right, cell.top + height)
-        canvas.drawRect(badge, paperPaint)
-        canvas.drawRect(badge, linePaint)
-        PaneDraw.centered(canvas, BrowseStrings.IMAGE_BADGE, badgePaint, badge)
+        PaneDraw.centered(canvas, label, placeholderPaint, cell)
     }
 
     /** 在缩略图下方居中绘制名称，超出宽度时截断。 */
@@ -175,22 +160,11 @@ internal class GridPane(
         canvas: Canvas,
         cell: Rect,
         item: FileItem,
+        thumbnailWidth: Int,
     ) {
-        val labelRect = Rect(cell.left, cell.bottom, cell.right, cell.bottom + tokens.cellLabelH)
-        val text = PaneDraw.fit(item.name, smallPaint, cell.width())
-        PaneDraw.centered(canvas, text, smallPaint, labelRect)
-    }
-
-    /** 计算单元格缩略图区域，标签另占一行。 */
-    private fun cellRect(
-        area: Rect,
-        metrics: FileMetrics,
-        slot: Int,
-    ): Rect {
-        val row = slot / FileMetrics.GRID_COLS
-        val column = slot % FileMetrics.GRID_COLS
-        val left = area.left + tokens.padH + column * (metrics.cellW + tokens.gap)
-        val top = area.top + row * (metrics.gridCellDrawH + tokens.cellLabelH + tokens.gap)
-        return Rect(left, top, left + metrics.cellW, top + metrics.gridCellDrawH)
+        val text = PaneDraw.gridLabel(item, smallPaint, thumbnailWidth)
+        PaneDraw.centered(canvas, text, smallPaint, cell)
     }
 }
+
+internal fun FileGridRect.toAndroidRect(): Rect = Rect(left, top, right, bottom)

@@ -16,8 +16,8 @@ import java.util.Locale
  * 选图页。
  *
  * 复用 [FilePager] 的分页、顶栏、底栏与手势，按当前视图形态列出目录与符合过滤条件的文件：
- * 列表模式每行左置缩略图，网格模式四列排布并绘制居中裁剪的封面；两种模式都显示目录项，
- * 点击目录进入、点击文件回传。列表行数按内容区高度换算，网格固定四行四列，
+ * 列表模式每行左置缩略图，网格模式按方向和内容高度排布并绘制居中裁剪的封面；两种模式都显示目录项，
+ * 点击目录进入、点击文件回传。列表行数按内容区高度换算，网格容量来自当前布局，
  * 单目录不超过 400 项。顶栏右侧动作按钮在两种视图之间切换，切换只改本次会话的显示方式，
  * 不写回界面偏好；目录返回仍由顶栏返回按钮完成。
  *
@@ -57,9 +57,9 @@ internal class PickPane(
     /** 顶栏右侧动作按钮在两种视图之间切换。 */
     override val topActionLabel: String get() = if (grid) BrowseStrings.LIST else BrowseStrings.GRID
 
-    /** 列表按内容区高度换算行数，网格固定每页 16 项。 */
+    /** List rows and grid capacity both follow the measured content area. */
     override val pageSize: Int
-        get() = if (grid) FileMetrics.GRID_PAGE else geometry?.listRows ?: DEFAULT_ROWS
+        get() = if (grid) geometry?.pageSize ?: 1 else geometry?.listRows ?: DEFAULT_ROWS
 
     /** 底栏动作按钮用于取消选择。 */
     override fun actionLabel(): String = "取消"
@@ -96,7 +96,7 @@ internal class PickPane(
         val metrics = geometry
         if (metrics != null) {
             val edge = if (grid) minOf(metrics.cellW, metrics.gridCellDrawH) else tokens.rowThumb
-            thumbs.update(edge, pageSize)
+            thumbs.update(edge, pageSize, epub = grid)
         }
         pagerState.pageSize = pageSize
         thumbs.request(items, pagerState.page)
@@ -109,7 +109,7 @@ internal class PickPane(
 
     override fun onGeometryChanged(rebuilt: FileMetrics) {
         val edge = if (grid) minOf(rebuilt.cellW, rebuilt.gridCellDrawH) else tokens.rowThumb
-        thumbs.update(edge, pageSize)
+        thumbs.update(edge, pageSize, epub = grid)
         thumbs.request(items, pagerState.page)
     }
 

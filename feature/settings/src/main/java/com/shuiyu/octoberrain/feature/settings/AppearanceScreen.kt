@@ -3,7 +3,6 @@ package com.shuiyu.octoberrain.feature.settings
 import android.net.Uri
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
-import com.shuiyu.octoberrain.core.common.FontInfo
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkPage
@@ -18,18 +17,38 @@ import java.io.File
  * 行控件全部由 [SettingsCatalog.appearanceGroups] 的声明生成，
  * 本页只提供文件选择、主题与字体入口等动作，以及壁纸清除的确认流程。
  */
-class AppearanceScreen : SettingsBaseScreen("外观与主题") {
+class AppearanceScreen : SettingsBaseScreen("外观与个性化") {
     override fun build(
         page: InkPage,
         config: LauncherConfig,
     ) {
         SettingsSpecRenderer.renderPage(
             page = page,
-            groups = SettingsCatalog.appearanceGroups,
+            groups = SettingsCatalog.appearanceGroups.filterNot { it.id.startsWith("project.") },
             config = config,
             sink = settingEffectSink(),
             actions = appearanceActions(),
         )
+        val icons = SettingsUi.section(page, "图标与应用名称", "尺寸为自动时按布局空间适配")
+        val sizes = listOf(0, 40, 48, 56, 64, 72, 80)
+        icons.stepper(
+            "图标尺寸",
+            sizes.map { if (it == 0) "自动" else "$it dp" },
+            { sizes.indexOf(SettingsUi.settings().desktop.iconSizeDp).coerceAtLeast(0) },
+        ) { index ->
+            SettingsUi.edit { it.copy(desktop = it.desktop.copy(iconSizeDp = sizes[index])) }
+            SettingsUi.refresh()
+        }
+        val labels = listOf(0f, 10f, 11f, 12f, 13f, 14f, 15f, 16f)
+        icons.stepper(
+            "应用名字号",
+            labels.map { if (it == 0f) "跟随主题" else "${it.toInt()} sp" },
+            { labels.indexOf(SettingsUi.settings().desktop.labelTextSp).coerceAtLeast(0) },
+        ) { index ->
+            SettingsUi.edit { it.copy(desktop = it.desktop.copy(labelTextSp = labels[index])) }
+            SettingsUi.refresh()
+        }
+        icons.action("美化编辑器", "打开") { navigate(Destination.Beautify) }
     }
 
     /** 外观页的动作表，键为设置项标识。 */
@@ -37,12 +56,8 @@ class AppearanceScreen : SettingsBaseScreen("外观与主题") {
         mapOf(
             "appearance.wallpaper.pick" to { pickWallpaper() },
             "appearance.wallpaper.clear" to { clearWallpaper() },
-            "appearance.lockWallpaper.pick" to { pickLockWallpaper() },
-            "appearance.lockWallpaper.clear" to { clearLockWallpaper() },
-            "appearance.theme.open" to { navigate(Destination.ThemePicker) },
             "appearance.iconPack.open" to { navigate(Destination.IconPackPicker) },
             "appearance.font.label" to { navigate(Destination.FontPicker) },
-            "appearance.font.clock" to { pickClockFont() },
             "appearance.image.directory.pick" to {
                 contextOrNull()?.let { context -> changeImageDirectory(context) { rebuildLater() } }
             },
@@ -92,54 +107,6 @@ class AppearanceScreen : SettingsBaseScreen("外观与主题") {
         }
     }
 
-    /** 选择锁屏壁纸：调用系统文件选择器，选中后写入锁屏壁纸配置。 */
-    private fun pickLockWallpaper() {
-        val context = contextOrNull() ?: return
-        SettingsUi.pickFile(context, "选择锁屏壁纸", IMAGE_MIME_TYPES, IMAGE_EXTENSIONS) { uri ->
-            applyLockWallpaper(uri)
-        }
-    }
-
-    /** 异步应用锁屏壁纸，完成后刷新摘要并请求整屏重绘。 */
-    private fun applyLockWallpaper(uri: Uri) {
-        val context = contextOrNull() ?: return
-        SettingsUi.toast(context, "正在设置锁屏壁纸…")
-        scope.launch {
-            val applied =
-                runCatching {
-                    AppServices.appearance.setLockWallpaper(uri)
-                }.getOrDefault(false)
-            if (applied) {
-                SettingsUi.toast(context, "锁屏壁纸已更新")
-                AppServices.refresh.requestFullRefresh()
-                rebuildLater()
-            } else {
-                SettingsUi.toast(context, "锁屏壁纸读取失败，请换一张图片")
-            }
-        }
-    }
-
-    /** 清除锁屏壁纸，锁屏界面恢复纸色背景；未设置时直接提示。 */
-    private fun clearLockWallpaper() {
-        val context = contextOrNull() ?: return
-        val appearance = SettingsUi.settings().appearance
-        if (appearance.lockWallpaperPath.isBlank()) {
-            SettingsUi.toast(context, "当前没有设置锁屏壁纸")
-            return
-        }
-        InkDialogs.confirm(
-            context,
-            "清除锁屏壁纸",
-            "锁屏密码界面将恢复为纸色背景。",
-            confirmLabel = "清除",
-            onConfirm = {
-                runCatching { AppServices.appearance.clearLockWallpaper() }
-                AppServices.refresh.requestFullRefresh()
-                rebuildLater()
-            },
-        )
-    }
-
     /** 清除壁纸并恢复纯白纸面。 */
     private fun clearWallpaper() {
         val context = contextOrNull() ?: return
@@ -159,18 +126,6 @@ class AppearanceScreen : SettingsBaseScreen("外观与主题") {
                 rebuildLater()
             },
         )
-    }
-
-    /** 选择钟面字体：内置字体与已导入字体统一列出。 */
-    private fun pickClockFont() {
-        val context = contextOrNull() ?: return
-        val faces = runCatching { AppServices.fonts.fonts() }.getOrDefault(FontInfo.BUILTIN)
-        InkDialogs.choose(context, "钟面字体", faces.map { it.label }) { index ->
-            val id = faces[index].id
-            SettingsUi.edit { it.copy(appearance = it.appearance.copy(clockFont = id)) }
-            SettingsUi.applyAppearance(SettingsUi.settings().appearance)
-            rebuildLater()
-        }
     }
 
     private companion object {

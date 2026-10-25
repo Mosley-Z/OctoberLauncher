@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.feature.settings
 import android.text.format.Formatter
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.ChangelogEntry
+import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.UpdateInfo
 import com.shuiyu.octoberrain.core.design.DesignRuntime
@@ -59,7 +60,7 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
         val status = SettingsUi.section(page, "版本", "当前版本 $currentVersion")
         status.info("版本名", currentVersion)
         status.info("版本号", AppPackageInfo.versionCode(context).toString())
-        status.info("更新来源", if (config.integrations.updateUrl.isBlank()) "未配置" else config.integrations.updateUrl)
+        status.info("更新来源", config.integrations.updateUrl.ifBlank { "GitHub Releases" })
 
         when (val snapshot = state) {
             State.Idle, State.Checking -> status.info("检查状态", "正在检查更新…")
@@ -95,7 +96,13 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
 
         SettingsUi.note(
             page,
-            "更新地址为空时不会发起网络请求；安装前需在系统设置中允许本应用安装未知来源应用。",
+            "安装前需在系统设置中允许本应用安装未知来源应用。",
+        )
+
+        page.content.addView(
+            InkWidgets.row(context, "关于") {
+                AppServices.router.navigate(Destination.ProjectAbout)
+            },
         )
 
         if (!autoStarted) {

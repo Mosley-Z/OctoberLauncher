@@ -19,7 +19,7 @@ class ShelfMigrationTest {
             "integrations":{"wereadRefreshMinutes":180,"wereadSource":"synced"}}"""
         val old = AppJson.format.decodeFromString(LauncherConfig.serializer(), raw)
         val next = ConfigMigration.migrate(old)
-        assertEquals(13, next.version)
+        assertEquals(LauncherConfig.CURRENT_VERSION, next.version)
         assertEquals(5, next.desktop.negativePage.shelfRows)
         assertEquals("local", next.desktop.negativePage.shelfSource)
         assertEquals(old.integrations, next.integrations)

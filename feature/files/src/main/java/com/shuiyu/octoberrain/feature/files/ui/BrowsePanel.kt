@@ -46,7 +46,7 @@ internal enum class PanelRow(
     FOLDERS(BrowseStrings.FOLDERS),
 }
 
-/** 长按条目后弹出的两行面板。 */
+/** 长按条目后弹出的操作面板。 */
 internal enum class PressedRow(
     val label: String,
 ) {
@@ -55,6 +55,9 @@ internal enum class PressedRow(
 
     /** 查看详情。 */
     DETAIL(BrowseStrings.DETAIL),
+
+    /** 删除普通文件。 */
+    DELETE("删除文件"),
 }
 
 /** 面板行触发的动作。 */
@@ -80,7 +83,8 @@ internal object BrowsePanel {
     val rows: List<PanelRow> = PanelRow.entries
 
     /** 长按面板全部行。 */
-    val pressedRows: List<PressedRow> = PressedRow.entries
+    fun pressedRows(directory: Boolean): List<PressedRow> =
+        if (directory) listOf(PressedRow.OPEN, PressedRow.DETAIL) else PressedRow.entries
 
     /** 取面板行的动作。 */
     fun actionOf(row: PanelRow): PanelAction =

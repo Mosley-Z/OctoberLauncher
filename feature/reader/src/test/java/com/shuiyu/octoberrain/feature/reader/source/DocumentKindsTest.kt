@@ -19,7 +19,7 @@ class DocumentKindsTest {
     @Test fun magicOverridesMisleadingExtensionAndMime() {
         assertEquals(ReaderFormat.PDF, DocumentKinds.detect("a.txt", "text/plain", "%PDF-1.4".toByteArray()))
         assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("a.txt", "text/plain", byteArrayOf(0, 1, 2)))
-        assertEquals(ReaderFormat.ZIP, DocumentKinds.detect("a.pdf", "application/pdf", byteArrayOf(80, 75, 3, 4)))
+        assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("a.pdf", "application/pdf", byteArrayOf(80, 75, 3, 4)))
     }
 
     @Test fun utf16AndUnknownLengthTextRemainReadableCandidates() {
@@ -34,7 +34,7 @@ class DocumentKindsTest {
         assertEquals(ReaderFormat.DOCX, DocumentKinds.detect("a.zip", null, pk, ZipContainer.DOCX))
         assertEquals(ReaderFormat.SHEET, DocumentKinds.detect("a.zip", null, pk, ZipContainer.SHEET))
         assertEquals(ReaderFormat.SLIDES, DocumentKinds.detect("a.zip", null, pk, ZipContainer.SLIDES))
-        assertEquals(ReaderFormat.ZIP, DocumentKinds.detect("a.docx", null, pk, ZipContainer.ZIP))
+        assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("a.docx", null, pk, ZipContainer.ZIP))
     }
 
     @Test fun missingContainerKeepsExtensionFallbackForZipHeader() {
@@ -49,5 +49,18 @@ class DocumentKindsTest {
         assertFalse(DocumentKinds.isZipHeader(byteArrayOf(80, 75, 3)))
         assertFalse(DocumentKinds.isZipHeader(byteArrayOf(80, 76, 3, 4)))
         assertFalse(DocumentKinds.isZipHeader(byteArrayOf()))
+    }
+
+    @Test fun ordinaryZipContainersRequireArchiveIdentity() {
+        val pk = byteArrayOf(80, 75, 3, 4)
+        listOf("zip", "rar", "7z", "tar").forEach { extension ->
+            assertEquals(ReaderFormat.ZIP, DocumentKinds.detect("file.$extension", null, pk, ZipContainer.ZIP))
+        }
+        listOf("jar", "bin", "aab").forEach { extension ->
+            assertEquals(ReaderFormat.UNKNOWN, DocumentKinds.detect("file.$extension", null, pk, ZipContainer.ZIP))
+        }
+        assertEquals(ReaderFormat.ZIP, DocumentKinds.detect("download", "application/zip", pk, ZipContainer.ZIP))
+        // 文件入口先展示选择；显式“查看结构”仍能使用同一个ZIP引擎。
+        assertEquals(ReaderFormat.ZIP, DocumentKinds.detect("file.apk", null, pk, ZipContainer.ZIP))
     }
 }

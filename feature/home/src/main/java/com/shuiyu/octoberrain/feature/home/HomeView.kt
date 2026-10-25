@@ -1,17 +1,16 @@
 package com.shuiyu.octoberrain.feature.home
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.DesktopMode
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.InstalledApp
@@ -19,6 +18,8 @@ import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LauncherEntry
 import com.shuiyu.octoberrain.core.common.SortMode
 import com.shuiyu.octoberrain.core.common.SpecialEntry
+import com.shuiyu.octoberrain.core.common.WEREAD_BOARD_WIDGET_ID
+import com.shuiyu.octoberrain.core.common.forWidgetPage
 import com.shuiyu.octoberrain.core.data.NotificationCenter
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -27,6 +28,7 @@ import com.shuiyu.octoberrain.core.design.InkGlyphs
 import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.core.widget.BaseWidgetView
 import com.shuiyu.octoberrain.core.widget.WidgetHost
+import com.shuiyu.octoberrain.core.widget.WidgetNoteOverlaySource
 import com.shuiyu.octoberrain.core.widget.WidgetPlaceholder
 import com.shuiyu.octoberrain.core.widget.WidgetRefreshPolicy
 import com.shuiyu.octoberrain.core.widget.WidgetRegistry
@@ -46,7 +48,7 @@ import kotlin.math.abs
  *
  * 职责：
  * 1. 按 [DesktopMetrics] 绘制宫格或列表形态的入口，首页顶部保留组件槽；
- * 2. 处理左右翻页、列表上下翻页、宫格下滑开关托盘；
+ * 2. 处理左右翻页、列表上下翻页、宫格竖向手势不打开项目菜单；
  * 3. 长按进入整理模式，支持拖动排序与单条菜单；
  * 4. 作为 [WidgetHost] 承载组件绘制与局部重绘。
  *
@@ -79,7 +81,20 @@ internal class HomeView(
 
     // 分页与组件
     private var currentPage = 0
+    private val immersiveHome = ImmersiveHome()
+    private val noteOverlay =
+        DesktopNoteOverlay {
+            invalidate()
+            requestPartial()
+        }
+    private val immersive get() = config?.desktop?.mode == DesktopMode.IMMERSIVE && !editing
     private var widget: WidgetView? = null
+    private val widgetCache = mutableMapOf<String, WidgetView>()
+    private var hostVisible = false
+    private var immersiveRailTouch = false
+    private var immersiveNavigationCandidate = false
+    private var immersiveNavigationOwned = false
+    private var editReturnPage = 0
     private var widgetId: String? = null
     private var widgetPolicy: WidgetRefreshPolicy = WidgetRefreshPolicy.MANUAL
     private var widgetWidth = 0
@@ -131,7 +146,13 @@ internal class HomeView(
     private val widgetLongPressRunnable =
         Runnable {
             widgetLongPressFired = true
-            widget?.onLongPress(widgetLocalX, widgetLocalY)
+            if (immersive) {
+                if (!immersiveRailTouch) widget?.onTouch(WidgetTouchAction.CANCEL, widgetLocalX, widgetLocalY)
+                immersiveNavigationCandidate = false
+                showBlankMenu()
+            } else {
+                widget?.onLongPress(widgetLocalX, widgetLocalY)
+            }
         }
 
     init {
@@ -155,7 +176,7 @@ internal class HomeView(
         config: LauncherConfig,
     ) {
         val oldConfig = this.config
-        val iconsChanged = oldConfig?.appearance?.iconOverrides != config.appearance.iconOverrides
+        val iconsChanged = oldConfig?.appearance != config.appearance
         if (apps == appsByPackage.values.toList() && !homeConfigChanged(oldConfig, config) && !iconsChanged) return
         // 图标覆盖变化时清空位图缓存，使新图片与恢复默认都能立即生效。
         if (iconsChanged) iconStore.clear()
@@ -191,23 +212,42 @@ internal class HomeView(
                         ),
                 )
         }
+        closeForModeChange(oldConfig, effective)
         this.appsByPackage = apps.associateBy { it.packageName }
         this.config = effective
         this.entries = DesktopEntries.build(apps, effective.desktop)
         val previousWidget = widget
         ensureWidget(effective)
-        if (previousWidget !== widget || homeConfigChanged(oldConfig, effective)) widget?.onConfigChanged(effective)
+        if (previousWidget !== widget ||
+            homeConfigChanged(oldConfig, effective)
+        ) {
+            widget?.onConfigChanged(widgetConfig(effective))
+        }
         recomputeMetrics()
         clampPage()
+        restoreEditingTarget(previousKey)
+        invalidate()
+    }
+
+    private fun restoreEditingTarget(previousKey: String?) {
         if (editing) {
             // 整理模式下数据刷新时按入口键恢复拖动目标，避免下标漂移。
             dragIndex = if (previousKey != null) entries.indexOfFirst { it.key == previousKey } else -1
             pressedIndex = dragIndex
-            if (dragIndex < 0) editing = false
+            if (previousKey != null && dragIndex < 0) exitEditMode()
         } else {
             pressedIndex = -1
         }
-        invalidate()
+    }
+
+    private fun closeForModeChange(
+        previous: LauncherConfig?,
+        next: LauncherConfig,
+    ) {
+        if (previous?.desktop?.mode != next.desktop.mode) {
+            noteOverlay.close()
+            immersiveHome.closeDrawer()
+        }
     }
 
     /**
@@ -266,6 +306,7 @@ internal class HomeView(
      * 依赖数据通知或内部定时器的组件保持原状，避免整分时重复取数。
      */
     fun refreshWidgetByMinute() {
+        if (!immersive && metrics?.widgetRect(currentPage)?.isEmpty != false) return
         if (!widgetPolicy.triggersOnMinute()) return
         refreshCurrentWidget(true)
     }
@@ -278,6 +319,8 @@ internal class HomeView(
      * 已处于首尾页时同样消费按键，避免系统调整音量。返回值恒为 true。
      */
     fun turnPageByVolume(up: Boolean): Boolean {
+        noteOverlay.close()
+        if (immersive) return true
         if (editing) return true
         val m = metrics ?: return true
         // 页码变化时由页方法内部请求局部刷新，这里只负责重绘。
@@ -291,21 +334,44 @@ internal class HomeView(
      *
      * 整理模式下先退出整理模式并返回 true，其余情况返回 false 交由上层处理。
      */
-    fun handleBack(): Boolean {
-        if (!editing) return false
-        exitEditMode()
-        return true
-    }
+    fun handleBack(): Boolean =
+        when {
+            noteOverlay.close() -> true
+            immersiveHome.closeDrawer() -> {
+                updateWidgetVisibility()
+                invalidate()
+                true
+            }
+            editing -> {
+                exitEditMode()
+                true
+            }
+            else -> false
+        }
 
     /** 桌面可见性传给自绘组件，暂停后台轮播。 */
     fun setHostVisible(visible: Boolean) {
-        widget?.onHostVisible(visible)
+        hostVisible = visible
+        if (!visible) noteOverlay.close()
+        updateWidgetVisibility()
+    }
+
+    private fun updateWidgetVisibility() {
+        val previous = widget
+        config?.let { cfg ->
+            ensureWidget(cfg)
+            if (previous !== widget) widget?.onConfigChanged(widgetConfig(cfg))
+        }
+        val pageVisible = immersive || metrics?.widgetRect(currentPage)?.isEmpty == false
+        widget?.onHostVisible(hostVisible && pageVisible && !immersiveHome.drawerOpen)
     }
 
     /** 页面销毁时释放组件、计时器与协程。 */
     fun release() {
+        noteOverlay.close()
         handler.removeCallbacksAndMessages(null)
-        widget?.onDestroy()
+        widgetCache.values.forEach { it.onDestroy() }
+        widgetCache.clear()
         widget = null
         widgetId = null
         iconStore.clear()
@@ -321,6 +387,7 @@ internal class HomeView(
         oldh: Int,
     ) {
         super.onSizeChanged(w, h, oldw, oldh)
+        noteOverlay.close()
         recomputeMetrics()
         clampPage()
         invalidate()
@@ -374,6 +441,7 @@ internal class HomeView(
         val m = metrics ?: return
         val target = if (previewMode) previewPage else currentPage
         currentPage = target.coerceIn(0, m.pageCount(entries.size) - 1)
+        updateWidgetVisibility()
     }
 
     /** 按配置要求重绘并触发局部刷新请求。 */
@@ -409,30 +477,155 @@ internal class HomeView(
      * 新标识先创建视图，创建成功后再记录标识与刷新策略，
      * 组件未注册或创建失败时保持标识为空，后续配置回调可重新尝试。
      */
+    private fun widgetConfig(cfg: LauncherConfig): LauncherConfig =
+        if (immersive) cfg else cfg.copy(desktop = cfg.desktop.forWidgetPage(currentPage))
+
     private fun ensureWidget(cfg: LauncherConfig) {
-        val id = cfg.desktop.widgetId
-        if (id == widgetId) return
-        widget?.onDestroy()
+        val id = if (immersive) WEREAD_BOARD_WIDGET_ID else cfg.desktop.forWidgetPage(currentPage).widgetId
+        val key = if (immersive) "immersive" else "$currentPage:$id"
+        val keep =
+            cfg.desktop.pageWidgets
+                .map { (page, slot) -> "$page:${slot.widgetId}" }
+                .toSet() +
+                setOf("0:${cfg.desktop.widgetId}", "immersive")
+        widgetCache.keys
+            .filter { it !in keep }
+            .toList()
+            .forEach { key -> widgetCache.remove(key)?.onDestroy() }
+        if (key == widgetId) {
+            widget?.setImmersiveBookMode(immersive)
+            widget?.setImmersiveLandscape(width > height)
+            return
+        }
+        noteOverlay.close()
+        widget?.onHostVisible(false)
         widget = null
         widgetWidth = 0
         widgetHeight = 0
         // 选择“不使用组件”时记录空标识，避免每次配置回调重复进入本方法。
         if (id.isBlank()) {
-            widgetId = id
+            widgetId = key
             widgetPolicy = WidgetRefreshPolicy.MANUAL
             return
         }
-        val created = runCatching { WidgetRegistry.create(id, context) }.getOrNull()
+        val created = widgetCache[key] ?: runCatching { WidgetRegistry.create(id, context) }.getOrNull()
         if (created != null) {
-            (created as? BaseWidgetView)?.host = this
+            (created as? BaseWidgetView)?.apply {
+                host = this@HomeView
+                pageIndex = if (immersive) 0 else currentPage
+            }
             widget = created
-            widgetId = id
+            widgetCache[key] = created
+            created.setImmersiveBookMode(immersive)
+            created.setImmersiveLandscape(width > height)
+            widgetId = key
             widgetPolicy = WidgetRegistry.get(id)?.refreshPolicy ?: WidgetRefreshPolicy.MANUAL
         } else {
             // 创建失败时不写入标识，下一次配置回调继续尝试，避免永久显示占位。
             widgetId = null
             widgetPolicy = WidgetRefreshPolicy.MANUAL
         }
+    }
+
+    private fun widgetBounds(m: DesktopMetrics): RectF =
+        if (immersive) immersiveHome.bookBounds(width, height) else m.widgetRect(currentPage)
+
+    private fun noteBounds(m: DesktopMetrics): RectF {
+        val rect = widgetBounds(m)
+        if (width > height) return RectF(rect.left, rect.top, m.forPage(currentPage).noteRightBoundary(), rect.bottom)
+        val geometry = m.forPage(currentPage)
+        val count = minOf(m.capacity(currentPage), (entries.size - m.startIndex(currentPage)).coerceAtLeast(0))
+        val bottom =
+            if (count >
+                0
+            ) {
+                (0 until count).maxOf { entryContentBottom(geometry, currentPage, it) }
+            } else {
+                rect.bottom
+            }
+        return RectF(rect.left, rect.top, rect.right, (bottom + tokens.gap).coerceAtMost(m.bottom.toFloat()))
+    }
+
+    /** 与绘制的名称基线、字体下沉完全同源；隐藏名称时使用整格点击区域。 */
+    private fun entryContentBottom(
+        m: DesktopMetrics,
+        page: Int,
+        slot: Int,
+    ): Float {
+        val cell = m.cellRect(page, slot)
+        if (!m.showLabels) return cell.bottom
+        labelPaint.textSize = labelTextSize(tokens.textBody)
+        val fm = labelPaint.fontMetrics
+        return if (m.isList) {
+            cell.centerY() - (fm.ascent + fm.descent) / 2f + fm.descent
+        } else {
+            gridLabelBaseline(m, cell) + fm.descent
+        }
+    }
+
+    private fun gridLabelBaseline(
+        m: DesktopMetrics,
+        cell: RectF,
+    ): Float {
+        val top = cell.top + ((cell.height() - m.iconSize - m.labelHeight) / 2f).coerceAtLeast(0f)
+        val labelHeight = maxOf(m.labelHeight.toFloat(), if (editing) tokens.textSmall else 0f)
+        val fm = labelPaint.fontMetrics
+        return top + m.iconSize + labelHeight / 2f - (fm.ascent + fm.descent) / 2f
+    }
+
+    override fun openNoteOverlay(widget: WidgetView): Boolean {
+        val m = metrics
+        val eligible = widget === this.widget && widget is WidgetNoteOverlaySource
+        if (!eligible || m == null) return false
+        val bounds = noteBounds(m)
+        val canGrow =
+            if (width >
+                height
+            ) {
+                bounds.right > widgetBounds(m).right
+            } else {
+                bounds.bottom > widgetBounds(m).bottom
+            }
+        val opened = canGrow && noteOverlay.open(widget as WidgetNoteOverlaySource, bounds)
+        if (!opened && width <= height) openDestination(Destination.Note)
+        invalidate()
+        return true
+    }
+
+    private fun isTransparent(entry: LauncherEntry): Boolean =
+        IconTargets.normalizeStoredKey(entry.key) in config?.appearance?.transparentIconTargets.orEmpty()
+
+    private fun drawImmersiveIcon(
+        canvas: Canvas,
+        rect: RectF,
+        entry: LauncherEntry,
+        forceDefault: Boolean,
+    ) {
+        if (!forceDefault) {
+            drawIconFrame(canvas, rect, entry)
+            return
+        }
+        val drawable =
+            entry.packageName?.let {
+                runCatching {
+                    context.packageManager.getApplicationIcon(
+                        it,
+                    )
+                }.getOrNull()
+            }
+        if (drawable != null) {
+            drawable.setBounds(rect.left.toInt(), rect.top.toInt(), rect.right.toInt(), rect.bottom.toInt())
+            drawable.draw(canvas)
+        } else {
+            drawFallbackGlyph(canvas, rect, entry)
+        }
+    }
+
+    private fun exitImmersive() {
+        noteOverlay.close()
+        immersiveHome.closeDrawer()
+        AppServices.config.edit { it.copy(desktop = it.desktop.copy(mode = DesktopMode.NORMAL)) }
+        invalidate()
     }
 
     /** 组件请求重绘：桌面为单屏自绘视图，直接整屏失效即可。 */
@@ -442,7 +635,17 @@ internal class HomeView(
 
     /** 组件请求跳转内置页面。 */
     override fun openDestination(destination: Destination) {
-        runCatching { AppServices.router.navigate(destination) }
+        runCatching {
+            AppServices.router.navigate(
+                if (destination ==
+                    Destination.WidgetPicker
+                ) {
+                    Destination.PageWidgetPicker(currentPage)
+                } else {
+                    destination
+                },
+            )
+        }
     }
 
     // endregion
@@ -454,8 +657,40 @@ internal class HomeView(
         val m = metrics ?: return
         val cfg = config ?: return
         // 壁纸由宿主全屏视图绘制，桌面保持透明，不再自行绘制底图。
-        drawPages(canvas, m, cfg)
-        drawPageIndicator(canvas, m, cfg)
+        if (immersive) {
+            if (!immersiveHome.drawerOpen) drawWidget(canvas, m, cfg)
+            val railLength = if (width > height) height else width
+            val railCapacity = ((railLength - tokens.pageGutter * 2) / tokens.dp(48f)).coerceAtLeast(2) - 1
+            val favoriteLimit =
+                cfg.desktop.favoriteCount
+                    .coerceIn(3, 6)
+                    .coerceAtMost(railCapacity)
+            val favorites =
+                cfg.desktop.favoriteEntryKeys
+                    .mapNotNull { key -> entries.firstOrNull { it.key == key } }
+                    .ifEmpty { entries.take(favoriteLimit) }
+                    .take(favoriteLimit)
+            immersiveHome.draw(
+                canvas,
+                width,
+                height,
+                entries,
+                favorites,
+                cfg.appearance.showLabels,
+                ::drawImmersiveIcon,
+                ::launchEntry,
+                ::exitImmersive,
+            ) {
+                noteOverlay.close()
+                updateWidgetVisibility()
+                invalidate()
+                requestPartial()
+            }
+        } else {
+            drawPages(canvas, m, cfg)
+            drawPageIndicator(canvas, m, cfg)
+        }
+        noteOverlay.draw(canvas, noteBounds(m))
         // 预览只展示静态版面，不进入整理模式，因此不绘制整理提示。
         if (!previewMode && editing) drawEditBanner(canvas)
     }
@@ -476,7 +711,7 @@ internal class HomeView(
         cfg: LauncherConfig,
         page: Int,
     ) {
-        if (page == 0 && m.hasWidget) drawWidget(canvas, m, cfg)
+        if (!m.widgetRect(page).isEmpty) drawWidget(canvas, m, cfg)
         val start = m.startIndex(page)
         val capacity = m.capacity(page)
         var drawn = 0
@@ -509,20 +744,20 @@ internal class HomeView(
         m: DesktopMetrics,
         cfg: LauncherConfig,
     ) {
-        val rect = m.widgetRect()
+        val rect = widgetBounds(m)
         if (rect.isEmpty) return
         val view = widget
         // 透明背景的组件（例如时钟）不绘制纸白底与边框，让壁纸从槽位透出；
         // 组件缺失时仍绘制占位底色，保证提示文字有可读背景。
-        if (view == null || !view.transparentBackground) {
-            val radius = tokens.radius.toFloat()
+        if (!immersive && (view == null || !view.transparentBackground)) {
+            val radius = 0f
             fillPaint.style = Paint.Style.FILL
             fillPaint.color = InkColors.PAPER
             canvas.drawRoundRect(rect, radius, radius, fillPaint)
             strokePaint.style = Paint.Style.STROKE
             strokePaint.strokeWidth = tokens.stroke.toFloat()
             strokePaint.color = InkColors.INK_4
-            canvas.drawRoundRect(rect, radius, radius, strokePaint)
+            if (!immersive) canvas.drawLine(rect.left, rect.bottom, rect.right, rect.bottom, strokePaint)
         }
         val w = rect.width().toInt()
         val h = rect.height().toInt()
@@ -553,7 +788,12 @@ internal class HomeView(
         slot: Int,
         index: Int,
     ) {
-        if (m.isList) drawListCell(canvas, m, page, slot, index) else drawGridCell(canvas, m, page, slot, index)
+        val geometry = m.forPage(page)
+        if (geometry.isList) {
+            drawListCell(canvas, geometry, page, slot, index)
+        } else {
+            drawGridCell(canvas, geometry, page, slot, index)
+        }
     }
 
     /** 绘制宫格单元：图标框、标签、拖动与按压状态。 */
@@ -578,14 +818,21 @@ internal class HomeView(
             )
         drawIconFrame(canvas, iconRect, entry)
         drawEntryBadge(canvas, iconRect, entry)
-        if (m.showLabels && m.labelHeight > 0) {
+        val normalLabelVisible = m.showLabels && m.labelHeight > 0
+        val editingLabelVisible = editing && isTransparent(entry)
+        if (normalLabelVisible || editingLabelVisible) {
             // 标签字号取正文令牌，按图墨以较小字号呈现完整名称。
-            labelPaint.textSize = labelTextSize(tokens.textBody)
+            labelPaint.textSize =
+                if (width >
+                    height
+                ) {
+                    minOf(labelTextSize(tokens.textBody), m.labelHeight.toFloat())
+                } else {
+                    labelTextSize(tokens.textBody)
+                }
             val maxWidth = cell.width()
             val text = ellipsize(entry.label, labelPaint, maxWidth)
-            val fm = labelPaint.fontMetrics
-            val labelTop = iconRect.bottom
-            val baseline = labelTop + m.labelHeight / 2f - (fm.ascent + fm.descent) / 2f
+            val baseline = gridLabelBaseline(m, cell)
             drawLabelText(canvas, text, cell.centerX(), baseline, Paint.Align.CENTER)
             if (!editing && index == pressedIndex) {
                 // 按压反馈改为标签下划黑线，避免整格灰底在墨水屏上产生大片残影。
@@ -610,20 +857,29 @@ internal class HomeView(
         strokePaint.strokeWidth = tokens.stroke.toFloat()
         strokePaint.color = InkColors.INK_4
         canvas.drawLine(cell.left, cell.bottom, cell.right, cell.bottom, strokePaint)
-        val iconLeft = cell.left + tokens.gap / 2f
+        labelPaint.textSize = labelTextSize(tokens.textBody)
+        val showLabels = m.showLabels || editing && isTransparent(entry)
+        val textWidth = if (showLabels) labelPaint.measureText(entry.label) else 0f
+        val contentWidth =
+            (m.iconSize + if (showLabels) m.gap + textWidth else 0f)
+                .coerceAtMost((cell.width() - tokens.gap).coerceAtLeast(1f))
+        val iconLeft =
+            when (config?.desktop?.listAlign) {
+                com.shuiyu.octoberrain.core.common.GridAlign.CENTER -> cell.centerX() - contentWidth / 2f
+                com.shuiyu.octoberrain.core.common.GridAlign.RIGHT -> cell.right - tokens.gap / 2f - contentWidth
+                else -> cell.left + tokens.gap / 2f
+            }
         val iconTop = cell.centerY() - m.iconSize / 2f
         val iconRect = RectF(iconLeft, iconTop, iconLeft + m.iconSize, iconTop + m.iconSize)
         drawIconFrame(canvas, iconRect, entry)
-        if (m.showLabels) {
-            labelPaint.textSize = labelTextSize(tokens.textBody)
+        if (showLabels) {
             val textLeft = iconRect.right + m.gap
-            val maxWidth = (cell.right - textLeft - tokens.gap).coerceAtLeast(1f)
+            val maxWidth = (cell.right - textLeft - tokens.gap / 2f).coerceAtLeast(1f)
             val text = ellipsize(entry.label, labelPaint, maxWidth)
             val fm = labelPaint.fontMetrics
             val baseline = cell.centerY() - (fm.ascent + fm.descent) / 2f
             drawLabelText(canvas, text, textLeft, baseline, Paint.Align.LEFT)
             if (!editing && index == pressedIndex) {
-                // 列表形态同样以标签下划线表示按压。
                 drawPressUnderline(canvas, textLeft, textLeft + labelPaint.measureText(text), baseline)
             }
         }
@@ -669,6 +925,10 @@ internal class HomeView(
         rect: RectF,
         entry: LauncherEntry,
     ) {
+        if (isTransparent(entry)) {
+            if (editing) drawSelectedCell(canvas, rect)
+            return
+        }
         if (rect.width() <= 0f || rect.height() <= 0f) return
         val sizePx = rect.width().coerceAtMost(rect.height()).toInt()
         val bitmap = iconStore.get(entry.key, sizePx)
@@ -707,6 +967,7 @@ internal class HomeView(
         rect: RectF,
         entry: LauncherEntry,
     ) {
+        if (isTransparent(entry)) return
         val text = badgeFor(entry) ?: return
         val radius = (rect.width() * 0.16f).coerceAtLeast(tokens.dot * 2f)
         val centerX = rect.right - radius * 0.8f
@@ -747,7 +1008,7 @@ internal class HomeView(
     ) {
         val glyph =
             when (entry.special) {
-                SpecialEntry.BOOKSHELF, SpecialEntry.KOREADER, SpecialEntry.WEREAD -> InkGlyphs.Kind.BOOK
+                SpecialEntry.BOOKSHELF, SpecialEntry.WEREAD -> InkGlyphs.Kind.BOOK
                 SpecialEntry.FILES -> InkGlyphs.Kind.FOLDER
                 SpecialEntry.SEARCH -> InkGlyphs.Kind.SEARCH
                 SpecialEntry.SETTINGS -> InkGlyphs.Kind.GEAR
@@ -796,9 +1057,14 @@ internal class HomeView(
         m: DesktopMetrics,
         cfg: LauncherConfig,
     ) {
-        if (!cfg.desktop.showPageIndicator) return
         val pages = m.pageCount(entries.size)
-        if (pages <= 1) return
+        if (!cfg.desktop.showPageIndicator || pages <= 1) return
+        if (pages > 7) {
+            val paint = DesignRuntime.textPaint(tokens.textSmall, InkColors.INK)
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("${currentPage + 1} / $pages", width / 2f, (height - tokens.pageBottom).toFloat(), paint)
+            return
+        }
         val dot = maxOf(tokens.dot, tokens.dp(4f))
         val dotGap = tokens.dotGap
         val totalWidth = pages * dot + (pages - 1) * dotGap
@@ -862,6 +1128,8 @@ internal class HomeView(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // 预览视图只用于展示，不响应触摸、长按与手势。
         if (previewMode) return false
+        if (noteOverlay.visible) return noteOverlay.onTouchEvent(event)
+        if (immersive) return handleImmersiveTouch(event, metrics ?: return false)
         val m = metrics ?: return false
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> return handleDown(event, m)
@@ -879,6 +1147,142 @@ internal class HomeView(
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun canOpenNegativePage(
+        cancelled: Boolean,
+        dx: Float,
+        horizontal: Boolean,
+    ): Boolean {
+        val rightFromHome = currentPage == 0 && dx > 0 && horizontal
+        return !cancelled && rightFromHome && negativePageEnabled()
+    }
+
+    /** 沉浸书封拥有内部切书；封外横滑由宿主拥有，抽屉独占触摸。 */
+    private fun handleImmersiveTouch(
+        event: MotionEvent,
+        m: DesktopMetrics,
+    ): Boolean {
+        if (immersiveHome.drawerOpen) return immersiveHome.onTouch(event)
+        val rect = widgetBounds(m)
+        val x = event.x - rect.left
+        val y = event.y - rect.top
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> immersiveDown(event, x, y)
+            MotionEvent.ACTION_MOVE -> immersiveMove(event, x, y)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> immersiveEnd(event, x, y)
+        }
+        return true
+    }
+
+    private fun immersiveDown(
+        event: MotionEvent,
+        x: Float,
+        y: Float,
+    ) {
+        downX = event.x
+        downY = event.y
+        widgetLocalX = x
+        widgetLocalY = y
+        widgetLongPressFired = false
+        widgetGestureMoved = false
+        immersiveNavigationOwned = false
+        // 书页区域内的横滑全部交给组件轮播，宿主只在书页之外的时钟与栏区接管导航。
+        val book = immersiveHome.bookBounds(width, height)
+        immersiveRailTouch = !book.contains(event.x, event.y)
+        immersiveNavigationCandidate = immersiveRailTouch
+        if (immersiveRailTouch) {
+            immersiveHome.onTouch(event)
+        } else {
+            widget?.onTouch(WidgetTouchAction.DOWN, x, y)
+        }
+        handler.postDelayed(widgetLongPressRunnable, longPressMenuMs())
+    }
+
+    private fun immersiveMove(
+        event: MotionEvent,
+        x: Float,
+        y: Float,
+    ) {
+        val dx = event.x - downX
+        val dy = event.y - downY
+        if (abs(dx) > WIDGET_CLICK_SLOP || abs(dy) > WIDGET_CLICK_SLOP) {
+            widgetGestureMoved = true
+            handler.removeCallbacks(widgetLongPressRunnable)
+        }
+        if (widgetLongPressFired) return
+        if (canOwnImmersiveNavigation(dx, dy)) {
+            immersiveNavigationOwned = true
+            if (!immersiveRailTouch) widget?.onTouch(WidgetTouchAction.CANCEL, x, y)
+        }
+        if (!immersiveNavigationOwned && !immersiveRailTouch) {
+            widget?.onTouch(WidgetTouchAction.MOVE, x, y)
+        }
+    }
+
+    private fun canOwnImmersiveNavigation(
+        dx: Float,
+        dy: Float,
+    ): Boolean {
+        val available = immersiveNavigationCandidate && !immersiveNavigationOwned
+        return available && immersiveRightSwipe(dx, dy) && negativePageEnabled()
+    }
+
+    private fun immersiveRightSwipe(
+        dx: Float,
+        dy: Float,
+    ): Boolean = dx >= swipeMinPx() && abs(dx) > abs(dy)
+
+    private fun immersiveEnd(
+        event: MotionEvent,
+        x: Float,
+        y: Float,
+    ) {
+        handler.removeCallbacks(widgetLongPressRunnable)
+        val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
+        if (immersiveNavigationOwned) {
+            finishImmersiveNavigation(event, cancelled)
+        } else if (!widgetLongPressFired) {
+            finishImmersiveContent(event, cancelled, x, y)
+        }
+        immersiveNavigationOwned = false
+        immersiveNavigationCandidate = false
+        invalidate()
+    }
+
+    private fun finishImmersiveNavigation(
+        event: MotionEvent,
+        cancelled: Boolean,
+    ) {
+        val allowed = !cancelled && !widgetLongPressFired
+        if (allowed && immersiveRightSwipe(event.x - downX, event.y - downY)) {
+            onNegativePageRequested?.invoke()
+        }
+    }
+
+    private fun finishImmersiveContent(
+        event: MotionEvent,
+        cancelled: Boolean,
+        x: Float,
+        y: Float,
+    ) {
+        val click = !cancelled && !widgetGestureMoved
+        if (immersiveRailTouch) {
+            if (click) immersiveHome.onTouch(event)
+        } else {
+            widget?.onTouch(if (cancelled) WidgetTouchAction.CANCEL else WidgetTouchAction.UP, x, y)
+            if (click) clickImmersiveWidget(x, y)
+        }
+    }
+
+    private fun clickImmersiveWidget(
+        x: Float,
+        y: Float,
+    ) {
+        val view = widget
+        if (view?.hitRegions().orEmpty().isEmpty() || view?.hitRegionAt(x, y) != null) {
+            view?.onClick(x, y)
+        }
     }
 
     /** 按下：判定命中组件、入口或空白，并启动长按计时。 */
@@ -906,8 +1310,8 @@ internal class HomeView(
             return true
         }
 
-        val widgetRect = m.widgetRect()
-        widgetTouch = currentPage == 0 && m.hasWidget && widgetRect.contains(event.x, event.y)
+        val widgetRect = widgetBounds(m)
+        widgetTouch = (immersive || !m.widgetRect(currentPage).isEmpty) && widgetRect.contains(event.x, event.y)
         if (widgetTouch) {
             widgetLocalX = event.x - widgetRect.left
             widgetLocalY = event.y - widgetRect.top
@@ -927,7 +1331,7 @@ internal class HomeView(
         return true
     }
 
-    /** 移动：分派横向翻页、纵向翻页/托盘、整理模式拖动。 */
+    /** 移动：分派横向翻页、纵向列表翻页、整理模式拖动。 */
     private fun handleMove(
         event: MotionEvent,
         m: DesktopMetrics,
@@ -944,17 +1348,8 @@ internal class HomeView(
             return
         }
         if (widgetTouch) {
-            // 移动先交给组件；组件消费时桌面翻页让位，未消费时继续按原有手势处理。
-            val rect = m.widgetRect()
-            widgetLocalX = event.x - rect.left
-            widgetLocalY = event.y - rect.top
-            // 位移超过两像素即视为组件手势已开始，抬手不再转发点击
-            if (abs(event.x - downX) > WIDGET_CLICK_SLOP || abs(event.y - downY) > WIDGET_CLICK_SLOP) {
-                widgetGestureMoved = true
-                handler.removeCallbacks(widgetLongPressRunnable)
-            }
-            val view = widget
-            if (view?.onTouch(WidgetTouchAction.MOVE, widgetLocalX, widgetLocalY) == true) return
+            handleWidgetMove(event, m)
+            return
         }
 
         val dx = event.x - downX
@@ -978,11 +1373,26 @@ internal class HomeView(
                 verticalConsumed = true
                 if (m.isList) {
                     if (dy < 0) nextPage(m) else previousPage(m)
-                } else {
-                    toggleTrayBySwipe(dy)
                 }
             }
         }
+    }
+
+    private fun handleWidgetMove(
+        event: MotionEvent,
+        m: DesktopMetrics,
+    ) {
+        // 组件内部手势始终保留给组件，宿主不再接管横向或纵向滑动。
+        val rect = widgetBounds(m)
+        widgetLocalX = event.x - rect.left
+        widgetLocalY = event.y - rect.top
+        // 位移超过两像素即视为组件手势已开始，抬手不再转发点击
+        if (abs(event.x - downX) > WIDGET_CLICK_SLOP || abs(event.y - downY) > WIDGET_CLICK_SLOP) {
+            widgetGestureMoved = true
+            handler.removeCallbacks(widgetLongPressRunnable)
+        }
+        val view = widget
+        view?.onTouch(WidgetTouchAction.MOVE, widgetLocalX, widgetLocalY)
     }
 
     /** 抬起：判定点击、滑动翻页、整理模式菜单或退出。 */
@@ -1000,7 +1410,7 @@ internal class HomeView(
 
         if (widgetTouch) {
             widgetTouch = false
-            val rect = m.widgetRect()
+            val rect = widgetBounds(m)
             val localX = event.x - rect.left
             val localY = event.y - rect.top
             widgetLocalX = localX
@@ -1042,7 +1452,7 @@ internal class HomeView(
             val minPx = swipeMinPx()
             val horizontal = abs(dx) >= minPx && abs(dx) > abs(dy)
             // 首页继续右滑且启用负一屏时跳转。
-            if (currentPage == 0 && dx > 0 && horizontal && negativePageEnabled()) {
+            if (canOpenNegativePage(cancelled, dx, horizontal)) {
                 pressedIndex = -1
                 invalidate()
                 onNegativePageRequested?.invoke()
@@ -1089,7 +1499,9 @@ internal class HomeView(
     private fun nextPage(m: DesktopMetrics): Boolean {
         val pages = m.pageCount(entries.size)
         if (currentPage >= pages - 1) return false
+        noteOverlay.close()
         currentPage++
+        updateWidgetVisibility()
         pressedIndex = -1
         invalidate()
         requestPartial()
@@ -1099,24 +1511,13 @@ internal class HomeView(
     /** 翻到上一页，成功时请求局部重绘并返回 true。 */
     private fun previousPage(m: DesktopMetrics): Boolean {
         if (currentPage <= 0) return false
+        noteOverlay.close()
         currentPage--
+        updateWidgetVisibility()
         pressedIndex = -1
         invalidate()
         requestPartial()
         return true
-    }
-
-    /** 宫格下滑打开托盘，上滑在托盘已打开时关闭。 */
-    private fun toggleTrayBySwipe(dy: Float) {
-        runCatching {
-            if (!AppServices.hasTray()) return
-            // 统一走托盘控制器的 toggle，由托盘模块维护自身开关状态。
-            if (dy > 0) {
-                if (!AppServices.tray.isOpen) AppServices.tray.toggle()
-            } else if (AppServices.tray.isOpen) {
-                AppServices.tray.toggle()
-            }
-        }
     }
 
     /** 当前配置的单条菜单长按时长，单位毫秒。 */
@@ -1161,7 +1562,15 @@ internal class HomeView(
 
     /** 进入整理模式，参数 index 为按下时命中的入口。 */
     private fun enterEditMode(index: Int) {
+        if (!editing && immersive) {
+            editReturnPage = currentPage
+            editHoldTriggered = true
+            immersiveHome.closeDrawer()
+            currentPage = 0
+        }
         editing = true
+        config?.let { ensureWidget(it) }
+        updateWidgetVisibility()
         dragIndex = index
         pressedIndex = index
         dragMoved = false
@@ -1172,6 +1581,9 @@ internal class HomeView(
     /** 退出整理模式并恢复普通桌面。 */
     private fun exitEditMode() {
         editing = false
+        if (immersive) currentPage = editReturnPage
+        config?.let { ensureWidget(it) }
+        updateWidgetVisibility()
         dragIndex = -1
         pressedIndex = -1
         dragMoved = false
@@ -1228,13 +1640,7 @@ internal class HomeView(
 
     /** 打开系统卸载确认界面。 */
     private fun requestUninstall(packageName: String) {
-        runCatching {
-            val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }.onFailure {
-            runCatching { AppServices.router.toast("无法打开卸载界面") }
-        }
+        AppUninstall.request(context, packageName)
     }
 
     /** 弹出单条入口的长按菜单。 */
@@ -1254,6 +1660,11 @@ internal class HomeView(
         if (app != null) {
             labels.add("应用信息")
             actions.add { runCatching { AppServices.router.navigate(Destination.AppInfo(app.packageName)) } }
+        }
+        if (!immersive) {
+            val targetPage = currentPage
+            labels.add("选择组件")
+            actions.add { openDestination(Destination.PageWidgetPicker(targetPage)) }
         }
         labels.add("置顶")
         actions.add { pinEntry(entry) }
@@ -1276,6 +1687,10 @@ internal class HomeView(
     private fun showBlankMenu() {
         val labels = ArrayList<CharSequence>()
         val actions = ArrayList<() -> Unit>()
+        if (!immersive) {
+            labels.add("选择组件")
+            actions.add { openDestination(Destination.PageWidgetPicker(currentPage)) }
+        }
         labels.add("更换壁纸")
         actions.add { pickWallpaper() }
         labels.add("美化模式")

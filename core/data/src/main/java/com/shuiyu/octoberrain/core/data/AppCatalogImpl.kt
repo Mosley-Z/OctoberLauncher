@@ -135,7 +135,6 @@ class AppCatalogImpl(
                 when (entry) {
                     SpecialEntry.BOOKSHELF -> InkGlyphs.Kind.BOOK
                     SpecialEntry.FILES -> InkGlyphs.Kind.FOLDER
-                    SpecialEntry.KOREADER -> InkGlyphs.Kind.BOOK
                     SpecialEntry.SEARCH -> InkGlyphs.Kind.SEARCH
                     SpecialEntry.SETTINGS -> InkGlyphs.Kind.GEAR
                     SpecialEntry.WEREAD -> InkGlyphs.Kind.BOOK
@@ -172,7 +171,6 @@ class AppCatalogImpl(
             when (entry) {
                 SpecialEntry.BOOKSHELF -> Destination.Negative
                 SpecialEntry.FILES -> Destination.Files()
-                SpecialEntry.KOREADER -> Destination.Koreader
                 SpecialEntry.SEARCH -> Destination.Search
                 SpecialEntry.SETTINGS -> Destination.Settings
                 SpecialEntry.WEREAD -> Destination.Weread

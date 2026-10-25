@@ -1,9 +1,13 @@
 # 项目设计索引
 
+现存架构见[架构导航](../architecture/README.md)，生效工作方法见[开发导航](../development/README.md)，历史分类见[归档导航](../archive/README.md)。本目录不承担逐轮更新日志。
+
 返回[文档导览](../README.md)。当前协作规则见[35](35-development-workflow.md)，阅读器任务依据[34](34-files-reader-upgrade-plan.md)。
 
 | 文件 | 主题 | 使用边界 |
 | --- | --- | --- |
+| [40-widget-upgrade-plan.md](40-widget-upgrade-plan.md) | 小组件升级方案 | 已确认分阶段实施；六款时钟、待办周历、宫格补位、图片手势及阅读轮播统计，状态与验收边界见UX139及单卡 |
+| [39-landscape-note-expansion-proposal.md](39-landscape-note-expansion-proposal.md) | 横屏本记向右展开设计 | 用户已确认实施；方向、锚点及恢复边界，设备结果见本轮验收，竖屏原逻辑不变 |
 | [38-device-performance-reference.md](38-device-performance-reference.md) | S4/P4硬件与性能设计参考 | 实机硬件、测量口径、预算与优化案例；非新增开发授权 |
 | [00-overview.md](<00-overview.md>) | 桌面应用开发方案 | 历史设计/规格，使用时核实当前源码 |
 | [01-feature-inventory.md](<01-feature-inventory.md>) | 功能清单 | 历史设计/规格，使用时核实当前源码 |
@@ -37,3 +41,5 @@
 | [开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播.md](<开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播.md>) | 开发任务：重构自定义 Launcher 桌面阅读组件，实现极简杂志风格的多书籍轮播 | 历史设计/规格，使用时核实当前源码 |
 
 - [36 需求对接与闭环交付约定](36-demand-handoff-contract.md)：本轮整改沉淀，细化 35 流程。
+
+- [37 阅读桌面升级具体方案](37-reading-desktop-proposal.md)：首次引导、沉浸、透明图标/主题、简化布局、组件手势与本记展开；待用户确认，附设计稿和双机可行性证据。

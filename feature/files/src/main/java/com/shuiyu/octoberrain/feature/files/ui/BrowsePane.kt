@@ -42,6 +42,9 @@ internal abstract class BrowsePane(
         /** 查看条目详情。 */
         fun onDetailRequested(item: FileItem)
 
+        /** 删除普通文件，确认与IO由浏览页处理。 */
+        fun onDeleteRequested(item: FileItem)
+
         /** 切换网格与列表视图。 */
         fun onToggleView()
 
@@ -233,6 +236,8 @@ internal abstract class BrowsePane(
     ): Int
 
     /** 子类按几何返回缩略图目标长边。 */
+    protected open val includeEpubThumbnails: Boolean get() = false
+
     protected abstract fun thumbEdge(metrics: FileMetrics): Int
 
     override fun onBackAction() {
@@ -285,6 +290,7 @@ internal abstract class BrowsePane(
                 targetEdge = thumbEdge(rebuilt),
                 pageSize = pageSize,
                 onReady = { invalidate() },
+                includeEpub = includeEpubThumbnails,
             )
         requestPrefetch()
     }
@@ -313,8 +319,9 @@ internal abstract class BrowsePane(
 
     /** 长按面板点击：命中行执行动作，空白处关闭面板。 */
     private fun handlePressedPanelTap(y: Int) {
-        val row = BrowsePanel.rowAt(y, contentArea.top, tokens.rowH, BrowsePanel.pressedRows.size)
         val item = pressedItem
+        val rows = BrowsePanel.pressedRows(item?.dir != false)
+        val row = BrowsePanel.rowAt(y, contentArea.top, tokens.rowH, rows.size)
         if (row < 0 || item == null) {
             closePanel()
             return
@@ -323,9 +330,10 @@ internal abstract class BrowsePane(
         pressedPanelOpen = false
         pressedItem = null
         invalidate()
-        when (BrowsePanel.pressedRows[row]) {
+        when (rows[row]) {
             PressedRow.OPEN -> if (item.dir) callbacks.onEnterDir(item) else callbacks.onOpenItem(item)
             PressedRow.DETAIL -> callbacks.onDetailRequested(item)
+            PressedRow.DELETE -> callbacks.onDeleteRequested(item)
         }
     }
 
@@ -426,10 +434,11 @@ internal abstract class BrowsePane(
         )
     }
 
-    /** 绘制长按面板：两行动作，位置与操作面板一致。 */
+    /** 绘制长按面板：按文件类型给出动作，位置与操作面板一致。 */
     private fun drawPressedPanel(canvas: Canvas) {
         val area = contentArea
-        val bottom = area.top + tokens.rowH * BrowsePanel.pressedRows.size
+        val rows = BrowsePanel.pressedRows(pressedItem?.dir != false)
+        val bottom = area.top + tokens.rowH * rows.size
         canvas.drawRect(area.left.toFloat(), area.top.toFloat(), area.right.toFloat(), bottom.toFloat(), paperPaint)
         canvas.drawLine(
             area.left.toFloat(),
@@ -438,12 +447,12 @@ internal abstract class BrowsePane(
             area.top.toFloat(),
             linePaint,
         )
-        for (index in BrowsePanel.pressedRows.indices) {
+        for (index in rows.indices) {
             val top = area.top + index * tokens.rowH
             val baseline =
                 top + tokens.rowH / 2f + (bodyPaint.descent() - bodyPaint.ascent()) / 2f - bodyPaint.descent()
             canvas.drawText(
-                BrowsePanel.pressedRows[index].label,
+                rows[index].label,
                 (area.left + tokens.padH).toFloat(),
                 baseline,
                 bodyPaint,
