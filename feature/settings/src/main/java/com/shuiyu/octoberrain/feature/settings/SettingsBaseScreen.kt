@@ -61,7 +61,10 @@ abstract class SettingsBaseScreen(
         if (config != lastConfig || needsRebuild()) {
             rebuild(current, config)
         }
+        onResumed()
     }
+
+    protected open fun onResumed() = Unit
 
     /** 子类在配置未变化但界面需要重建时返回 true，例如权限状态变化。 */
     protected open fun needsRebuild(): Boolean = false

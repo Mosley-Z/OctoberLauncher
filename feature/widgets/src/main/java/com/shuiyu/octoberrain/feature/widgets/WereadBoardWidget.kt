@@ -252,6 +252,7 @@ class WereadBoardWidget(
     private val tick =
         object : Runnable {
             override fun run() {
+                if (!hostVisible || !ticking) return
                 val today = LocalDate.now()
                 if (today != tickDay) {
                     tickDay = today

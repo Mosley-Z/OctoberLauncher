@@ -8,7 +8,7 @@ import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.effectiveImageCarouselSeconds
+import com.shuiyu.octoberrain.core.common.effectiveImageCarouselMinutes
 import com.shuiyu.octoberrain.core.common.effectiveImageSwipeDirection
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.render.ImageDecoder
@@ -53,6 +53,7 @@ class ImageWidget(
     private val tick =
         object : Runnable {
             override fun run() {
+                if (!hostVisible || !ticking) return
                 advance()
                 scheduleTick()
             }
@@ -213,7 +214,7 @@ class ImageWidget(
 
     /** 重新排程下一次轮播。 */
     private fun scheduleTick() {
-        if (images.size <= 1) {
+        if (!hostVisible || !ticking || images.size <= 1) {
             ticking = false
             return
         }
@@ -241,19 +242,19 @@ class ImageWidget(
     /**
      * 轮播间隔毫秒数。
      *
-     * 每次排程时从桌面配置读取 `effectiveImageCarouselSeconds`，非法值由该派生属性回退，
+     * 每次排程时从桌面配置读取 `effectiveImageCarouselMinutes`，非法值由该派生属性回退，
      * 配置变化后下一次排程即使用新间隔；配置服务未就绪时使用默认值。
      *
      * @return 间隔毫秒数
      */
     private fun intervalMillis(): Long {
-        val seconds: Int =
+        val minutes: Int =
             if (AppServices.isReady()) {
-                config.desktop.effectiveImageCarouselSeconds
+                config.desktop.effectiveImageCarouselMinutes
             } else {
-                FALLBACK_CAROUSEL_SECONDS
+                FALLBACK_CAROUSEL_MINUTES
             }
-        return seconds.coerceAtLeast(1).toLong() * 1_000L
+        return minutes.coerceAtLeast(1).toLong() * 60_000L
     }
 
     /** 打开共用图片选择入口，更新后重新加载本组件。 */
@@ -306,8 +307,8 @@ class ImageWidget(
     }
 
     private companion object {
-        /** 配置服务未就绪时的轮播间隔秒数。 */
-        const val FALLBACK_CAROUSEL_SECONDS: Int = 15
+        /** 配置服务未就绪时的轮播间隔分钟数。 */
+        const val FALLBACK_CAROUSEL_MINUTES: Int = 15
 
         /** 判定切图所需的滑动距离，单位 dp。 */
         const val SWIPE_THRESHOLD_DP: Float = 36f

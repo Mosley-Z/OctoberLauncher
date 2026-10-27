@@ -46,6 +46,18 @@ class OctoberRainApp : Application() {
 
     private var launcherProcess = true
 
+    private val screenPowerReceiver =
+        object : android.content.BroadcastReceiver() {
+            override fun onReceive(
+                context: android.content.Context,
+                intent: android.content.Intent,
+            ) {
+                com.shuiyu.octoberrain.core.common.UiVisibility.setInteractive(
+                    intent.action == android.content.Intent.ACTION_SCREEN_ON,
+                )
+            }
+        }
+
     override fun onCreate() {
         super.onCreate()
         val processName =
@@ -60,6 +72,7 @@ class OctoberRainApp : Application() {
         launcherProcess = !processName.startsWith("$packageName:reader_pdf")
         // isolated UID只接收PDF描述符，不能初始化配置、文件仓库、网络与桌面模块。
         if (!launcherProcess) return
+        observeScreenPower()
         DeviceRuntime.install(this)
 
         val config = JsonConfigStore(this)
@@ -105,12 +118,24 @@ class OctoberRainApp : Application() {
 
         installModules(config)
         observeRuntimeState(config)
-        syncWereadIfNeeded(config)
         RefreshScheduler.attach(
             AppServices.refresh,
             config.state.value.tray.autoRefreshMinutes,
         )
         InkLog.d("启动", "服务就绪，屏幕 ${DeviceRuntime.profile.widthPx}x${DeviceRuntime.profile.heightPx}")
+    }
+
+    private fun observeScreenPower() {
+        com.shuiyu.octoberrain.core.common.UiVisibility.setInteractive(
+            getSystemService(android.os.PowerManager::class.java).isInteractive,
+        )
+        registerReceiver(
+            screenPowerReceiver,
+            android.content.IntentFilter().apply {
+                addAction(android.content.Intent.ACTION_SCREEN_ON)
+                addAction(android.content.Intent.ACTION_SCREEN_OFF)
+            },
+        )
     }
 
     override fun onTrimMemory(level: Int) {
@@ -156,29 +181,8 @@ class OctoberRainApp : Application() {
         systemControls?.dispose()
         systemControls = null
         scope.cancel()
+        if (launcherProcess) unregisterReceiver(screenPowerReceiver)
         super.onTerminate()
-    }
-
-    /**
-     * 独立数据源且密钥已配置时，在后台同步一次。
-     *
-     * 仅在数据缺失或超过刷新间隔时执行，避免每次启动都发网络请求；同步由
-     * [HostWereadSync] 在独立线程完成，结果写入状态并由内容层刷新时读取。
-     *
-     * @param config 配置存储，用于读取数据源与刷新间隔
-     */
-    private fun syncWereadIfNeeded(config: ConfigStore) {
-        val integrations = config.state.value.integrations
-        val source = integrations.effectiveWereadSource
-        val key = integrations.wereadApiKey
-        val shelf = File(filesDir, "weread/shelf.json")
-        val bills = File(filesDir, "weread/bills.json")
-        val intervalMillis = integrations.effectiveWereadRefreshMinutes.toLong() * 60_000L
-        val missingBills = !bills.isFile || bills.length() <= 2L
-        val stale = !shelf.isFile || missingBills || System.currentTimeMillis() - shelf.lastModified() > intervalMillis
-        if (source == SOURCE_SYNCED && key.isNotBlank() && stale) {
-            HostWereadSync.syncNow { _, _ -> }
-        }
     }
 
     /** 外观变化按刷新策略重绘，托盘间隔变化时更新调度器。 */
@@ -200,11 +204,5 @@ class OctoberRainApp : Application() {
                 .distinctUntilChanged()
                 .collect { minutes -> RefreshScheduler.updateInterval(minutes) }
         }
-    }
-
-    /** 常量定义。 */
-    private companion object {
-        /** 独立同步数据源标识，与配置层选项一致。 */
-        const val SOURCE_SYNCED: String = "synced"
     }
 }

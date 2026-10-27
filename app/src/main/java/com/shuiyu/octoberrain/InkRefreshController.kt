@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.RefreshPolicy
 import com.shuiyu.octoberrain.core.common.RefreshReason
+import com.shuiyu.octoberrain.core.common.UiVisibility
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 
 /**
@@ -45,6 +46,7 @@ object InkRefreshController : RefreshPolicy {
 
     /** 闪烁动画是否正在执行，用于抑制重复请求。 */
     private var flashing = false
+    private var flashOverlay: View? = null
 
     /**
      * 绑定刷新所作用的根视图，闪烁覆盖层添加在该视图之上。
@@ -57,6 +59,7 @@ object InkRefreshController : RefreshPolicy {
 
     /** 解除绑定并撤销所有挂起的闪烁任务。 */
     fun detach() {
+        onBackgrounded()
         root = null
         flashing = false
         handler.removeCallbacksAndMessages(null)
@@ -76,6 +79,7 @@ object InkRefreshController : RefreshPolicy {
      * @param reason 触发场景，决定闪烁次数。
      */
     override fun requestFullRefresh(reason: RefreshReason) {
+        if (!UiVisibility.active.value) return
         val host = root ?: return
         if (host !is ViewGroup) return
         if (flashing) return
@@ -86,7 +90,7 @@ object InkRefreshController : RefreshPolicy {
 
     /** 请求一次局部刷新，直接重绘根视图。 */
     override fun requestPartial() {
-        root?.invalidate()
+        if (UiVisibility.active.value) root?.invalidate()
     }
 
     /**
@@ -101,9 +105,13 @@ object InkRefreshController : RefreshPolicy {
     /**
      * 进入后台时的处理。
      *
-     * 后台停留时长由宿主在生命周期回调中记录并判断，本入口保留空实现以符合策略接口。
+     * 取消尚未执行的刷新并移除闪屏覆盖层，避免后台继续绘制。
      */
     override fun onBackgrounded() {
+        handler.removeCallbacksAndMessages(null)
+        flashOverlay?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        flashOverlay = null
+        flashing = false
     }
 
     /** 距离最近一次整屏刷新的毫秒数，与调度器共用同一完成时刻。 */
@@ -144,10 +152,12 @@ object InkRefreshController : RefreshPolicy {
                 isClickable = false
                 isFocusable = false
             }
+        flashOverlay = overlay
         host.addView(overlay)
         val hold = if (rounds == 1) FAST_FLASH_HOLD_MS else FLASH_HOLD_MS
         handler.postDelayed({
             runCatching { host.removeView(overlay) }
+            flashOverlay = null
             if (round < rounds) {
                 handler.postDelayed({ flash(host, round + 1, rounds) }, FLASH_GAP_MS)
             } else {

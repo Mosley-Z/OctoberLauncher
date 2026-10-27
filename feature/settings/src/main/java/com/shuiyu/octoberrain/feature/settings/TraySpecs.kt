@@ -65,7 +65,7 @@ internal object TraySpecs {
                 control =
                     choiceTray(
                         options = REFRESH_OPTIONS,
-                        read = { tray -> REFRESH_VALUES.indexOf(tray.autoRefreshMinutes).takeIf { it >= 0 } ?: 2 },
+                        read = { tray -> REFRESH_VALUES.indexOf(tray.autoRefreshMinutes).takeIf { it >= 0 } ?: 0 },
                         write = { tray, index -> tray.copy(autoRefreshMinutes = REFRESH_VALUES[index]) },
                     ),
                 effect = SettingEffect.REBUILD,

@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  */
 object RefreshScheduler {
     /** 默认定时整屏刷新间隔，单位分钟。 */
-    private const val DEFAULT_INTERVAL_MINUTES = 10
+    private const val DEFAULT_INTERVAL_MINUTES = 0
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -26,6 +26,8 @@ object RefreshScheduler {
 
     /** 自动整屏刷新间隔，单位分钟，0 表示关闭。 */
     private var intervalMinutes: Int = DEFAULT_INTERVAL_MINUTES
+
+    private var active = false
 
     /** 最近一次整屏刷新完成的时刻，0 表示尚未完成过整屏刷新。 */
     private var lastFullAt: Long = 0L
@@ -65,7 +67,7 @@ object RefreshScheduler {
     fun updateInterval(minutes: Int) {
         intervalMinutes = minutes.coerceAtLeast(0)
         handler.removeCallbacks(fullRefreshTask)
-        if (intervalMinutes > 0) {
+        if (active && intervalMinutes > 0) {
             handler.postDelayed(fullRefreshTask, TimeUnit.MINUTES.toMillis(intervalMinutes.toLong()))
         }
     }
@@ -75,12 +77,21 @@ object RefreshScheduler {
         handler.removeCallbacks(fullRefreshTask)
         handler.removeCallbacks(partialTask)
         requester = null
+        active = false
+    }
+
+    /** 后台撤销定时；恢复后从当前时刻计时，不补刷后台积压。 */
+    fun setActive(value: Boolean) {
+        if (active == value) return
+        active = value
+        updateInterval(intervalMinutes)
+        if (!active) handler.removeCallbacks(partialTask)
     }
 
     /** 内容变化后请求局部重绘，同一帧内的多次调用会合并。 */
     fun notifyContentChanged() {
         handler.removeCallbacks(partialTask)
-        handler.post(partialTask)
+        if (active) handler.post(partialTask)
     }
 
     /**
@@ -92,6 +103,7 @@ object RefreshScheduler {
      * @param reason 触发场景，缺省为手动触发。
      */
     fun requestFullRefresh(reason: RefreshReason = RefreshReason.MANUAL) {
+        if (!active) return
         val target = requester ?: return
         if (target is RefreshPolicy) {
             target.requestFullRefresh(reason)
@@ -111,7 +123,7 @@ object RefreshScheduler {
         fullRefreshVersion++
         lastFullAt = System.currentTimeMillis()
         handler.removeCallbacks(fullRefreshTask)
-        if (intervalMinutes > 0) {
+        if (active && intervalMinutes > 0) {
             handler.postDelayed(fullRefreshTask, TimeUnit.MINUTES.toMillis(intervalMinutes.toLong()))
         }
     }

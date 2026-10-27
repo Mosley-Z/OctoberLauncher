@@ -205,7 +205,7 @@ internal class WereadReadingPage(
 
     /** 页面回到前台时重新读取数据并重绘。 */
     fun refresh() {
-        cancelPending()
+        handler.removeCallbacks(pollTask)
         data.reload()
         refreshNavItems()
         emitFormLabel()
@@ -213,6 +213,7 @@ internal class WereadReadingPage(
             Stage.INSIGHT -> bindInsight()
             Stage.CARD -> bindCard()
         }
+        if (pendingBase != 0L) pollPending()
     }
 
     /** 手动按钮强制联网；返回页面时的 refresh 仍仅重载本地。 */
@@ -236,6 +237,11 @@ internal class WereadReadingPage(
             refreshButton.text = "刷新"
             listener?.onToast(if (host?.isRunning() == true) "同步正在进行" else "请先配置微信读书接口密钥")
         }
+    }
+
+    /** 暂停轮询但保留在途周期，恢复后接续结果。 */
+    fun pause() {
+        handler.removeCallbacks(pollTask)
     }
 
     /** 释放定时任务与图片资源。 */

@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.shuiyu.octoberrain.core.common
 
 import kotlinx.serialization.Serializable
@@ -264,8 +266,9 @@ data class DesktopConfig(
      * 只记录手指滑动方向与图片切换的对应关系，不参与轮播间隔计算。
      */
     val imageSwipeDirection: Int = IMAGE_SWIPE_OFF,
-    /** 图片组件多图轮播的切换间隔，单位秒，取值见 [IMAGE_CAROUSEL_OPTIONS]。 */
-    val imageCarouselSeconds: Int = IMAGE_CAROUSEL_DEFAULT,
+    /** 图片组件多图轮播的切换间隔，单位分钟，取值见 [IMAGE_CAROUSEL_OPTIONS]。 */
+    @kotlinx.serialization.json.JsonNames("imageCarouselSeconds")
+    val imageCarouselMinutes: Int = IMAGE_CAROUSEL_DEFAULT,
     /**
      * 微读整体卡片可切换的形态位掩码。
      *
@@ -367,10 +370,10 @@ fun rewriteRemovedWidgetIds(desktop: DesktopConfig): DesktopConfig {
 /** 整体卡片组件标识，承载微信读书五种形态。 */
 const val WEREAD_BOARD_WIDGET_ID: String = "weread_board"
 
-/** 图片组件多图轮播间隔的候选值，单位秒。 */
-val IMAGE_CAROUSEL_OPTIONS: List<Int> = listOf(5, 10, 15, 30, 60)
+/** 图片组件多图轮播间隔的候选值，单位分钟。 */
+val IMAGE_CAROUSEL_OPTIONS: List<Int> = listOf(1, 5, 10, 15, 30, 60)
 
-/** 图片组件多图轮播间隔的默认值，单位秒。 */
+/** 图片组件多图轮播间隔的默认值，单位分钟。 */
 const val IMAGE_CAROUSEL_DEFAULT: Int = 15
 
 /** 图片组件手动切图关闭，点击与轮播行为保持不变。 */
@@ -399,8 +402,8 @@ val DesktopConfig.effectiveImageSwipeDirection: Int
  * 配置值落在 [IMAGE_CAROUSEL_OPTIONS] 之外时回退 [IMAGE_CAROUSEL_DEFAULT]，
  * 旧版本配置缺少该字段时同样取默认值。
  */
-val DesktopConfig.effectiveImageCarouselSeconds: Int
-    get() = imageCarouselSeconds.takeIf { it in IMAGE_CAROUSEL_OPTIONS } ?: IMAGE_CAROUSEL_DEFAULT
+val DesktopConfig.effectiveImageCarouselMinutes: Int
+    get() = imageCarouselMinutes.takeIf { it in IMAGE_CAROUSEL_OPTIONS } ?: IMAGE_CAROUSEL_DEFAULT
 
 /** 微读整体卡片形态位的默认取值，五形态全开。 */
 const val WEREAD_BOARD_POOL_DEFAULT: Int = 0b11111
@@ -556,7 +559,7 @@ data class AppearanceConfig(
 data class TrayConfig(
     val overlayEnabled: Boolean = false,
     val showBatteryPercent: Boolean = true,
-    val autoRefreshMinutes: Int = 10,
+    val autoRefreshMinutes: Int = 0,
     val volumeKeyFlip: Boolean = false,
     val refreshOnAppExit: Boolean = false,
     val refreshOnAppExitDelayMs: Int = 100,
@@ -946,7 +949,7 @@ data class LauncherConfig(
 ) {
     companion object {
         /** 当前配置结构版本，读取旧配置时据此执行迁移。 */
-        const val CURRENT_VERSION = 16
+        const val CURRENT_VERSION = 17
     }
 }
 

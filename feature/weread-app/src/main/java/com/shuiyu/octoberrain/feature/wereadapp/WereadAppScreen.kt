@@ -50,6 +50,10 @@ class WereadAppScreen(
         appView?.refresh()
     }
 
+    override fun onPause() {
+        appView?.pause()
+    }
+
     /** 返回键：先退回阅读页，已在阅读页时交由宿主处理。 */
     override fun onBack(): Boolean = if (openSettings) false else appView?.back() ?: false
 
@@ -121,6 +125,10 @@ internal class WereadAppView(
     }
 
     /** 释放各分段资源。 */
+    fun pause() {
+        readingPage()?.pause()
+    }
+
     fun release() {
         readingPage()?.release()
         pages.clear()
@@ -172,6 +180,7 @@ internal class WereadAppView(
      */
     fun showTab(tab: WereadAppTab) {
         if (tab !in tabs) return
+        if (tab != WereadAppTab.READING) readingPage()?.pause()
         current = tab
         tabBar.setSelected(tabs.indexOf(tab))
         val page = pages.getOrPut(tab) { createPage(tab) }

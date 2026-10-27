@@ -201,11 +201,18 @@ class MinuteTicker(
             }
         }
 
-    /** 启动，立即触发一次。 */
-    fun start() {
+    /** 启动；宿主已主动刷新时可跳过立即回调，直接等待下一整分。 */
+    fun start(immediate: Boolean = true) {
         if (running) return
         running = true
-        handler.post(runnable)
+        if (immediate) {
+            handler.post(runnable)
+        } else {
+            handler.postDelayed(
+                runnable,
+                60_000L - System.currentTimeMillis() % 60_000L,
+            )
+        }
     }
 
     /** 停止并移除回调。 */

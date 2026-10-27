@@ -2,17 +2,18 @@ package com.shuiyu.octoberrain
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.UiVisibility
 import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
 import com.shuiyu.octoberrain.core.common.WereadSyncHost
+import com.shuiyu.octoberrain.core.wereadsync.AutomaticSyncBudget
 import com.shuiyu.octoberrain.core.wereadsync.WereadCardRefreshService
 import com.shuiyu.octoberrain.core.wereadsync.WereadGateway
-import com.shuiyu.octoberrain.core.wereadsync.WereadGatewayError
-import com.shuiyu.octoberrain.core.wereadsync.WereadGatewayResult
-import com.shuiyu.octoberrain.core.wereadsync.WereadRequest
 import com.shuiyu.octoberrain.core.wereadsync.WereadStore
 import com.shuiyu.octoberrain.core.wereadsync.WereadSyncReport
 import com.shuiyu.octoberrain.core.wereadsync.WereadSyncService
+import com.shuiyu.octoberrain.core.wereadsync.WereadSyncTransport
 import com.shuiyu.octoberrain.core.wereadsync.parseSyncState
 import com.shuiyu.octoberrain.feature.content.ContentSourceImpl
 import com.shuiyu.octoberrain.feature.content.data.WereadSyncBridge
@@ -78,6 +79,32 @@ object HostWereadSync : WereadSyncHost {
     /** 当前是否正在同步。 */
     override fun isRunning(): Boolean = queue.isRunning()
 
+    /** 前台启动只做限量同步；失败重启也遵守15分钟冷却，不因空墨单反复联网。 */
+    internal fun syncAutomaticallyIfNeeded() {
+        val dir = root
+        val integrations = AppServices.config.state.value.integrations
+        val enabled =
+            UiVisibility.active.value && integrations.effectiveWereadSource == "synced" && apiKey().isNotEmpty()
+        if (dir == null || !enabled) return
+        val now = System.currentTimeMillis()
+        val attempt = File(dir, "automatic-attempt.stamp")
+        if (attempt.isFile && now - attempt.lastModified() < 900_000L) return
+        val shelf = File(dir, "shelf.json")
+        val bills = File(dir, "bills.json")
+        val stale =
+            !shelf.isFile ||
+                !bills.isFile ||
+                bills.length() <= 2L ||
+                now - shelf.lastModified() > integrations.effectiveWereadRefreshMinutes * 60_000L
+        if (stale && refresh(WereadRefreshRequest("automatic")) { _, _ -> }) {
+            runCatching {
+                dir.mkdirs()
+                attempt.writeText("")
+                attempt.setLastModified(now)
+            }
+        }
+    }
+
     /** 最近一次同步的状态文案。 */
     override fun statusText(): String {
         val state = readState()
@@ -120,6 +147,7 @@ object HostWereadSync : WereadSyncHost {
             autoSuppressed || dir == null || key.isEmpty() -> false
             !queue.tryStartRefresh() -> false
             else -> {
+                if (request.mode == "immersive_auto") lastImmersiveAttempt = System.currentTimeMillis()
                 startWorker(dir, key, onFinished, request)
                 true
             }
@@ -127,7 +155,7 @@ object HostWereadSync : WereadSyncHost {
     }
 
     private fun shouldSkipAutoRefresh(request: WereadRefreshRequest): Boolean {
-        if (request.mode != "immersive_auto") return false
+        if (request.mode != "immersive_auto") return isAutomatic(request) && !UiVisibility.active.value
         val now = System.currentTimeMillis()
         val zone = java.time.ZoneId.systemDefault()
         val day =
@@ -140,10 +168,13 @@ object HostWereadSync : WereadSyncHost {
                 .ofEpochMilli(lastImmersiveSuccess)
                 .atZone(zone)
                 .toLocalDate()
-        val skip = (day == lastDay && now - lastImmersiveSuccess < 600_000L) || now - lastImmersiveAttempt < 60_000L
-        if (!skip) lastImmersiveAttempt = now
-        return skip
+        val recentSuccess = day == lastDay && now - lastImmersiveSuccess < 600_000L
+        val recentFailure = lastImmersiveAttempt > lastImmersiveSuccess && now - lastImmersiveAttempt < 900_000L
+        return !UiVisibility.active.value || recentSuccess || recentFailure
     }
+
+    private fun isAutomatic(request: WereadRefreshRequest?): Boolean =
+        request?.mode == "automatic" || request?.mode == "immersive_auto"
 
     /** 启动后台同步线程。 */
     private fun startWorker(
@@ -187,44 +218,40 @@ object HostWereadSync : WereadSyncHost {
         key: String,
         request: WereadRefreshRequest?,
     ): WereadSyncReport {
-        var failure: WereadGatewayError? = null
         val gateway = WereadGateway({ key })
-        val transport =
-            WereadRequest { api, body ->
-                if (failure == WereadGatewayError.INVALID_KEY) {
-                    null
-                } else {
-                    when (val response = gateway.request(api, body)) {
-                        is WereadGatewayResult.Success -> response.payload
-                        is WereadGatewayResult.Failure -> {
-                            failure = response.error
-                            null
-                        }
-                    }
-                }
+        val budget =
+            if (isAutomatic(request)) {
+                AutomaticSyncBudget({
+                    UiVisibility.active.value
+                }, SystemClock::elapsedRealtime)
+            } else {
+                null
             }
+
+        val transport = WereadSyncTransport(gateway::request, budget)
         val report =
-            if (request == null) {
+            if (request == null || request.mode == "automatic") {
                 WereadSyncService(
                     WereadStore(dir),
                     WereadSyncBridge(dir, transport),
-                    failureMessage = { failureMessage(failure) },
-                ).sync()
+                    failureMessage = { transport.failureMessage },
+                ).sync(
+                    bases =
+                        if (request ==
+                            null
+                        ) {
+                            WereadSyncService.defaultPeriods()
+                        } else {
+                            WereadSyncService.automaticPeriods()
+                        },
+                    includeLibrary = request == null,
+                )
             } else {
                 WereadCardRefreshService(transport, dir).refresh(request)
             }
-        val message = failureMessage(failure) ?: return report
+        val message = transport.failureMessage ?: return report
         return report.copy(success = false, message = message)
     }
-
-    private fun failureMessage(failure: WereadGatewayError?): String? =
-        when (failure) {
-            WereadGatewayError.MISSING_KEY -> "尚未配置微信读书 API Key"
-            WereadGatewayError.INVALID_KEY -> "微信读书密钥无效，请在连接设置中更新"
-            WereadGatewayError.TRANSPORT -> "网络或服务暂不可用，已保留密钥与已有数据，请稍后重试"
-            WereadGatewayError.MALFORMED, WereadGatewayError.BUSINESS -> "微信读书返回异常，已保留已有数据，请稍后重试"
-            null -> null
-        }
 
     /** 读取当前密钥。 */
     private fun apiKey(): String =

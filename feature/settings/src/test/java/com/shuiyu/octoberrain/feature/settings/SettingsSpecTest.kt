@@ -60,8 +60,8 @@ class SettingsSpecTest {
         val control = choiceOf("tray.refreshInterval")
         assertEquals(5, control.options.size)
         val base = LauncherConfig()
-        // 默认间隔为十分钟，对应候选表第三项
-        assertEquals(2, control.read(base))
+        // 默认关闭，对应候选表第一项
+        assertEquals(0, control.read(base))
         val off = control.write(base, 0)
         assertEquals(0, off.tray.autoRefreshMinutes)
         assertEquals(0, control.read(off))

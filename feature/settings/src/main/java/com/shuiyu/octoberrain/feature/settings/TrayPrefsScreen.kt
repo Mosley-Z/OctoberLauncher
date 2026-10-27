@@ -26,11 +26,13 @@ class TrayPrefsScreen(
 
     /** 最近一次写入摘要行的文字，用于跳过内容未变化的写入。 */
     private var summaryText: String = ""
+    private var resumed = false
 
     /** 摘要刷新任务：更新时间摘要后按固定周期重新投递。 */
     private val summaryTick =
         object : Runnable {
             override fun run() {
+                if (!resumed) return
                 updateSummary()
                 summaryHandler.postDelayed(this, SUMMARY_INTERVAL_MS)
             }
@@ -45,7 +47,7 @@ class TrayPrefsScreen(
             groups = SettingsCatalog.trayGroups.filter { (it.id == SettingsCatalog.GROUP_TRAY_REFRESH) == refreshOnly },
             config = config,
             sink = settingEffectSink(),
-            actions = trayActions(),
+            actions = mapOf("tray.refreshNow" to { requestManualRefresh() }),
             customs = trayCustoms(),
         )
         if (!refreshOnly) {
@@ -107,12 +109,6 @@ class TrayPrefsScreen(
         }
     }
 
-    /** 状态栏与刷新页的动作表，键为设置项标识。 */
-    private fun trayActions(): Map<String, () -> Unit> =
-        mapOf(
-            "tray.refreshNow" to { requestManualRefresh() },
-        )
-
     /** 托盘页的自定义行表，键为声明中的自定义行标识。 */
     private fun trayCustoms(): Map<String, (SettingsSection) -> Unit> =
         mapOf(
@@ -140,7 +136,19 @@ class TrayPrefsScreen(
     /** 启动摘要刷新任务；页面重建时先撤销旧任务，避免多个任务同时写入。 */
     private fun startSummaryTicker() {
         summaryHandler.removeCallbacks(summaryTick)
-        summaryHandler.postDelayed(summaryTick, SUMMARY_INTERVAL_MS)
+        if (resumed) summaryHandler.postDelayed(summaryTick, SUMMARY_INTERVAL_MS)
+    }
+
+    override fun onResumed() {
+        resumed = true
+        updateSummary()
+        startSummaryTicker()
+    }
+
+    override fun onPause() {
+        resumed = false
+        summaryHandler.removeCallbacksAndMessages(null)
+        super.onPause()
     }
 
     /** 更新摘要行文字；内容未变化时不写入，避免重复重绘。 */

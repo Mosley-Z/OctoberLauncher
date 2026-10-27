@@ -18,9 +18,14 @@ import com.shuiyu.octoberrain.core.common.NotificationPanelAccess
 import com.shuiyu.octoberrain.core.common.RefreshPolicy
 import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.TimeUtils
+import com.shuiyu.octoberrain.core.common.UiVisibility
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkGlyphs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
  * 桌面状态栏：左侧刷新环与时间，右侧电量百分比与电池图标，背景透明。
@@ -49,6 +54,7 @@ class StatusBarView(
     private val chargeMark: View
 
     private val ticker = MinuteTicker { refresh() }
+    private var visibilityJob: Job? = null
 
     init {
         // 透明背景，壁纸直接透出；不再绘制底部分隔线
@@ -132,11 +138,17 @@ class StatusBarView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (!systemOwnsIndicators) ticker.start()
-        refresh()
+        visibilityJob =
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                UiVisibility.active.collect { active ->
+                    if (active && !systemOwnsIndicators) ticker.start() else ticker.stop()
+                }
+            }
     }
 
     override fun onDetachedFromWindow() {
+        visibilityJob?.cancel()
+        visibilityJob = null
         ticker.stop()
         super.onDetachedFromWindow()
     }

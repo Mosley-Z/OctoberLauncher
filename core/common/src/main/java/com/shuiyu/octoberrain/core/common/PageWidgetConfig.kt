@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.shuiyu.octoberrain.core.common
 
 import kotlinx.serialization.Serializable
@@ -7,7 +9,8 @@ import kotlinx.serialization.Serializable
 data class PageWidgetConfig(
     val widgetId: String = "",
     val widgetImagePath: String? = null,
-    val imageCarouselSeconds: Int = IMAGE_CAROUSEL_DEFAULT,
+    @kotlinx.serialization.json.JsonNames("imageCarouselSeconds")
+    val imageCarouselMinutes: Int = IMAGE_CAROUSEL_DEFAULT,
     val imageSwipeDirection: Int = IMAGE_SWIPE_OFF,
     val todoWeekStartDay: Int = TODO_WEEK_START_DEFAULT,
     val wereadBoardPoolMask: Int = WEREAD_BOARD_POOL_DEFAULT,
@@ -20,7 +23,7 @@ fun DesktopConfig.forWidgetPage(page: Int): DesktopConfig {
     return copy(
         widgetId = slot.widgetId,
         widgetImagePath = slot.widgetImagePath,
-        imageCarouselSeconds = slot.imageCarouselSeconds,
+        imageCarouselMinutes = slot.imageCarouselMinutes,
         imageSwipeDirection = slot.imageSwipeDirection,
         todoWeekStartDay = slot.todoWeekStartDay,
         wereadBoardPoolMask = slot.wereadBoardPoolMask,
@@ -46,7 +49,7 @@ fun DesktopConfig.editWidgetPage(
         PageWidgetConfig(
             edited.widgetId,
             edited.widgetImagePath,
-            edited.imageCarouselSeconds,
+            edited.imageCarouselMinutes,
             edited.imageSwipeDirection,
             edited.todoWeekStartDay,
             edited.wereadBoardPoolMask,

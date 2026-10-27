@@ -14,6 +14,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.MinuteTicker
 import com.shuiyu.octoberrain.core.common.NotificationPanelAccess
+import com.shuiyu.octoberrain.core.common.UiVisibility
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -98,13 +99,14 @@ class OverlayAccessibilityService : AccessibilityService() {
         scope.launch { system.battery.collect { updateStatus() } }
         scope.launch { system.wifi.collect { updateStatus() } }
         scope.launch { AppServices.config.state.collect { applyOverlayVisibility() } }
+        scope.launch { UiVisibility.interactive.collect { applyOverlayVisibility() } }
     }
 
     /** 依据前台包名与配置决定悬浮窗口的挂载状态。 */
     private fun applyOverlayVisibility() {
         val config = runCatching { AppServices.config.state.value.tray }.getOrNull() ?: return
         val launcherVisible = foregroundPackage == packageName
-        if (launcherVisible || !config.overlayEnabled) {
+        if (launcherVisible || !config.overlayEnabled || !UiVisibility.interactive.value) {
             removeStatusWindow()
             statusTicker.stop()
             return
@@ -151,7 +153,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     /** 刷新悬浮状态栏显示。 */
     private fun updateStatus() {
-        statusView?.refresh()
+        if (statusAttached && UiVisibility.interactive.value) statusView?.refresh()
     }
 
     /** 整屏闪烁刷新：黑屏 500 毫秒后转白，再 500 毫秒后移除覆盖层。 */

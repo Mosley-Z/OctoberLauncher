@@ -115,7 +115,10 @@ class WereadSyncService(
      * @param bases 需要拉取的周期起点，按周期类型给出；缺省只取当期与全时段
      * @return 同步报告
      */
-    suspend fun sync(bases: List<WereadSyncPeriod> = defaultPeriods()): WereadSyncReport =
+    suspend fun sync(
+        bases: List<WereadSyncPeriod> = defaultPeriods(),
+        includeLibrary: Boolean = true,
+    ): WereadSyncReport =
         mutex.withLock {
             // 同步包含网络请求与多次整档写入，调用方可能在主线程协程中等待；
             // 统一切到 IO 调度器，避免周期数量增多后阻塞界面。
@@ -123,7 +126,7 @@ class WereadSyncService(
                 return@withLock WereadSyncReport(false, "同步或迁移正在进行，请稍后重试")
             }
             try {
-                withContext(Dispatchers.IO) { runSync(bases) }
+                withContext(Dispatchers.IO) { runSync(bases, includeLibrary) }
             } finally {
                 WereadDataGate.endSync()
             }
@@ -139,16 +142,19 @@ class WereadSyncService(
      * @param bases 需要拉取的周期起点
      * @return 同步报告
      */
-    private suspend fun runSync(bases: List<WereadSyncPeriod>): WereadSyncReport {
+    private suspend fun runSync(
+        bases: List<WereadSyncPeriod>,
+        includeLibrary: Boolean,
+    ): WereadSyncReport {
         val started = clock()
         val shelf = provider.shelf()
         val stats = fetchStats(bases)
-        val assets = provider.assets()
+        val assets = if (includeLibrary) provider.assets() else null
         val shelfCount = writeShelf(enrichShelf(shelf, assets))
         val statCount = writeStats(stats)
         val billCount = writeBills(bases, stats)
         val assetCount = writeAssets(assets)
-        val notes = provider.notes()
+        val notes = if (includeLibrary) provider.notes() else null
         val noteCount = writeNotes(notes)
         val warnings = provider.warnings().toMutableList()
         if (notes != null && !notes.complete) warnings += "笔记仍有 ${notes.remainingBooks} 本待补齐"
@@ -335,6 +341,10 @@ class WereadSyncService(
 
         /** 默认同步覆盖的年数，含当前年。 */
         const val PERIOD_YEAR_COUNT: Int = 3
+
+        /** 自动启动只更新当周、当月与全时统计；历史及全库补齐留给手动完整同步。 */
+        fun automaticPeriods(nowMillis: Long = System.currentTimeMillis()): List<WereadSyncPeriod> =
+            defaultPeriods(nowMillis).filter { it.mode in setOf("weekly", "monthly", "overall") }.distinctBy { it.mode }
 
         /**
          * 默认同步范围：最近十二周、最近十二个月、最近三年与全时段。

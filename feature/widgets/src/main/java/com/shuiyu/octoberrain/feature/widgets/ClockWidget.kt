@@ -61,6 +61,7 @@ class ClockWidget
         private val tick =
             object : Runnable {
                 override fun run() {
+                    if (!hostVisible || !ticking) return
                     requestDraw()
                     handler.postDelayed(this, millisToNextMinute())
                 }

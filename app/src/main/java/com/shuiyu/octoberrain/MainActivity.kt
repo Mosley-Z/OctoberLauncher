@@ -23,11 +23,11 @@ import com.shuiyu.octoberrain.core.common.DesktopOrientation
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.InkLog
-import com.shuiyu.octoberrain.core.common.MinuteTicker
 import com.shuiyu.octoberrain.core.common.NotificationPanelAccess
 import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.ScreenRegistry
+import com.shuiyu.octoberrain.core.common.UiVisibility
 import com.shuiyu.octoberrain.core.common.displayLabel
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -83,7 +83,7 @@ class MainActivity : Activity() {
 
     private val stack = mutableListOf<Entry>()
     private var lockOverlay: View? = null
-    private lateinit var minuteTicker: MinuteTicker
+    private var resumedScreen: Screen? = null
     private var homeRoleAsked = false
     private val configScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -145,16 +145,23 @@ class MainActivity : Activity() {
             screenOffReceiver,
             IntentFilter(Intent.ACTION_SCREEN_OFF),
         )
-        // 每分钟刷新状态栏时间并触发一次局部重绘
-        minuteTicker =
-            MinuteTicker {
-                statusHolder.invalidate()
-                InkRefreshController.requestPartial()
+        configScope.launch {
+            UiVisibility.active.collect { active ->
+                RefreshScheduler.setActive(active)
+                if (active) {
+                    HostWereadSync.syncAutomaticallyIfNeeded()
+                    resumeTopScreen()
+                    onReturnedToForeground()
+                } else {
+                    pauseTopScreen()
+                    currentRefreshPolicy()?.onBackgrounded()
+                    cancelPendingExitRefresh()
+                }
             }
-        minuteTicker.start()
+        }
         val deferHome = AppServices.config.state.value.onboarding.completed && isIncomingDocument(intent)
         startInitialScreen(deferHome)
-        if (!openIncomingDocument(intent) && deferHome) stack.lastOrNull()?.screen?.onResume()
+        if (!openIncomingDocument(intent) && deferHome) resumeTopScreen()
     }
 
     /** 仅请求本 Activity 方向，不改变系统全局自动旋转。 */
@@ -323,8 +330,8 @@ class MainActivity : Activity() {
         if (!config.onboarding.completed) {
             pushScreen(
                 OnboardingScreen {
+                    pauseTopScreen()
                     stack.forEach {
-                        it.screen.onPause()
                         it.screen.onDestroy()
                     }
                     stack.clear()
@@ -364,12 +371,13 @@ class MainActivity : Activity() {
      */
     private fun popTo(index: Int) {
         if (index < 0 || index >= stack.size) return
+        pauseTopScreen()
         while (stack.size - 1 > index) {
             val top = stack.removeAt(stack.size - 1)
             contentFrame.removeView(top.view)
             runCatching { top.screen.onDestroy() }
         }
-        stack.lastOrNull()?.screen?.onResume()
+        resumeTopScreen()
         updateStatusBarBackground()
         InkRefreshController.requestPartial()
     }
@@ -390,7 +398,7 @@ class MainActivity : Activity() {
             "OctoberRain",
             "page=$label create=${SystemClock.elapsedRealtime() - startedAt}ms stack=${stack.size}",
         )
-        stack.lastOrNull()?.screen?.onPause()
+        pauseTopScreen()
         stack.add(Entry(screen, view, destination))
         contentFrame.addView(
             view,
@@ -399,7 +407,7 @@ class MainActivity : Activity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
-        if (resume) screen.onResume()
+        if (resume) resumeTopScreen()
         updateStatusBarBackground()
         InkRefreshController.requestPartial()
     }
@@ -428,10 +436,11 @@ class MainActivity : Activity() {
             moveTaskToBack(true)
             return true
         }
+        pauseTopScreen()
         stack.removeAt(stack.size - 1)
         contentFrame.removeView(top.view)
         runCatching { top.screen.onDestroy() }
-        stack.lastOrNull()?.screen?.onResume()
+        resumeTopScreen()
         // 退出页面后按新的栈顶校正状态栏底色，桌面根部保持透明。
         updateStatusBarBackground()
         InkRefreshController.requestPartial()
@@ -550,15 +559,27 @@ class MainActivity : Activity() {
         if (lockOverlay != null) syncLockState()
     }
 
+    private fun resumeTopScreen() {
+        val screen = stack.lastOrNull()?.screen ?: return
+        if (!UiVisibility.active.value || resumedScreen === screen) return
+        resumedScreen = screen
+        screen.onResume()
+    }
+
+    private fun pauseTopScreen() {
+        val screen = resumedScreen ?: return
+        resumedScreen = null
+        screen.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
-        stack.lastOrNull()?.screen?.onResume()
+        UiVisibility.setForeground(true)
         // 回到前台后重新按栈顶页面校正状态栏底色，避免停在非桌面页后返回仍保留白底。
         updateStatusBarBackground()
         // 覆盖层可见时按锁契约校正，处理解锁后直接回到前台的情况。
         syncLockState()
         requestHomeRoleIfNeeded()
-        onReturnedToForeground()
     }
 
     /** 引导用户把应用设为默认桌面；用户选择「以后」后三天内不再提示。 */
@@ -609,7 +630,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         super.onPause()
-        stack.lastOrNull()?.screen?.onPause()
+        UiVisibility.setForeground(false)
         // 记录离开前台的时刻，供 onResume 判断是否属于从其他应用返回
         backgroundedAtElapsed = SystemClock.elapsedRealtime()
         currentRefreshPolicy()?.onBackgrounded()
@@ -692,11 +713,12 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        UiVisibility.setForeground(false)
+        pauseTopScreen()
         configScope.cancel()
         (AppServices.lock as? LockGateImpl)?.observe(null)
         cancelPendingExitRefresh()
         mainHandler.removeCallbacksAndMessages(null)
-        runCatching { minuteTicker.stop() }
         runCatching { unregisterReceiver(screenOffReceiver) }
         HostFilePicker.detach()
         stack.forEach { runCatching { it.screen.onDestroy() } }

@@ -17,7 +17,7 @@ class FilesEntryMigrationTest {
                 order = listOf("app:com.android.rk", "special:settings"),
             )
         val migrated = ConfigMigration.migrate(LauncherConfig(version = 15, desktop = desktop))
-        assertEquals(16, migrated.version)
+        assertEquals(LauncherConfig.CURRENT_VERSION, migrated.version)
         assertEquals(desktop.copy(hiddenSpecials = setOf("special:weread")), migrated.desktop)
         assertFalse(DesktopConfig().hiddenSpecials.contains("special:files"))
     }

@@ -91,7 +91,7 @@ internal class HomeScreen :
     override fun onResume() {
         val job = scope ?: return
         resumed = true
-        minuteTicker?.start()
+        minuteTicker?.start(immediate = false)
         val home = view
         home?.setHostVisible(true)
         if (pendingData) {

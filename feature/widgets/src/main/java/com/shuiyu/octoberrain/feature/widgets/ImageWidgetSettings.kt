@@ -7,7 +7,7 @@ import android.os.Environment
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.IMAGE_CAROUSEL_OPTIONS
 import com.shuiyu.octoberrain.core.common.editWidgetPage
-import com.shuiyu.octoberrain.core.common.effectiveImageCarouselSeconds
+import com.shuiyu.octoberrain.core.common.effectiveImageCarouselMinutes
 import com.shuiyu.octoberrain.core.common.effectiveImageSwipeDirection
 import com.shuiyu.octoberrain.core.common.forWidgetPage
 import com.shuiyu.octoberrain.core.design.InkDialogs
@@ -30,24 +30,24 @@ internal object ImageWidgetSettings {
         val desktop =
             AppServices.config.state.value.desktop
                 .forWidgetPage(pageIndex)
-        val seconds = desktop.effectiveImageCarouselSeconds
+        val minutes = desktop.effectiveImageCarouselMinutes
         val swipeLabel = SWIPE_LABELS[desktop.effectiveImageSwipeDirection]
         InkDialogs.choose(
             context,
             "图片组件",
-            listOf("选择 / 更换图片", "清除组件图片", "轮播间隔：$seconds 秒", "切换方向：$swipeLabel"),
+            listOf("选择 / 更换图片", "清除组件图片", "轮播间隔：$minutes 分钟", "切换方向：$swipeLabel"),
         ) { index ->
             when (index) {
                 0 -> choose(context, scope, pageIndex = pageIndex)
                 1 -> clear(context, pageIndex)
                 2 ->
-                    InkDialogs.choose(context, "轮播间隔", IMAGE_CAROUSEL_OPTIONS.map { "$it 秒" }) { selected ->
+                    InkDialogs.choose(context, "轮播间隔", IMAGE_CAROUSEL_OPTIONS.map { "$it 分钟" }) { selected ->
                         AppServices.config.edit { config ->
                             config.copy(
                                 desktop =
                                     config.desktop.editWidgetPage(
                                         pageIndex,
-                                    ) { it.copy(imageCarouselSeconds = IMAGE_CAROUSEL_OPTIONS[selected]) },
+                                    ) { it.copy(imageCarouselMinutes = IMAGE_CAROUSEL_OPTIONS[selected]) },
                             )
                         }
                         changed()
