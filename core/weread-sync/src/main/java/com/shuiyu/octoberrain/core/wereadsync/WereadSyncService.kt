@@ -103,6 +103,7 @@ data class WereadSyncReport(
 class WereadSyncService(
     private val store: WereadStore,
     private val provider: WereadSyncProvider,
+    private val failureMessage: () -> String? = { null },
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) {
     /** 同步互斥锁：偏好与账单文件是「读整档、合并、写回」，并发会互相覆盖。 */
@@ -152,12 +153,14 @@ class WereadSyncService(
         val warnings = provider.warnings().toMutableList()
         if (notes != null && !notes.complete) warnings += "笔记仍有 ${notes.remainingBooks} 本待补齐"
         val total = shelfCount + statCount + billCount + assetCount + noteCount
-        val success = total > 0 && warnings.isEmpty()
+        val failure = failureMessage()
+        val success = total > 0 && warnings.isEmpty() && failure == null
         // 已取到数据却没有任何一条确认落盘，说明失败在写入侧而非网络侧。
         val fetchedSomething = shelf != null || stats.isNotEmpty()
         val warningText = warnings.joinToString("；")
         val message =
             when {
+                failure != null -> failure
                 warnings.isNotEmpty() ->
                     "部分同步：书架 $shelfCount 本、资产 $assetCount 本、笔记更新 $noteCount 份；$warningText"
                 success ->

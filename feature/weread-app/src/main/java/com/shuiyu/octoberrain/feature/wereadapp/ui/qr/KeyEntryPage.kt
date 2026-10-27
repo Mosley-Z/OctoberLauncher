@@ -30,7 +30,8 @@ internal object KeyEntryPage {
         val body =
             buildString {
                 append("<p class=\"tip\">$tip</p>")
-                append("<p>手机微信中打开 weread.qq.com/r/weread-skills，按官方提示登录并复制 API Key；粘贴到下方提交给墨水屏保存。</p>")
+                append("<p>微信读书手机客户端 → 设置 → 微信读书 SKILL → 复制 API KEY；粘贴到下方提交给墨水屏保存。</p>")
+                append("<p>备用方式：手机微信中打开 weread.qq.com/r/weread-skills，按官方提示获取。</p>")
                 append("<form method=\"post\" action=\"$path?t=$token\">")
                 append("<label for=\"key\">接口密钥</label>")
                 append("<textarea id=\"key\" name=\"key\" rows=\"4\" placeholder=\"粘贴复制的 API Key\"")

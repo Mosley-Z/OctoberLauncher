@@ -30,8 +30,8 @@ internal object OnboardingConnection {
                         buildJsonObject {
                             put("mode", "monthly")
                             put(
-                                "month",
-                                java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).format(java.util.Date()),
+                                "baseTime",
+                                System.currentTimeMillis() / 1000L,
                             )
                         },
                     )
@@ -68,7 +68,7 @@ internal object OnboardingConnection {
                 setBackgroundColor(com.shuiyu.octoberrain.core.design.InkColors.PAPER)
                 setPadding(24, 24, 24, 24)
                 addView(InkWidgets.title(context, "手机扫码录入本机"))
-                addView(InkWidgets.body(context, "在手机微信读书中获取并复制 API Key，再扫码粘贴提交。手机与墨水屏需在可互通的局域网。"))
+                addView(InkWidgets.body(context, "微信读书手机客户端 → 设置 → 微信读书 SKILL → 复制 API KEY，再扫码粘贴提交。手机与墨水屏需在可互通的局域网。"))
                 addView(
                     OnboardingKeyEntryAdapter.qrView(context, session.payload, size),
                     LinearLayout.LayoutParams(size, size),

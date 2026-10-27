@@ -164,6 +164,7 @@ class WidgetPickerScreen(
             )
         }
         cellView.addView(titleRow)
+        addPreview(cellView, option.id)
         if (option.description.isNotBlank()) {
             cellView.addView(
                 (InkWidgets.textView(context, option.description, tokens.textCaption, secondary) as TextView).apply {
@@ -173,6 +174,22 @@ class WidgetPickerScreen(
             )
         }
         return cellView
+    }
+
+    private fun addPreview(
+        cell: LinearLayout,
+        id: String,
+    ) {
+        if (id == "clock" || id.startsWith("clock_") || id in listOf("calendar", "todo_week")) {
+            val tokens = DesignRuntime.tokens
+            cell.addView(
+                WidgetPreviewView(cell.context, id),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, tokens.dp(112f)).apply {
+                    topMargin = tokens.gap
+                    bottomMargin = tokens.gap
+                },
+            )
+        }
     }
 
     /** 写入桌面组件标识并请求桌面局部重绘。 */

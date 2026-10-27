@@ -32,12 +32,18 @@ internal enum class WereadAppTab {
  * 页面为全屏结构，顶部三段页签（阅读、设置、待办）常显；阅读页内部再分形态。
  * 页面状态由 [WereadAppView] 持有，退出时释放。
  */
-class WereadAppScreen : Screen {
+class WereadAppScreen(
+    private val openSettings: Boolean = false,
+) : Screen {
     /** 页面视图，未创建或已销毁时为空。 */
     private var appView: WereadAppView? = null
 
     /** 创建页面视图并记录引用。 */
-    override fun createView(context: Context): View = WereadAppView(context).also { appView = it }
+    override fun createView(context: Context): View =
+        WereadAppView(context, returnAfterSave = openSettings).also {
+            appView = it
+            if (openSettings) it.showTab(WereadAppTab.SETTINGS)
+        }
 
     /** 页面回到前台时刷新当前分段数据。 */
     override fun onResume() {
@@ -45,7 +51,7 @@ class WereadAppScreen : Screen {
     }
 
     /** 返回键：先退回阅读页，已在阅读页时交由宿主处理。 */
-    override fun onBack(): Boolean = appView?.back() ?: false
+    override fun onBack(): Boolean = if (openSettings) false else appView?.back() ?: false
 
     /** 释放页面持有的资源。 */
     override fun onDestroy() {
@@ -63,6 +69,7 @@ class WereadAppScreen : Screen {
 @Suppress("TooManyFunctions")
 internal class WereadAppView(
     context: Context,
+    private val returnAfterSave: Boolean = false,
 ) : LinearLayout(context) {
     /** 内容容器，承载当前分段的页面视图。 */
     private val body = FrameLayout(context)
@@ -190,7 +197,7 @@ internal class WereadAppView(
                     listener =
                         object : WereadSettingsPage.Listener {
                             override fun onSaveAndBack() {
-                                showTab(WereadAppTab.READING)
+                                if (returnAfterSave) AppServices.router.back() else showTab(WereadAppTab.READING)
                             }
                         }
                 }

@@ -7,14 +7,15 @@ import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
 import com.shuiyu.octoberrain.core.common.WereadSyncHost
 import com.shuiyu.octoberrain.core.wereadsync.WereadCardRefreshService
 import com.shuiyu.octoberrain.core.wereadsync.WereadGateway
+import com.shuiyu.octoberrain.core.wereadsync.WereadGatewayError
 import com.shuiyu.octoberrain.core.wereadsync.WereadGatewayResult
-import com.shuiyu.octoberrain.core.wereadsync.WereadGatewaySyncProvider
 import com.shuiyu.octoberrain.core.wereadsync.WereadRequest
 import com.shuiyu.octoberrain.core.wereadsync.WereadStore
 import com.shuiyu.octoberrain.core.wereadsync.WereadSyncReport
 import com.shuiyu.octoberrain.core.wereadsync.WereadSyncService
 import com.shuiyu.octoberrain.core.wereadsync.parseSyncState
 import com.shuiyu.octoberrain.feature.content.ContentSourceImpl
+import com.shuiyu.octoberrain.feature.content.data.WereadSyncBridge
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -23,7 +24,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 独立模式的数据同步装配。
@@ -42,7 +42,7 @@ object HostWereadSync : WereadSyncHost {
     private const val PREFS_FILE = "kernel_prefs.json"
 
     /** 运行标志，避免并发触发。 */
-    private val running = AtomicBoolean(false)
+    private val queue = WereadSyncQueue()
 
     /** 数据目录，装配后赋值。 */
     private var root: File? = null
@@ -76,13 +76,13 @@ object HostWereadSync : WereadSyncHost {
     }
 
     /** 当前是否正在同步。 */
-    override fun isRunning(): Boolean = running.get()
+    override fun isRunning(): Boolean = queue.isRunning()
 
     /** 最近一次同步的状态文案。 */
     override fun statusText(): String {
         val state = readState()
         return when {
-            running.get() -> "正在同步数据"
+            queue.isRunning() -> "正在同步数据"
             lastReport != null -> lastReport?.message.orEmpty()
             state != null && state.success -> "上次同步 ${formatTime(state.finishedAtMillis)}"
             state != null -> "上次同步失败：${state.message}"
@@ -94,19 +94,14 @@ object HostWereadSync : WereadSyncHost {
      * 触发一次同步。
      *
      * @param onFinished 结束回调，第一个参数为成功与否，第二个参数为状态文案
-     * @return 已受理返回 true，密钥缺失、数据目录未就绪或同步进行中返回 false
+     * @return 已启动或已合并到下一轮返回 true，密钥缺失或目录未就绪返回 false
      */
     override fun syncNow(onFinished: (Boolean, String) -> Unit): Boolean {
         val dir = root
         val key = apiKey()
-        return when {
-            dir == null || key.isEmpty() -> false
-            !running.compareAndSet(false, true) -> false
-            else -> {
-                startWorker(dir, key, onFinished)
-                true
-            }
-        }
+        if (dir == null || key.isEmpty()) return false
+        if (queue.submitFull(onFinished)) startWorker(dir, key, onFinished)
+        return true
     }
 
     override fun refresh(
@@ -123,7 +118,7 @@ object HostWereadSync : WereadSyncHost {
         val key = apiKey()
         return when {
             autoSuppressed || dir == null || key.isEmpty() -> false
-            !running.compareAndSet(false, true) -> false
+            !queue.tryStartRefresh() -> false
             else -> {
                 startWorker(dir, key, onFinished, request)
                 true
@@ -162,16 +157,7 @@ object HostWereadSync : WereadSyncHost {
                 val report =
                     runCatching {
                         runBlocking {
-                            if (request == null) {
-                                service(dir, key).sync()
-                            } else {
-                                val gateway = WereadGateway({ key })
-                                val transport =
-                                    WereadRequest { api, body ->
-                                        (gateway.request(api, body) as? WereadGatewayResult.Success)?.payload
-                                    }
-                                WereadCardRefreshService(transport, dir).refresh(request)
-                            }
+                            syncWithStatus(dir, key, request)
                         }
                     }.getOrElse { error ->
                         WereadSyncReport(false, "同步失败：${error.message ?: "未知错误"}")
@@ -182,7 +168,12 @@ object HostWereadSync : WereadSyncHost {
                     lastImmersiveSuccess = System.currentTimeMillis()
                 }
                 lastReport = report
-                running.set(false)
+                val pending = queue.finish()
+                if (pending.isNotEmpty()) {
+                    startWorker(dir, apiKey(), { success, message ->
+                        pending.forEach { callback -> runCatching { callback(success, message) } }
+                    })
+                }
                 notifyDataChanged()
                 onFinished(report.success, report.message)
             }, "weread-sync")
@@ -190,11 +181,50 @@ object HostWereadSync : WereadSyncHost {
         thread.start()
     }
 
-    /** 构造同步服务。 */
-    private fun service(
+    /** 保留网关失败类型，已保存密钥的网络错误不能再提示未填写。 */
+    private suspend fun syncWithStatus(
         dir: File,
         key: String,
-    ): WereadSyncService = WereadSyncService(WereadStore(dir), WereadGatewaySyncProvider(WereadGateway({ key }), dir))
+        request: WereadRefreshRequest?,
+    ): WereadSyncReport {
+        var failure: WereadGatewayError? = null
+        val gateway = WereadGateway({ key })
+        val transport =
+            WereadRequest { api, body ->
+                if (failure == WereadGatewayError.INVALID_KEY) {
+                    null
+                } else {
+                    when (val response = gateway.request(api, body)) {
+                        is WereadGatewayResult.Success -> response.payload
+                        is WereadGatewayResult.Failure -> {
+                            failure = response.error
+                            null
+                        }
+                    }
+                }
+            }
+        val report =
+            if (request == null) {
+                WereadSyncService(
+                    WereadStore(dir),
+                    WereadSyncBridge(dir, transport),
+                    failureMessage = { failureMessage(failure) },
+                ).sync()
+            } else {
+                WereadCardRefreshService(transport, dir).refresh(request)
+            }
+        val message = failureMessage(failure) ?: return report
+        return report.copy(success = false, message = message)
+    }
+
+    private fun failureMessage(failure: WereadGatewayError?): String? =
+        when (failure) {
+            WereadGatewayError.MISSING_KEY -> "尚未配置微信读书 API Key"
+            WereadGatewayError.INVALID_KEY -> "微信读书密钥无效，请在连接设置中更新"
+            WereadGatewayError.TRANSPORT -> "网络或服务暂不可用，已保留密钥与已有数据，请稍后重试"
+            WereadGatewayError.MALFORMED, WereadGatewayError.BUSINESS -> "微信读书返回异常，已保留已有数据，请稍后重试"
+            null -> null
+        }
 
     /** 读取当前密钥。 */
     private fun apiKey(): String =

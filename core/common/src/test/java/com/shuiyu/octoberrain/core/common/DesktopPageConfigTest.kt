@@ -13,6 +13,8 @@ class DesktopPageConfigTest {
         assertEquals(2, automatic.firstGridRows(false, "S4"))
         assertEquals(3, automatic.firstGridRows(true, "P4"))
         assertEquals(3, automatic.firstGridRows(true, "S4"))
+        assertEquals(3, automatic.firstGridRows(true))
+        assertEquals(2, automatic.firstGridColumns(true))
         val legacy = automatic.copy(firstPageRows = 4, firstPageColumns = 2)
         val edited = legacy.withFirstGrid(false, 0, 0)
         assertEquals(1, edited.firstGridRows(false, "P4"))

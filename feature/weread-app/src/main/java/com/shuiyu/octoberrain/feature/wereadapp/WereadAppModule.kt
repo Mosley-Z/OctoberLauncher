@@ -25,6 +25,7 @@ class WereadAppModule : LauncherModule {
         override fun create(destination: Destination): Screen? =
             when (destination) {
                 Destination.WereadApp -> WereadAppScreen()
+                Destination.WereadSettings -> WereadAppScreen(openSettings = true)
                 else -> null
             }
     }

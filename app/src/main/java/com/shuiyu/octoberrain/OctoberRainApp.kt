@@ -172,8 +172,10 @@ class OctoberRainApp : Application() {
         val source = integrations.effectiveWereadSource
         val key = integrations.wereadApiKey
         val shelf = File(filesDir, "weread/shelf.json")
+        val bills = File(filesDir, "weread/bills.json")
         val intervalMillis = integrations.effectiveWereadRefreshMinutes.toLong() * 60_000L
-        val stale = !shelf.isFile || System.currentTimeMillis() - shelf.lastModified() > intervalMillis
+        val missingBills = !bills.isFile || bills.length() <= 2L
+        val stale = !shelf.isFile || missingBills || System.currentTimeMillis() - shelf.lastModified() > intervalMillis
         if (source == SOURCE_SYNCED && key.isNotBlank() && stale) {
             HostWereadSync.syncNow { _, _ -> }
         }

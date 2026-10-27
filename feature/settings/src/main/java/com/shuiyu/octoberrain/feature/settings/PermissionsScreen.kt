@@ -75,7 +75,7 @@ class PermissionsScreen : SettingsBaseScreen("权限与授权") {
                 PermissionItem(
                     key = PermissionCenter.KEY_ACCESSIBILITY,
                     label = "无障碍服务",
-                    hint = "悬浮状态栏与音量键翻转需要此服务",
+                    hint = "悬浮状态栏交互需要此服务",
                 ) { it.openAccessibilitySettings() },
                 PermissionItem(
                     key = PermissionCenter.KEY_STORAGE,

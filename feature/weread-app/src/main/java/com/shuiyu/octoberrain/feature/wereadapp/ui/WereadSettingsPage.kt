@@ -129,6 +129,7 @@ internal class WereadSettingsPage(
                 layoutParams = LayoutParams(0, DesignRuntime.tokens.buttonHeight, 1f)
             }
         apiKeyInput = input
+        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         val row = horizontalRow()
         row.addView(input)
         row.addView(gapView())
@@ -156,7 +157,7 @@ internal class WereadSettingsPage(
             rightLabel = "测试连接",
             rightAction = { testConnection(input.text.toString()) },
         )
-        addCaption("获取 API Key：手机客户端中，进入我-设置-微信读书 Skill 复制 Key。")
+        addCaption("获取 API KEY：微信读书手机客户端 → 设置 → 微信读书 SKILL → 复制 API KEY。")
     }
 
     /** 打开局域网扫码录入面板，关闭后同步输入框与状态行。 */
@@ -449,8 +450,9 @@ internal class WereadSettingsPage(
         }
         val key = raw.trim()
         AppServices.config.edit {
-            it.copy(integrations = it.integrations.copy(wereadApiKey = key))
+            it.copy(integrations = it.integrations.copy(wereadApiKey = key, wereadEnabled = key.isNotEmpty()))
         }
+        if (currentApiKey() == key && key.isNotEmpty()) AppServices.wereadSync?.syncNow { _, _ -> }
         InkDialogs.toast(context, if (key.isEmpty()) "已清除接口密钥" else "接口密钥已保存")
     }
 

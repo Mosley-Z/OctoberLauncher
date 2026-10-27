@@ -8,7 +8,7 @@ package com.shuiyu.octoberrain.core.common
  * [syncNow] 补齐数据。同步只写本地数据目录，不改变界面，界面由内容刷新入口重绘。
  */
 interface WereadSyncHost {
-    /** 当前是否正在同步，重入调用返回 false。 */
+    /** 当前是否正在同步，包含已经受理的下一轮同步。 */
     fun isRunning(): Boolean
 
     /** 最近一次同步的状态文案，含结果与时刻。 */
@@ -18,7 +18,7 @@ interface WereadSyncHost {
      * 触发一次同步。
      *
      * @param onFinished 结束回调，第一个参数为成功与否，第二个参数为状态文案
-     * @return 已受理返回 true，密钥缺失或同步进行中返回 false
+     * @return 已启动或合并到下一轮返回 true，密钥缺失或服务未就绪返回 false
      */
     fun syncNow(onFinished: (Boolean, String) -> Unit): Boolean
 

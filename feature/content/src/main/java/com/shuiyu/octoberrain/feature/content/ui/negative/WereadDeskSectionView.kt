@@ -18,6 +18,7 @@ import com.inkread.weekread.kernel.desk.DeskData
 import com.inkread.weekread.kernel.desk.DeskPage
 import com.inkread.weekread.kernel.desk.DeskRenderer
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.NegativeHost
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.core.wereadsync.WereadDeskEditsStore
@@ -88,6 +89,12 @@ internal class WereadDeskSectionView(
         guideRow.setPadding(inset, 0, inset, 0)
         guideRow.addView(emptyButton)
         guideRow.addView(emptyMessage)
+        emptyMessage.setOnClickListener { AppServices.router.navigate(Destination.WereadSettings) }
+        guideRow.addView(
+            InkWidgets.button(context, "微信读书连接设置", filled = false) {
+                AppServices.router.navigate(Destination.WereadSettings)
+            },
+        )
         addView(canvasView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(guideRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
@@ -110,6 +117,7 @@ internal class WereadDeskSectionView(
     /** 旧任务允许结束但不再发布；页面释放与新页面构造仍在同一个队列内顺序执行。 */
     fun reload() {
         if (released) return
+        updateEmptyGuide()
         generation++
         dispatcher.cancel()
         frame = null
@@ -278,6 +286,7 @@ internal class WereadDeskSectionView(
         sectionHeight = next.height
         canvasView.visibility = if (next.empty) GONE else VISIBLE
         guideRow.visibility = if (next.empty) VISIBLE else GONE
+        if (next.empty) updateEmptyGuide()
         canvasView.requestLayout()
         requestLayout()
         canvasView.invalidate()
@@ -386,7 +395,29 @@ internal class WereadDeskSectionView(
         }
     }
 
+    private fun updateEmptyGuide() {
+        val hasKey =
+            AppServices.config.state.value.integrations.wereadApiKey
+                .isNotBlank()
+        val sync = AppServices.wereadSync
+        emptyButton.text =
+            when {
+                !hasKey -> "填写微信读书 API Key"
+                sync?.isRunning() == true -> "正在同步…"
+                moduleId == MODULE_FP -> "选择指纹书目"
+                else -> "同步微信读书"
+            }
+        emptyButton.isEnabled = sync?.isRunning() != true || !hasKey
+        emptyMessage.text = if (!hasKey) "尚未配置微信读书，点击上方按钮填写" else "暂无可展示数据 · ${sync?.statusText() ?: "同步服务未就绪"}"
+    }
+
     private fun refreshEmptySection() {
+        if (AppServices.config.state.value.integrations.wereadApiKey
+                .isBlank()
+        ) {
+            AppServices.router.navigate(Destination.WereadSettings)
+            return
+        }
         if (moduleId == MODULE_FP) {
             openFingerprintPicker()
             return
@@ -394,15 +425,17 @@ internal class WereadDeskSectionView(
         val sync = AppServices.wereadSync
         if (sync == null) {
             AppServices.router.toast("请先在设置中配置微信读书")
-            return
-        }
-        sync.syncNow { _, message ->
-            mainHandler.post {
-                if (!released) {
-                    emptyMessage.text = message
-                    reload()
+        } else {
+            val accepted =
+                sync.syncNow { _, message ->
+                    mainHandler.post {
+                        if (!released) {
+                            emptyMessage.text = message
+                            reload()
+                        }
+                    }
                 }
-            }
+            if (accepted) updateEmptyGuide() else emptyMessage.text = sync.statusText()
         }
     }
 

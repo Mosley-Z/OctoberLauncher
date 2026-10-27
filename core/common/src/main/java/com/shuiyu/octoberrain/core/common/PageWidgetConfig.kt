@@ -62,7 +62,7 @@ fun DesktopConfig.firstGridRows(
     val preferred = if (landscape) landscapeFirstPageRows else portraitFirstPageRows
     return (preferred ?: firstPageRows).takeIf { it > 0 }
         ?: if (landscape) {
-            if (model.equals("P4", true) || model.equals("S4", true)) 3 else 4
+            3
         } else if (model.equals("P4", true)) {
             1
         } else {

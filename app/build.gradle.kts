@@ -77,6 +77,7 @@ android {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     coreLibraryDesugaring(libs.desugar.jdk)
     implementation(project(":core:common"))
     implementation(project(":core:device"))

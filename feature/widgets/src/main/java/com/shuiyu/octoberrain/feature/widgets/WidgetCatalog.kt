@@ -160,9 +160,9 @@ object WidgetCatalog {
     /** 按分类组织的组件，供选择页分组展示。 */
     val byCategory: List<Pair<WidgetCategory, List<WidgetProvider>>> =
         listOf(
+            WidgetCategory.WEREAD to listOf(wereadBoard),
             WidgetCategory.TIME to (listOf(clock) + clockStyles + listOf(calendar, todoWeek)),
             WidgetCategory.LOCAL to listOf(image),
-            WidgetCategory.WEREAD to listOf(wereadBoard),
             WidgetCategory.OTHER to listOf(placeholder),
         )
 

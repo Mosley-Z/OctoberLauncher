@@ -1,7 +1,6 @@
 package com.shuiyu.octoberrain.service
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -9,7 +8,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
-import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -28,7 +26,6 @@ import kotlinx.coroutines.launch
  *
  * 服务按前台应用包名判断归属：前台为十雨桌面时隐藏全部悬浮窗口，避免与 Activity 内
  * 的状态栏重复；其余情况在配置开启悬浮状态栏后挂载悬浮窗口。
- * 音量键翻转在服务内完成按键对调，注入失败时放行原始按键。
  */
 class OverlayAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
@@ -49,8 +46,6 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private var foregroundPackage: String = ""
 
-    private var injectingVolume = false
-
     private val statusTicker = MinuteTicker { updateStatus() }
 
     private val debounce = Runnable { applyOverlayVisibility() }
@@ -63,10 +58,6 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        // 运行时补充过滤按键的事件标志，上游同样在连接后重设
-        val info = serviceInfo ?: AccessibilityServiceInfo()
-        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
-        serviceInfo = info
         windowManager = runCatching { getSystemService(WindowManager::class.java) }.getOrNull()
         observeStates()
         applyOverlayVisibility()
@@ -90,11 +81,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() = Unit
-
-    override fun onKeyEvent(event: KeyEvent): Boolean {
-        if (!shouldInvertVolume(event)) return false
-        return injectOpposite(event)
-    }
 
     override fun onDestroy() {
         NotificationPanelAccess.disconnect()
@@ -208,44 +194,6 @@ class OverlayAccessibilityService : AccessibilityService() {
         runCatching { manager.removeView(view) }
         flashView = null
         flashing = false
-    }
-
-    /** 是否需要对调当前音量键。 */
-    private fun shouldInvertVolume(event: KeyEvent): Boolean {
-        if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP &&
-            event.keyCode != KeyEvent.KEYCODE_VOLUME_DOWN
-        ) {
-            return false
-        }
-        val config = runCatching { AppServices.config.state.value.tray }.getOrNull() ?: return false
-        if (!config.volumeKeyFlip) return false
-        if (foregroundPackage.isEmpty() || foregroundPackage == packageName) return false
-        return true
-    }
-
-    /** 注入对调后的音量键；失败时返回 false 交给系统处理原始按键。 */
-    private fun injectOpposite(event: KeyEvent): Boolean {
-        if (injectingVolume) return false
-        injectingVolume = true
-        val keyCode =
-            if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                KeyEvent.KEYCODE_VOLUME_DOWN
-            } else {
-                KeyEvent.KEYCODE_VOLUME_UP
-            }
-        val copy = KeyEvent(event.downTime, event.eventTime, event.action, keyCode, event.repeatCount)
-        val injected =
-            runCatching {
-                val input = getSystemService("input") ?: return@runCatching false
-                val method =
-                    input.javaClass.methods.firstOrNull {
-                        it.name == "injectInputEvent" && it.parameterTypes.size == 2
-                    } ?: return@runCatching false
-                method.isAccessible = true
-                method.invoke(input, copy, 0) as? Boolean ?: false
-            }.getOrDefault(false)
-        injectingVolume = false
-        return injected
     }
 
     /** 构造悬浮窗口参数。 */

@@ -51,6 +51,7 @@ object HomeRole {
         val intent = requestIntent(activity)
         if (intent != null) {
             runCatching { activity.startActivityForResult(intent, requestCode) }
+                .onFailure { openHomeSettings(activity) }
             return
         }
         openHomeSettings(activity)

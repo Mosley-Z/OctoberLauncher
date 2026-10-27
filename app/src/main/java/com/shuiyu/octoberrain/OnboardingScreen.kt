@@ -1,5 +1,6 @@
 package com.shuiyu.octoberrain
 
+import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -38,12 +39,14 @@ class OnboardingScreen(
     private lateinit var context: Context
     private lateinit var body: LinearLayout
     private lateinit var page: LinearLayout
+    private lateinit var navigation: LinearLayout
+    private lateinit var scroll: ScrollView
 
     override fun createView(context: Context): View {
         this.context = context
         step =
             AppServices.config.state.value.onboarding.step
-                .coerceIn(0, 5)
+                .coerceIn(0, 7)
         val tokens = DesignRuntime.tokens
         page =
             LinearLayout(context).apply {
@@ -52,7 +55,7 @@ class OnboardingScreen(
                 setPadding(tokens.pageGutter, tokens.pageTop, tokens.pageGutter, tokens.pageBottom)
             }
         body = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val scroll =
+        scroll =
             ScrollView(context).apply {
                 isFillViewport = true
                 addView(
@@ -64,6 +67,8 @@ class OnboardingScreen(
                 )
             }
         page.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        navigation = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        page.addView(navigation)
         render()
         return page
     }
@@ -72,20 +77,50 @@ class OnboardingScreen(
     private fun render() {
         AppServices.config.edit { it.copy(onboarding = it.onboarding.copy(step = step)) }
         body.removeAllViews()
+        navigation.removeAllViews()
         when (step) {
             0 -> renderWelcome()
             1 -> renderLayout()
             2 -> renderWereadChoice()
             3 -> renderConnection()
             4 -> renderMode()
+            5 -> renderFeatures()
+            6 -> renderSettingsGuide()
             else -> renderFinish()
+        }
+        placeNavigation()
+    }
+
+    private fun placeNavigation() {
+        // 导航固定在正文之外，小屏与横屏均可触达。
+        for (index in body.childCount - 1 downTo 0) {
+            val child = body.getChildAt(index)
+            if (child.tag == NAVIGATION_TAG) {
+                body.removeViewAt(index)
+                navigation.addView(child, 0)
+            }
+        }
+        if (navigation.childCount == 3) {
+            val secondary = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+            repeat(2) { index ->
+                val child = navigation.getChildAt(1)
+                navigation.removeViewAt(1)
+                secondary.addView(
+                    child,
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        topMargin = DesignRuntime.tokens.dp(12f)
+                        if (index == 0) marginEnd = DesignRuntime.tokens.dp(12f)
+                    },
+                )
+            }
+            navigation.addView(secondary)
         }
     }
 
     private fun renderWelcome() {
         body.addView(title("十雨桌面"))
         body.addView(paragraph("一个为墨水屏设计的极简桌面：没有动画、没有阴影，只有清晰的黑白与稳定的刷新。"))
-        body.addView(paragraph("桌面支持应用宫格与列表两种形态，可放置阅读、天气、时钟、月历、图片等组件，并接管系统返回键与通知。"))
+        body.addView(paragraph("桌面支持应用宫格与列表，可放置微信读书、时钟、月历和图片等小组件。"))
         body.addView(paragraph("本机屏幕信息：" + deviceSummary()))
         body.addView(
             button("开始设置") {
@@ -138,6 +173,7 @@ class OnboardingScreen(
         verifying = false
         step = next
         render()
+        scroll.scrollTo(0, 0)
     }
 
     private fun renderWereadChoice() {
@@ -166,7 +202,8 @@ class OnboardingScreen(
 
     private fun renderConnection() {
         body.addView(title("连接微信读书"))
-        body.addView(paragraph("1. 手机微信中打开 weread.qq.com/r/weread-skills，按官方提示登录并复制 API Key。"))
+        body.addView(paragraph("1. 微信读书手机客户端 → 设置 → 微信读书 SKILL → 复制 API KEY。"))
+        body.addView(paragraph("备用方式：在手机微信中打开 weread.qq.com/r/weread-skills，按官方提示获取。"))
         body.addView(paragraph("2. 扫描本机二维码，在手机页面粘贴并提交；回到墨水屏查看保存结果。"))
         body.addView(paragraph("手机与墨水屏需在可互通的局域网；提交后十雨会自动保存，再尝试验证连接。"))
         body.addView(button("手机扫码录入本机", filled = false) { startKeyEntry() })
@@ -241,7 +278,14 @@ class OnboardingScreen(
         }
         entryDialog?.dismiss()
         entryDialog = null
-        AppServices.config.edit { it.copy(integrations = it.integrations.copy(wereadApiKey = key)) }
+        AppServices.config.edit {
+            it.copy(integrations = it.integrations.copy(wereadApiKey = key, wereadEnabled = true))
+        }
+        if (AppServices.config.state.value.integrations.wereadApiKey != key) {
+            connectionMessage = "Key 保存失败，请重试"
+            render()
+            return
+        }
         AppServices.wereadKeyEntry?.stop()
         verifyKey()
     }
@@ -258,10 +302,7 @@ class OnboardingScreen(
                     verifying = false
                     if (result == OnboardingConnection.Result.CONNECTED) {
                         AppServices.config.edit { it.copy(integrations = it.integrations.copy(wereadEnabled = true)) }
-                        AppServices.wereadSync?.refresh(
-                            com.shuiyu.octoberrain.core.common
-                                .WereadRefreshRequest("book"),
-                        ) { _, _ -> }
+                        AppServices.wereadSync?.syncNow { _, _ -> }
                         moveTo(4)
                     } else {
                         connectionMessage =
@@ -291,30 +332,86 @@ class OnboardingScreen(
         body.addView(button("上一步", filled = false) { moveTo(3) })
     }
 
-    private fun renderFinish() {
-        body.addView(title("完成"))
-        body.addView(paragraph("左右滑动翻页，长按图标进入整理模式，按返回键回到上一页。"))
-        body.addView(paragraph("所有设置都可以在桌面的设置入口中修改，组件与布局的扩展会在后续版本中继续加入。"))
-        body.addView(
-            button("开始使用") {
-                AppServices.config.edit { current ->
-                    current.copy(
-                        onboarding =
-                            current.onboarding.copy(
-                                completed = true,
-                                createdAt = System.currentTimeMillis(),
-                            ),
-                    )
-                }
-                onFinished()
-            },
-        )
-        body.addView(
-            button("上一步", filled = false) {
-                moveTo(if (AppServices.config.state.value.onboarding.wereadDecision == true) 3 else 2)
-            },
-        )
+    private fun renderFeatures() {
+        body.addView(title("认识十雨"))
+        guide("桌面", "放置桌面小组件；长按空白处可更换背景、进入美化模式。点按应用打开，长按应用可拖动排布。")
+        guide("负一屏", "在桌面首页向右滑，进入左侧负一屏，查看书架、最近图片、墨单与阅读统计。显示内容可在设置中调整。")
+        guide("文件", "“文件”是十雨内置的文件管理器，支持文件浏览管理、多种文档阅读与照片处理。")
+        body.addView(button("下一步") { moveTo(6) })
+        body.addView(button("跳过介绍", filled = false) { moveTo(7) })
+        body.addView(button("上一步", filled = false) { moveTo(previousSetupStep()) })
     }
+
+    private fun renderSettingsGuide() {
+        body.addView(title("设置从这里开始"))
+        guide("桌面偏好", "调整桌面布局、外观、小组件、状态栏、墨水屏刷新、锁屏密码，以及权限与备份。")
+        guide("美化与图标", "更换应用图标，调整应用顺序。")
+        guide("微读墨记", "配置微信读书连接，查看阅读数据、笔记并管理待办。")
+        guide("检查更新", "查看当前版本、更新日志，检查新版本。")
+        body.addView(button("下一步") { moveTo(7) })
+        body.addView(button("上一步", filled = false) { moveTo(5) })
+    }
+
+    private fun guide(
+        label: String,
+        description: String,
+    ) {
+        body.addView(InkWidgets.heading(context, label))
+        body.addView(paragraph(description))
+    }
+
+    private fun renderFinish() {
+        body.addView(title("最后一步，按需设置"))
+        body.addView(paragraph("设置后返回仍会停留在这里。也可跳过，稍后在设置中调整。"))
+        val isHome =
+            com.shuiyu.octoberrain.core.device.HomeRole
+                .isDefault(context)
+        body.addView(
+            choiceRow("主屏幕应用", isHome, if (isHome) "已设为十雨" else "未设置") {
+                val activity = context as? Activity
+                if (activity != null) {
+                    com.shuiyu.octoberrain.core.device.HomeRole
+                        .request(activity, 153)
+                }
+            },
+        )
+        val permissions = AppServices.permissions
+        val snapshot = permissions.snapshot()
+        finishPermission("存储访问", "用于访问文件、导入壁纸和字体", snapshot["storage"] == true) {
+            permissions.openStorageSettings()
+        }
+        finishPermission("通知读取", "用于桌面通知角标", snapshot["notification_listener"] == true) {
+            permissions.openNotificationListenerSettings()
+        }
+        finishPermission("无障碍服务", "用于悬浮状态栏交互", snapshot["accessibility"] == true) {
+            permissions.openAccessibilitySettings()
+        }
+        body.addView(paragraph("若后台刷新受到系统限制，可按需调整电池优化。"))
+        body.addView(button("电池优化设置", filled = false) { permissions.openBatterySettings() })
+        body.addView(button("完成") { finish() })
+        body.addView(button("跳过设置", filled = false) { finish() })
+        body.addView(button("上一步", filled = false) { moveTo(6) })
+    }
+
+    private fun finishPermission(
+        label: String,
+        hint: String,
+        granted: Boolean,
+        open: () -> Unit,
+    ) {
+        body.addView(choiceRow(label, granted, if (granted) "已授权" else "未授权", open))
+        body.addView(paragraph(hint))
+    }
+
+    private fun finish() {
+        AppServices.config.edit {
+            it.copy(onboarding = it.onboarding.copy(completed = true, createdAt = System.currentTimeMillis()))
+        }
+        if (AppServices.config.state.value.onboarding.completed) onFinished()
+    }
+
+    private fun previousSetupStep(): Int =
+        if (AppServices.config.state.value.onboarding.wereadDecision == true) 3 else 2
 
     /** 标题文本。 */
     private fun title(text: String): View =
@@ -335,27 +432,50 @@ class OnboardingScreen(
         onClick: () -> Unit,
     ): View =
         InkWidgets.button(context, label, filled, onClick).apply {
+            minimumHeight = DesignRuntime.tokens.dp(56f)
+            setPadding(
+                DesignRuntime.tokens.gapLarge,
+                DesignRuntime.tokens.dp(8f),
+                DesignRuntime.tokens.gapLarge,
+                DesignRuntime.tokens.dp(8f),
+            )
+            if (label in listOf("开始设置", "下一步", "上一步", "跳过介绍", "完成", "跳过设置")) tag = NAVIGATION_TAG
             layoutParams =
                 LinearLayout
                     .LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ).apply { topMargin = DesignRuntime.tokens.gap }
+                    ).apply { topMargin = DesignRuntime.tokens.dp(12f) }
         }
 
     /** 形态选择行，右侧显示当前选中。 */
     private fun choiceRow(
         label: String,
         selected: Boolean,
+        status: String? = null,
         onClick: () -> Unit,
     ): View {
-        val row = InkWidgets.row(context, label, if (selected) "已选择" else "", onClick)
+        val row = InkWidgets.row(context, label, status ?: if (selected) "已选择" else "", onClick)
+        row.minimumHeight = DesignRuntime.tokens.dp(64f)
+        row.setPadding(
+            DesignRuntime.tokens.dp(12f),
+            DesignRuntime.tokens.dp(10f),
+            DesignRuntime.tokens.dp(12f),
+            DesignRuntime.tokens.dp(10f),
+        )
+        row.background =
+            InkWidgets.background(
+                DesignRuntime.tokens.radius,
+                InkColors.PAPER,
+                DesignRuntime.tokens.stroke,
+                if (selected) InkColors.INK else InkColors.INK_3,
+            )
         row.layoutParams =
             LinearLayout
                 .LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = DesignRuntime.tokens.gap }
+                ).apply { topMargin = DesignRuntime.tokens.dp(12f) }
         return row
     }
 
@@ -372,15 +492,8 @@ class OnboardingScreen(
         ) {
             moveTo(
                 when (step) {
-                    5 ->
-                        if (AppServices.config.state.value.onboarding.wereadDecision ==
-                            true
-                        ) {
-                            3
-                        } else {
-                            2
-                        }
-                    ; else -> step - 1
+                    5 -> previousSetupStep()
+                    else -> step - 1
                 },
             )
         }
@@ -416,6 +529,12 @@ class OnboardingScreen(
         if (step == 3) {
             render()
             if (resumeKeyEntry) startKeyEntry()
+        } else if (step == 7) {
+            render()
         }
+    }
+
+    private companion object {
+        const val NAVIGATION_TAG = "onboarding_navigation"
     }
 }

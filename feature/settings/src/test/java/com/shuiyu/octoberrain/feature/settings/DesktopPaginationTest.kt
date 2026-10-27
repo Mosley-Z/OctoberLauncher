@@ -114,8 +114,8 @@ class DesktopPaginationTest {
         val desktop = LauncherConfig().desktop.copy(firstPageColumns = 0, firstPageRows = 0)
         listOf(
             com.shuiyu.octoberrain.core.common.DesktopOrientation.PORTRAIT to (3 to 2),
-            com.shuiyu.octoberrain.core.common.DesktopOrientation.LANDSCAPE to (2 to 4),
-            com.shuiyu.octoberrain.core.common.DesktopOrientation.REVERSE_LANDSCAPE to (2 to 4),
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.LANDSCAPE to (2 to 3),
+            com.shuiyu.octoberrain.core.common.DesktopOrientation.REVERSE_LANDSCAPE to (2 to 3),
         ).forEach { (orientation, expected) ->
             val config = LauncherConfig(desktop = desktop.copy(orientation = orientation))
             val auto = DesktopPagination.fallbackSnapshot(config, entries(20))

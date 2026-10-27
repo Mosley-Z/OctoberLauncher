@@ -515,6 +515,9 @@ sealed interface Destination {
 
     /** 微读墨记内置应用页：在设置内打开，页面结构与微读墨记应用一致。 */
     data object WereadApp : Destination
+
+    /** 直达微读墨记中已有的接口密钥设置。 */
+    data object WereadSettings : Destination
 }
 
 /**
@@ -556,6 +559,7 @@ private val destinationLabels: Map<Destination, String> =
         Destination.NegativeSettings to "负一屏设置",
         Destination.Todo to "待办",
         Destination.WereadApp to "微读墨记",
+        Destination.WereadSettings to "微信读书设置",
     )
 
 /**

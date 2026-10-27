@@ -513,6 +513,7 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (!AppServices.config.state.value.onboarding.completed) return
         if (openIncomingDocument(intent)) return
         val homeIndex = stack.indexOfLast { it.destination == Destination.Home }
         if (homeIndex >= 0) popTo(homeIndex)

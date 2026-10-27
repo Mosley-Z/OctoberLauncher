@@ -23,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -91,6 +92,11 @@ internal class NegativeScreen(
             scope.launch {
                 AppServices.config.state.collect { cfg -> applyConfig(cfg) }
             }
+        scope.launch {
+            AppServices.content.dataVersion?.drop(1)?.collect {
+                if (resumed) modules.forEach { module -> runCatching { module.onResume() } }
+            }
+        }
         if (showShelfSettings) {
             root.post {
                 val view = deskView
