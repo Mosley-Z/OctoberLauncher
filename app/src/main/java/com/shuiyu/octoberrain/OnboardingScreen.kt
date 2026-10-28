@@ -363,33 +363,30 @@ class OnboardingScreen(
     private fun renderFinish() {
         body.addView(title("最后一步，按需设置"))
         body.addView(paragraph("设置后返回仍会停留在这里。也可跳过，稍后在设置中调整。"))
+        val permissions = AppServices.permissions
+        val snapshot = permissions.snapshot()
         val isHome =
             com.shuiyu.octoberrain.core.device.HomeRole
                 .isDefault(context)
-        body.addView(
-            choiceRow("主屏幕应用", isHome, if (isHome) "已设为十雨" else "未设置") {
-                val activity = context as? Activity
-                if (activity != null) {
-                    com.shuiyu.octoberrain.core.device.HomeRole
-                        .request(activity, 153)
+        onboardingPermissions(android.os.Build.MODEL).forEach { permission ->
+            val granted = if (permission.key == "home") isHome else snapshot[permission.key] == true
+            finishPermission(permission.label, permission.hint, granted) {
+                when (permission.key) {
+                    "home" ->
+                        (context as? Activity)?.let {
+                            com.shuiyu.octoberrain.core.device.HomeRole
+                                .request(it, 153)
+                        }
+                    "storage" -> permissions.openStorageSettings()
+                    "notification_listener" -> permissions.openNotificationListenerSettings()
+                    "accessibility" -> permissions.openAccessibilitySettings()
                 }
-            },
-        )
-        val permissions = AppServices.permissions
-        val snapshot = permissions.snapshot()
-        finishPermission("存储访问", "用于访问文件、导入壁纸和字体", snapshot["storage"] == true) {
-            permissions.openStorageSettings()
-        }
-        finishPermission("通知读取", "用于桌面通知角标", snapshot["notification_listener"] == true) {
-            permissions.openNotificationListenerSettings()
-        }
-        finishPermission("无障碍服务", "用于悬浮状态栏交互", snapshot["accessibility"] == true) {
-            permissions.openAccessibilitySettings()
+            }
         }
         body.addView(paragraph("若后台刷新受到系统限制，可按需调整电池优化。"))
         body.addView(button("电池优化设置", filled = false) { permissions.openBatterySettings() })
-        body.addView(button("完成") { finish() })
-        body.addView(button("跳过设置", filled = false) { finish() })
+        body.addView(button("完成") { confirmFinish() })
+        body.addView(button("跳过设置", filled = false) { confirmFinish() })
         body.addView(button("上一步", filled = false) { moveTo(6) })
     }
 
@@ -399,8 +396,34 @@ class OnboardingScreen(
         granted: Boolean,
         open: () -> Unit,
     ) {
-        body.addView(choiceRow(label, granted, if (granted) "已授权" else "未授权", open))
-        body.addView(paragraph(hint))
+        body.addView(choiceRow(label, granted, if (granted) "已设置" else "未设置", compact = true, onClick = open))
+        body.addView(
+            InkWidgets.caption(context, hint).apply {
+                setPadding(DesignRuntime.tokens.dp(12f), 0, DesignRuntime.tokens.dp(12f), 0)
+            },
+        )
+    }
+
+    private fun confirmFinish() {
+        val missing =
+            missingOnboardingPermissions(
+                android.os.Build.MODEL,
+                com.shuiyu.octoberrain.core.device.HomeRole
+                    .isDefault(context),
+                AppServices.permissions.snapshot(),
+            )
+        if (missing.isEmpty()) {
+            finish()
+        } else {
+            com.shuiyu.octoberrain.core.design.InkDialogs.confirm(
+                context,
+                "稍后设置这些权限？",
+                "尚未设置：${missing.joinToString("、")}。是否稍后设置？可在十雨设置中继续开启。",
+                confirmLabel = "稍后设置",
+                cancelLabel = "继续设置",
+                onConfirm = { finish() },
+            )
+        }
     }
 
     private fun finish() {
@@ -451,15 +474,16 @@ class OnboardingScreen(
         label: String,
         selected: Boolean,
         status: String? = null,
+        compact: Boolean = false,
         onClick: () -> Unit,
     ): View {
         val row = InkWidgets.row(context, label, status ?: if (selected) "已选择" else "", onClick)
-        row.minimumHeight = DesignRuntime.tokens.dp(64f)
+        row.minimumHeight = DesignRuntime.tokens.dp(if (compact) 48f else 64f)
         row.setPadding(
             DesignRuntime.tokens.dp(12f),
-            DesignRuntime.tokens.dp(10f),
+            DesignRuntime.tokens.dp(if (compact) 4f else 10f),
             DesignRuntime.tokens.dp(12f),
-            DesignRuntime.tokens.dp(10f),
+            DesignRuntime.tokens.dp(if (compact) 4f else 10f),
         )
         row.background =
             InkWidgets.background(
@@ -473,7 +497,7 @@ class OnboardingScreen(
                 .LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = DesignRuntime.tokens.dp(12f) }
+                ).apply { topMargin = DesignRuntime.tokens.dp(if (compact) 2f else 12f) }
         return row
     }
 
