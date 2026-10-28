@@ -34,10 +34,14 @@ class WereadCardRefreshService(
             }
         }
 
-    private fun runRefresh(intent: WereadRefreshRequest): WereadSyncReport {
-        if (intent.mode == "immersive" || intent.mode == "immersive_auto") {
-            return WereadImmersiveSync(request, root, clock).refresh(intent)
+    private fun runRefresh(intent: WereadRefreshRequest): WereadSyncReport =
+        when (intent.mode) {
+            "assets", "assets_full" -> WereadBookSync(request, root, clock).refreshAssets(intent.mode == "assets_full")
+            "immersive", "immersive_auto" -> WereadImmersiveSync(request, root, clock).refresh(intent)
+            else -> runCardRefresh(intent)
         }
+
+    private fun runCardRefresh(intent: WereadRefreshRequest): WereadSyncReport {
         val prefs = readPrefs()
         val targets = refreshTargets(intent.mode, bindingMask(prefs))
         val warnings = mutableListOf<String>()

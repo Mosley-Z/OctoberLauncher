@@ -20,6 +20,7 @@ class WereadBookSyncTest {
     val folder = TemporaryFolder()
 
     private val requests = mutableListOf<String>()
+    private var now = 1_000_000L
     private var progressAvailable = true
     private var shelfJson = """{"books":[{"bookId":"b1","title":"本书","readUpdateTime":100}]}"""
     private var progressJson = """{"book":{"progress":35,"readingTime":103831,"recordReadingTime":0}}"""
@@ -28,12 +29,142 @@ class WereadBookSyncTest {
         WereadBookSync(
             WereadRequest { api, business ->
                 requests += "$api:${business["bookId"]?.jsonPrimitive?.content.orEmpty()}"
-                val raw = if (api == "/shelf/sync") shelfJson else progressJson.takeIf { progressAvailable }
+                val raw =
+                    when (api) {
+                        "/shelf/sync" -> shelfJson
+                        "/user/notebooks" -> """{"books":[],"hasMore":0}"""
+                        "/readdata/detail" -> """{"baseTime":0,"readLongest":[],"totalReadTime":0}"""
+                        else -> progressJson.takeIf { progressAvailable }
+                    }
                 raw?.let { Json.parseToJsonElement(it).jsonObject }
             },
             folder.root,
-            { 1_000_000L },
+            { now },
         )
+
+    @Test fun assetRefreshFetchesPriceIndexWithoutDownloadingBodies() {
+        val calls = mutableListOf<String>()
+        val worker =
+            WereadBookSync(
+                WereadRequest { api, _ ->
+                    calls += api
+                    val raw =
+                        when (api) {
+                            "/shelf/sync" -> shelfJson
+                            "/book/getprogress" -> progressJson
+                            "/readdata/detail" -> """{"readLongest":[]}"""
+                            "/user/notebooks" -> """{"books":[{"bookId":"b1","book":{"centPrice":1250}}],"hasMore":0}"""
+                            else -> error("Unexpected body request: $api")
+                        }
+                    Json.parseToJsonElement(raw).jsonObject
+                },
+                folder.root,
+            )
+        assertTrue(worker.refreshAssets().success)
+        val index = File(folder.root, "nt_index.json").readText()
+        assertTrue(index.contains("1250"))
+        assertEquals(1, calls.count { it == "/user/notebooks" })
+    }
+
+    @Test fun priceIndexFailureReportsPartialAndPreservesPreviousPrices() {
+        val old = """{"books":[{"bookId":"b1","centPrice":1250}]}"""
+        File(folder.root, "nt_index.json").writeText(old)
+        val worker =
+            WereadBookSync(
+                WereadRequest { api, _ ->
+                    when (api) {
+                        "/shelf/sync" -> shelfJson
+                        "/book/getprogress" -> progressJson
+                        "/readdata/detail" -> """{"readLongest":[]}"""
+                        else -> null
+                    }?.let { Json.parseToJsonElement(it).jsonObject }
+                },
+                folder.root,
+            )
+        val report = worker.refreshAssets()
+        assertFalse(report.success)
+        assertTrue(report.message.contains("价格索引未更新"))
+        assertEquals(old, File(folder.root, "nt_index.json").readText())
+    }
+
+    @Test fun manualAssetsFillWholeShelfThenOnlyChangedBooks() {
+        shelfJson = "{\"books\":[" +
+            (1..12).joinToString(",") {
+                "{\"bookId\":\"b$it\",\"readUpdateTime\":100}"
+            } + "]}"
+        assertTrue(sync().refreshAssets().success)
+        assertEquals(12, requests.count { it.startsWith("/book/getprogress") })
+        requests.clear()
+        assertTrue(sync().refreshAssets().success)
+        assertEquals(listOf("/shelf/sync:", "/readdata/detail:", "/user/notebooks:"), requests)
+        requests.clear()
+        shelfJson = shelfJson.replace("\"b1\",\"readUpdateTime\":100", "\"b1\",\"readUpdateTime\":101")
+        assertTrue(sync().refreshAssets().success)
+        assertEquals(listOf("/shelf/sync:", "/book/getprogress:b1", "/readdata/detail:", "/user/notebooks:"), requests)
+        assertEquals(12, sync().cachedAssets().size)
+    }
+
+    @Test fun unchangedManualAssetDoesNotExpireAfterADay() {
+        assertTrue(sync().refreshAssets().success)
+        requests.clear()
+        now += 3 * 24 * 60 * 60 * 1000L
+        assertTrue(sync().refreshAssets().success)
+        assertEquals(listOf("/shelf/sync:", "/readdata/detail:", "/user/notebooks:"), requests)
+    }
+
+    @Test fun absentCumulativeTimeIsPartialAndRetainsPriorValue() {
+        assertTrue(sync().refreshAssets().success)
+        shelfJson = shelfJson.replace("100", "101")
+        progressJson = """{"book":{"progress":45}}"""
+        assertFalse(sync().refreshAssets().success)
+        assertEquals(103831, sync().cachedAssets().single().readingSeconds)
+    }
+
+    @Test fun firstExplanationNeverReturnsAfterAnAttemptOrLegacyAssets() {
+        assertEquals(WereadAssetRefreshState.FIRST_NOTICE, WereadAssetRefreshState.notice(folder.root))
+        WereadAssetRefreshState.save(folder.root, WereadSyncReport(false, "部分未完成"), now)
+        assertEquals(null, WereadAssetRefreshState.notice(folder.root))
+        val legacyRoot = folder.newFolder("legacy")
+        WereadStore(legacyRoot).writeAssets(listOf(WereadAssetBook("old", "历史", "", 700, 0, 0, 50, false)))
+        assertEquals(null, WereadAssetRefreshState.notice(legacyRoot))
+    }
+
+    @Test fun fullAssetsRefetchCachedHistoryAndRetainUserEdits() {
+        val store = WereadStore(folder.root)
+        store.writeAssets(listOf(WereadAssetBook("history", "历史", "", 700, 0, 0, 30, false)))
+        val edits = WereadDeskEditsStore(folder.root)
+        assertTrue(edits.setPrice("history", 1234))
+        assertTrue(edits.hide("history"))
+        assertTrue(sync().refreshAssets().success)
+        requests.clear()
+        assertTrue(sync().refreshAssets(forceAll = true).success)
+        assertTrue("/book/getprogress:history" in requests)
+        assertEquals(2, requests.count { it.startsWith("/book/getprogress:") })
+        assertEquals(1234, edits.priceFen("history"))
+        assertTrue("history" in edits.hiddenIds())
+        assertEquals(null, WereadAssetRefreshState.notice(folder.root))
+    }
+
+    @Test fun fullFailurePreservesOldHistoryAndShowsPartialStatus() {
+        val store = WereadStore(folder.root)
+        store.writeAssets(listOf(WereadAssetBook("history", "历史", "", 700, 0, 0, 30, false)))
+        progressAvailable = false
+        assertFalse(sync().refreshAssets(forceAll = true).success)
+        assertEquals(700, sync().cachedAssets().single().readingSeconds)
+        assertEquals(null, WereadAssetRefreshState.notice(folder.root))
+    }
+
+    @Test fun failedManualAssetsStopAndCanResumeWithoutLosingCache() {
+        assertTrue(sync().refreshAssets().success)
+        shelfJson = shelfJson.replace("100", "101")
+        progressAvailable = false
+        assertFalse(sync().refreshAssets().success)
+        assertEquals(1, sync().cachedAssets().size)
+        progressAvailable = true
+        requests.clear()
+        assertTrue(sync().refreshAssets().success)
+        assertEquals(listOf("/shelf/sync:", "/book/getprogress:b1", "/readdata/detail:", "/user/notebooks:"), requests)
+    }
 
     @Test
     fun `整数进度零一三十五一百均不缩放且累计秒优先`() {
@@ -190,7 +321,7 @@ class WereadBookSyncTest {
 
                     override suspend fun notes(): WereadNoteBatch? = null
                 }
-            WereadSyncService(WereadStore(folder.root), provider).sync(emptyList())
+            WereadSyncService(WereadStore(folder.root), provider).sync(emptyList(), includeAssets = true)
             val shelf =
                 Json
                     .parseToJsonElement(

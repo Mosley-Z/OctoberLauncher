@@ -103,6 +103,7 @@ internal class DeskTouchDispatcher(
         } else {
             handler.postDelayed(longPressRunnable, LONG_PRESS_MS)
             state = State.PRESSED
+            if (host.sectionCanScroll()) disallowIntercept(true)
         }
         return true
     }

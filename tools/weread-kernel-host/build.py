@@ -1,4 +1,4 @@
-"""Compile the single-class host patch and verify the untouched kernel contents."""
+"""Compile the reviewed host classes and verify untouched kernel entries."""
 
 import argparse
 import copy
@@ -15,12 +15,13 @@ BASE = ROOT / "libs/weread-kernel-1.3.2-k6.jar"
 OUTPUT = ROOT / "libs/weread-kernel-1.3.2-k6-host1.jar"
 CLASS = "com/inkread/weekread/kernel/desk/DeskData.class"
 TYPE = "com.inkread.weekread.kernel.desk.DeskData"
+CLASSES = [CLASS, "com/inkread/weekread/kernel/desk/DeskPage.class", "com/inkread/weekread/kernel/desk/BillSection.class"]
 BASE_SHA256 = "0e8d30a95aa06039152d297879253ae1872ae9ac88beb1cc24553fba48c4ec3a"
 
 
-def public_api(javap, archive):
+def public_api(javap, archive, type_name=TYPE):
     result = subprocess.run(
-        [str(javap), "-public", "-classpath", str(archive), TYPE],
+        [str(javap), "-public", "-classpath", str(archive), type_name],
         check=True, capture_output=True, text=True,
     )
     return [line.strip() for line in result.stdout.splitlines()
@@ -46,21 +47,25 @@ def main():
         subprocess.run([
             str(javac), "--release", "8", "-encoding", "UTF-8", "-g:none",
             "-classpath", os.pathsep.join([str(BASE), str(args.android_jar)]),
-            "-d", str(classes), str(source),
+            "-d", str(classes), *[str(Path(__file__).parent / "src" / name.replace(".class", ".java")) for name in CLASSES],
         ], check=True)
-        assert [p.relative_to(classes).as_posix() for p in classes.rglob("*.class")] == [CLASS]
-        patched = (classes / CLASS).read_bytes()
+        compiled_names = sorted(p.relative_to(classes).as_posix() for p in classes.rglob("*.class"))
+        assert all(name in CLASSES or name.startswith("com/inkread/weekread/kernel/desk/BillSection$") for name in compiled_names)
+        patched = {name: (classes / name).read_bytes() for name in compiled_names}
         with zipfile.ZipFile(BASE) as original, zipfile.ZipFile(OUTPUT, "w") as result:
             for entry in original.infolist():
-                result.writestr(copy.copy(entry), patched if entry.filename == CLASS else original.read(entry.filename))
+                result.writestr(copy.copy(entry), patched[entry.filename] if entry.filename in patched else original.read(entry.filename))
         with zipfile.ZipFile(BASE) as original, zipfile.ZipFile(OUTPUT) as result:
             assert original.namelist() == result.namelist(), "Entry list changed"
             changed = [name for name in original.namelist() if original.read(name) != result.read(name)]
-            assert changed == [CLASS], "Unexpected changed entries: " + repr(changed)
-        assert public_api(javap, BASE) == public_api(javap, OUTPUT), "Public API changed"
+            assert all(name in compiled_names for name in changed)
+            assert all(name in changed for name in CLASSES), "Unexpected changed entries: " + repr(changed)
+        for name in CLASSES:
+            type_name = name.removesuffix(".class").replace("/", ".")
+            assert public_api(javap, BASE, type_name) == public_api(javap, OUTPUT, type_name), "Public API changed: " + type_name
     digest = hashlib.sha256(OUTPUT.read_bytes()).hexdigest()
     OUTPUT.with_suffix(".sha256").write_text(f"{digest}  {OUTPUT.name}\n", encoding="ascii")
-    print(f"Verified: only {CLASS} differs; public API unchanged")
+    print(f"Verified: only {CLASSES} differ; public APIs unchanged")
     print(f"{digest}  {OUTPUT.name}")
 
 

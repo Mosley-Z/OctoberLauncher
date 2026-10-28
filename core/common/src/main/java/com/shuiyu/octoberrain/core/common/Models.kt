@@ -79,12 +79,12 @@ enum class NegativePageKind {
  * 负一屏默认模块，顺序即首次安装时的上下排列顺序。
  *
  * 依次为书架、最近图片、墨单与阅读资产；后两项沿用微读墨记墨台的模块标识
- * bill 与 rank，便于负一屏与墨台共用同一份渲染与外观配置。阅读指纹 fp 默认关闭，
- * 由用户在负一屏设置页开启后追加，取值与原版 DEFAULT_ON_MASK 一致。
+ * bill 与 rank，便于负一屏与墨台共用同一份渲染与外观配置。阅读指纹 fp 同样默认显示，
+ * 已有用户显式关闭的掩码保持。
  * 模块实现按标识注册，未注册的标识在负一屏渲染时跳过。
  */
 val DEFAULT_NEGATIVE_MODULES: List<String> =
-    listOf("bookshelf", "negative_files", "bill", "rank")
+    listOf("bookshelf", "negative_files", "bill", "rank", "fp")
 
 /**
  * 第八版负一屏默认模块，仅用于 v7 到 v8 的迁移。
@@ -789,8 +789,8 @@ data class WereadDeskConfig(
         /** 阅读指纹分区的显示位。 */
         const val BIT_FP: Int = 4
 
-        /** 默认显示位：墨单与阅读资产开启，阅读指纹关闭。 */
-        const val ON_MASK_DEFAULT: Int = BIT_BILL or BIT_RANK
+        /** 默认显示位：墨单、阅读资产、阅读指纹均开启；保留已有显式关闭掩码。 */
+        const val ON_MASK_DEFAULT: Int = BIT_BILL or BIT_RANK or BIT_FP
 
         /** 显示位的取值范围上限，低三位有效。 */
         const val ON_MASK_LIMIT: Int = BIT_BILL or BIT_RANK or BIT_FP

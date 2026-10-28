@@ -404,9 +404,7 @@ class OnboardingScreen(
     }
 
     private fun finish() {
-        AppServices.config.edit {
-            it.copy(onboarding = it.onboarding.copy(completed = true, createdAt = System.currentTimeMillis()))
-        }
+        AppServices.config.edit { it.completeOnboarding(System.currentTimeMillis()) }
         if (AppServices.config.state.value.onboarding.completed) onFinished()
     }
 

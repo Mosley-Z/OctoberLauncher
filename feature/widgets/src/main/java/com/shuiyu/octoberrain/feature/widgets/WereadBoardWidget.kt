@@ -259,7 +259,7 @@ class WereadBoardWidget(
                     if (immersiveBookMode) refreshImmersive(false)
                     reload(force = true)
                 }
-                requestDraw()
+                if (!immersiveBookMode) requestDraw()
                 handler.postDelayed(this, millisToNextMinute())
             }
         }

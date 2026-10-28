@@ -113,9 +113,10 @@ internal class HomeView(
     private var gestureAxis = 0
     private var verticalConsumed = false
     private var widgetTouch = false
+    private var widgetGestureConsumed = false
     private var widgetLongPressFired = false
 
-    // 组件手势是否已发生位移：位移超过两像素后抬手不再转发点击，避免滚动松手误触
+    // 组件手势是否已发生位移：位移超过系统触摸阈值后抬手不再转发点击，避免滚动松手误触
     private var widgetGestureMoved = false
 
     // 组件按下点坐标，换算为组件局部像素后供长按与点击分发使用
@@ -151,7 +152,9 @@ internal class HomeView(
                 immersiveNavigationCandidate = false
                 showBlankMenu()
             } else {
+                widget?.onTouch(WidgetTouchAction.CANCEL, widgetLocalX, widgetLocalY)
                 widget?.onLongPress(widgetLocalX, widgetLocalY)
+                    ?: openDestination(Destination.PageWidgetPicker(currentPage))
             }
         }
 
@@ -299,16 +302,25 @@ internal class HomeView(
         requestPartial()
     }
 
+    private var minuteRefreshDay = java.time.LocalDate.now()
+
     /**
      * 整分事件触发的组件刷新。
      *
-     * 仅当当前组件声明 [WidgetRefreshPolicy.MINUTE] 时调用 [refreshCurrentWidget]；
-     * 依赖数据通知或内部定时器的组件保持原状，避免整分时重复取数。
+     * 沉浸时钟由宿主统一更新；月历与待办周历仅跨日重读，内容变化另走通知。
+     * 其他按分钟刷新的组件保持原有策略。
      */
     fun refreshWidgetByMinute() {
-        if (!immersive && metrics?.widgetRect(currentPage)?.isEmpty != false) return
-        if (!widgetPolicy.triggersOnMinute()) return
-        refreshCurrentWidget(true)
+        val today = java.time.LocalDate.now()
+        val dayChanged = today != minuteRefreshDay
+        minuteRefreshDay = today
+        if (immersive) {
+            if (!immersiveHome.drawerOpen) invalidate()
+            return
+        }
+        if (metrics?.widgetRect(currentPage)?.isEmpty != false || !widgetPolicy.triggersOnMinute()) return
+        val id = config?.desktop?.forWidgetPage(currentPage)?.widgetId
+        if (dayChanged || (id != "calendar" && id != "todo_week")) refreshCurrentWidget(true)
     }
 
     /**
@@ -601,7 +613,8 @@ internal class HomeView(
         entry: LauncherEntry,
         forceDefault: Boolean,
     ) {
-        if (!forceDefault) {
+        // 抽屉的应用使用原生图标，但十雨设置是特殊入口，必须走品牌图标加载器。
+        if (!forceDefault || entry.special == SpecialEntry.SETTINGS) {
             drawIconFrame(canvas, rect, entry)
             return
         }
@@ -1185,6 +1198,7 @@ internal class HomeView(
         widgetLocalX = x
         widgetLocalY = y
         widgetLongPressFired = false
+        widgetGestureConsumed = false
         widgetGestureMoved = false
         immersiveNavigationOwned = false
         // 书页区域内的横滑全部交给组件轮播，宿主只在书页之外的时钟与栏区接管导航。
@@ -1206,7 +1220,7 @@ internal class HomeView(
     ) {
         val dx = event.x - downX
         val dy = event.y - downY
-        if (abs(dx) > WIDGET_CLICK_SLOP || abs(dy) > WIDGET_CLICK_SLOP) {
+        if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
             widgetGestureMoved = true
             handler.removeCallbacks(widgetLongPressRunnable)
         }
@@ -1296,6 +1310,7 @@ internal class HomeView(
         gestureAxis = 0
         verticalConsumed = false
         widgetLongPressFired = false
+        widgetGestureConsumed = false
         widgetGestureMoved = false
         dragMoved = false
         // 新一次按下清除上一次长按进入整理模式的标记，避免后续单击被误判为长按。
@@ -1382,17 +1397,25 @@ internal class HomeView(
         event: MotionEvent,
         m: DesktopMetrics,
     ) {
-        // 组件内部手势始终保留给组件，宿主不再接管横向或纵向滑动。
+        // 先交组件识别内部手势；未消费的横滑由宿主接回桌面翻页。
         val rect = widgetBounds(m)
         widgetLocalX = event.x - rect.left
         widgetLocalY = event.y - rect.top
-        // 位移超过两像素即视为组件手势已开始，抬手不再转发点击
-        if (abs(event.x - downX) > WIDGET_CLICK_SLOP || abs(event.y - downY) > WIDGET_CLICK_SLOP) {
+        // 位移超过系统触摸阈值即视为组件手势已开始，抬手不再转发点击
+        if (abs(event.x - downX) > touchSlop || abs(event.y - downY) > touchSlop) {
             widgetGestureMoved = true
             handler.removeCallbacks(widgetLongPressRunnable)
         }
         val view = widget
-        view?.onTouch(WidgetTouchAction.MOVE, widgetLocalX, widgetLocalY)
+        if (widgetLongPressFired || gestureAxis == 1) return
+        val consumed = view?.onTouch(WidgetTouchAction.MOVE, widgetLocalX, widgetLocalY) == true
+        widgetGestureConsumed = widgetGestureConsumed || consumed
+        val dx = event.x - downX
+        val dy = event.y - downY
+        if (!widgetGestureConsumed && abs(dx) >= swipeMinPx() && abs(dx) > abs(dy)) {
+            view?.onTouch(WidgetTouchAction.CANCEL, widgetLocalX, widgetLocalY)
+            gestureAxis = 1
+        }
     }
 
     /** 抬起：判定点击、滑动翻页、整理模式菜单或退出。 */
@@ -1408,6 +1431,10 @@ internal class HomeView(
         val moved = abs(dx) > touchSlop || abs(dy) > touchSlop
         val duration = event.eventTime - downTime
 
+        if (widgetTouch && gestureAxis == 1) {
+            widgetTouch = false
+            // 组件在接管时已收到CANCEL，下面复用桌面翻页逻辑。
+        }
         if (widgetTouch) {
             widgetTouch = false
             val rect = widgetBounds(m)
@@ -1418,7 +1445,7 @@ internal class HomeView(
             val view = widget
             // 先结束组件触摸序列，再判定点击，两者不复用同一次抬起。
             val endAction =
-                if (cancelled) WidgetTouchAction.CANCEL else WidgetTouchAction.UP
+                if (cancelled || widgetLongPressFired) WidgetTouchAction.CANCEL else WidgetTouchAction.UP
             view?.onTouch(endAction, localX, localY)
             val tapEligible = !cancelled && !moved && !widgetGestureMoved && !widgetLongPressFired
             if (tapEligible) {
@@ -1702,7 +1729,7 @@ internal class HomeView(
         }
         labels.add("进入整理模式")
         actions.add { enterEditMode(-1) }
-        labels.add("设置")
+        labels.add("十雨设置")
         actions.add { runCatching { AppServices.router.navigate(Destination.Settings) } }
         val hidden =
             config
@@ -1810,9 +1837,6 @@ internal class HomeView(
     // endregion
 
     companion object {
-        /** 组件手势位移阈值：超过两像素即视为拖动，抬手不转发点击。 */
-        private const val WIDGET_CLICK_SLOP = 2f
-
         /** 默认单条菜单长按时长，与配置默认值一致。 */
         private const val DEFAULT_LONG_PRESS_MENU_MS = 400
 

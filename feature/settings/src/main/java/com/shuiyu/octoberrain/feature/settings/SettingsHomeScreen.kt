@@ -1,11 +1,9 @@
 package com.shuiyu.octoberrain.feature.settings
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.provider.Settings
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
@@ -25,8 +23,8 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
  * 设置中心首页。
  *
  * 版式对齐图墨桌面设置页：不设标题栏与返回箭头，页面顶部为齿轮徽标与「十雨」字样，
- * 下方前四项为2列圆角卡片：桌面偏好、美化与图标、微读墨记、检查更新；
- * 其余系统设置以单列列表显示。
+ * 下方四项为单列全宽圆角卡片：桌面偏好、美化与图标、微读墨记、检查更新；
+ * 系统原生设置作为独立应用入口保留，不在此页混排。
  * 卡片尺寸、描边与圆角全部取自设计令牌，页面内容位于 InkPage 的滚动容器内。
  * 返回操作由系统返回键承担。
  */
@@ -64,9 +62,10 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
                         InkColors.INK,
                     )
             }
-        val gearSize = tokens.dp(22f)
+        val gearSize = tokens.dp(32f)
         badge.addView(
-            InkGlyphs.view(context, InkGlyphs.Kind.GEAR, gearSize),
+            com.shuiyu.octoberrain.core.design.LauncherSettingsIcon
+                .view(context, gearSize),
             FrameLayout.LayoutParams(gearSize, gearSize, Gravity.CENTER),
         )
         val badgeSize = tokens.dp(40f)
@@ -77,7 +76,7 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
             },
         )
 
-        val title = InkWidgets.textView(context, "十雨", tokens.textTitle, InkColors.INK)
+        val title = InkWidgets.textView(context, "十雨设置", tokens.textTitle, InkColors.INK)
         row.addView(
             title,
             LinearLayout.LayoutParams(
@@ -96,10 +95,10 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
     }
 
     /**
-     * 2 列卡片网格。
+     * 单列全宽卡片。
      *
      * @param context 页面上下文。
-     * @return 纵向排列的网格容器，行内两张卡片等宽等高。
+     * @return 纵向排列的网格容器，每张卡片独占一行，保留图标、标题和说明。
      */
     private fun buildCards(context: Context): View {
         val tokens = DesignRuntime.tokens
@@ -108,7 +107,7 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         val columnGap = tokens.dp(10f)
 
         val specs = cards()
-        specs.take(4).chunked(2).forEachIndexed { rowIndex, rowCards ->
+        specs.take(4).chunked(1).forEachIndexed { rowIndex, rowCards ->
             if (rowIndex > 0) {
                 grid.addView(
                     View(context),
@@ -138,13 +137,6 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
                     LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
                 )
             }
-            // 卡片总数为奇数时，末行补一个透明占位保持半宽栅格，避免单张卡片拉满整行。
-            if (rowCards.size == 1) {
-                row.addView(
-                    View(context),
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
-                )
-            }
             grid.addView(
                 row,
                 LinearLayout.LayoutParams(
@@ -155,10 +147,6 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
             equalizeRow(row)
         }
         grid.addView(InkWidgets.spacer(context, gap))
-        specs.drop(4).forEach { spec ->
-            grid.addView(InkWidgets.row(context, spec.label) { spec.onClick(context) })
-            grid.addView(InkWidgets.divider(context))
-        }
         return grid
     }
 
@@ -208,7 +196,7 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         )
 
         if (spec.hint != null) {
-            val hint = InkWidgets.textView(context, spec.hint, tokens.textCaption, InkColors.INK_3)
+            val hint = InkWidgets.textView(context, spec.hint, tokens.textCaption, InkColors.INK_2)
             hint.isSingleLine = true
             hint.ellipsize = TextUtils.TruncateAt.END
             card.addView(
@@ -291,28 +279,6 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
                 hint = "版本检查与更新日志",
                 icon = glyph(InkGlyphs.Kind.REFRESH),
             ) { AppServices.router.navigate(Destination.Update) },
-            CardSpec("网络与互联网", icon = glyph(InkGlyphs.Kind.WIFI)) {
-                openSystem(it, Settings.ACTION_WIFI_SETTINGS)
-            },
-            CardSpec("蓝牙与连接", icon = glyph(InkGlyphs.Kind.BLUETOOTH)) {
-                openSystem(it, Settings.ACTION_BLUETOOTH_SETTINGS)
-            },
-            CardSpec("应用管理", icon = glyph(InkGlyphs.Kind.LIST)) {
-                openSystem(it, Settings.ACTION_APPLICATION_SETTINGS)
-            },
-            CardSpec("电源与显示", icon = glyph(InkGlyphs.Kind.BATTERY)) {
-                openSystem(it, Settings.ACTION_DISPLAY_SETTINGS)
-            },
-            CardSpec("存储空间", icon = glyph(InkGlyphs.Kind.FOLDER)) {
-                openSystem(it, Settings.ACTION_INTERNAL_STORAGE_SETTINGS)
-            },
-            CardSpec("设备信息", icon = custom(CustomGlyph.DEVICE)) {
-                openSystem(it, Settings.ACTION_DEVICE_INFO_SETTINGS)
-            },
-            CardSpec("系统设置", icon = glyph(InkGlyphs.Kind.GEAR)) {
-                runCatching { AppServices.router.navigate(Destination.SystemSettings) }
-                    .onFailure { error -> SettingsUi.toast(it, "无法打开系统设置：${error.message ?: "未知错误"}") }
-            },
         )
 
     /** 使用设计层线性图标。 */
@@ -326,40 +292,6 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
         { context ->
             CardGlyphView(context, kind, DesignRuntime.tokens.dp(22f))
         }
-
-    /**
-     * 跳转系统设置页。
-     *
-     * 先解析目标 action 是否有可处理页面，缺失时回退到 ACTION_SETTINGS；
-     * 回退仍失败时给出提示。全过程在主线程执行并捕获异常。
-     *
-     * @param context 页面上下文。
-     * @param action 目标系统设置 action。
-     */
-    private fun openSystem(
-        context: Context,
-        action: String,
-    ) {
-        val target = Intent(action)
-        val resolved =
-            runCatching {
-                target.resolveActivity(context.packageManager)
-            }.getOrNull()
-
-        val primaryLaunched =
-            if (resolved != null) {
-                runCatching { context.startActivity(target) }.isSuccess
-            } else {
-                false
-            }
-        if (primaryLaunched) return
-
-        val fallback = Intent(Settings.ACTION_SETTINGS)
-        val fallbackLaunched = runCatching { context.startActivity(fallback) }.isSuccess
-        if (!fallbackLaunched) {
-            SettingsUi.toast(context, "无法打开系统设置")
-        }
-    }
 
     /** 卡片定义。 */
     private data class CardSpec(

@@ -6,6 +6,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DeskModulePolicyTest {
+    @Test fun assetsAndFingerprintDefaultOnWithoutResettingExplicitOff() {
+        assertTrue(DeskModulePolicy.isEnabled(LauncherConfig(), "rank"))
+        assertTrue(DeskModulePolicy.isEnabled(LauncherConfig(), "fp"))
+        val base = LauncherConfig()
+        val explicitOff =
+            base.copy(
+                integrations = base.integrations.copy(wereadDesk = base.integrations.wereadDesk.copy(onMask = 1)),
+            )
+        assertFalse(DeskModulePolicy.isEnabled(explicitOff, "rank"))
+        assertFalse(DeskModulePolicy.isEnabled(explicitOff, "fp"))
+        org.junit.Assert.assertTrue("rank" in DeskModulePolicy.settingsOrder(LauncherConfig()))
+    }
+
     @Test
     fun configuredOrderIsPreservedAndDeduplicated() {
         val config = config(listOf("rank", "bookshelf", "rank", "unknown", "bill", "fp"), 3)

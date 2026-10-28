@@ -7,10 +7,12 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.feature.content.ContentRegistry
+import com.shuiyu.octoberrain.feature.content.data.ContentPaths
 import com.shuiyu.octoberrain.feature.content.ui.ContentUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,8 +52,6 @@ internal class RecentDeskSection(
 
     private var loadJob: Job? = null
 
-    private var loaded = false
-
     init {
         orientation = VERTICAL
         addView(
@@ -70,9 +70,9 @@ internal class RecentDeskSection(
         )
     }
 
-    /** 页面回到前台时读取一次数据，已读取过则跳过重复请求。 */
+    /** 返回前台读取一次，授权或新增图片后不保留旧空态。 */
     fun onResume() {
-        if (!loaded) reload()
+        reload()
     }
 
     /** 页面离开前台时取消读取任务。 */
@@ -101,13 +101,8 @@ internal class RecentDeskSection(
             scope.launch {
                 val files =
                     withContext(Dispatchers.IO) {
-                        library
-                            .recentFiles()
-                            .filter { !it.isDirectory && library.isImage(it.file) }
-                            .map { it.file }
-                            .take(LIMIT)
+                        library.recentImages(LIMIT)
                     }
-                loaded = true
                 render(files)
             }
     }
@@ -120,7 +115,19 @@ internal class RecentDeskSection(
     private fun render(files: List<File>) {
         body.removeAllViews()
         if (files.isEmpty()) {
-            body.addView(DeskSectionStyle.buildEmpty(context, EMPTY))
+            body.addView(
+                DeskSectionStyle.buildEmpty(
+                    context,
+                    if (ContentPaths.hasStorageAccess()) EMPTY else "请先授予存储访问权限，再刷新最近图片",
+                ),
+            )
+            if (!ContentPaths.hasStorageAccess()) {
+                body.addView(
+                    InkWidgets.button(context, "授权读取图片", filled = false) {
+                        AppServices.permissions.openStorageSettings()
+                    },
+                )
+            }
             return
         }
         files.forEachIndexed { index, file ->
@@ -163,7 +170,7 @@ internal class RecentDeskSection(
         textColumn.addView(InkWidgets.body(context, file.name).apply { maxLines = 1 })
         textColumn.addView(
             InkWidgets.caption(context, ContentUi.formatDateTime(file.lastModified())).apply {
-                setTextColor(InkColors.INK_3)
+                setTextColor(InkColors.INK)
             },
         )
         row.addView(textColumn, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))

@@ -42,7 +42,7 @@ internal class WereadImmersivePainter {
                 BoardBounds(
                     if (landscape) w * .38f else w * .22f,
                     barY,
-                    (w * if (landscape) .97f else .85f) - DesignRuntime.tokens.dpF(44f),
+                    if (landscape) w * .97f - DesignRuntime.tokens.dpF(44f) else w * .78f,
                     barY + 4f,
                 ),
         )
@@ -55,7 +55,7 @@ internal class WereadImmersivePainter {
     ): BoardBounds {
         val frame = layout(width, height, landscape)
         val size = DesignRuntime.tokens.dpF(44f)
-        val right = width * if (landscape) .98f else .94f
+        val right = if (landscape) width * .98f else frame.barBounds.right + size
         return BoardBounds(right - size, frame.barBounds.centerY - size / 2, right, frame.barBounds.centerY + size / 2)
     }
 

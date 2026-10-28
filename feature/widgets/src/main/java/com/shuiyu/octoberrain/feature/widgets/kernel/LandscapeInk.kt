@@ -96,7 +96,7 @@ internal class LandscapeInk(
     ) {
         paint.style = Paint.Style.FILL
         paint.typeface = face
-        paint.textSize = size * unit
+        paint.textSize = maxOf(18f, size * unit)
         paint.color = color
         paint.textAlign = Paint.Align.LEFT
     }

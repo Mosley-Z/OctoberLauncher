@@ -91,10 +91,10 @@ class InkTokens(
         )
 
     /** 说明字号。 */
-    val textCaption: Float get() = textSize(12f)
+    val textCaption: Float get() = maxOf(20f, textSize(14f))
 
     /** 最小字号，仅用于不可省略的辅助文字。 */
-    val textSmall: Float get() = textSize(11f)
+    val textSmall: Float get() = maxOf(18f, textSize(13f))
 
     /** 状态栏字号。 */
     val textStatus: Float get() = textSize(if (sizeClass == SizeClass.Compact) 14f else 16f)

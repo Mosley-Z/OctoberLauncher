@@ -17,10 +17,14 @@ import com.inkread.weekread.kernel.desk.DeskActions
 import com.inkread.weekread.kernel.desk.DeskData
 import com.inkread.weekread.kernel.desk.DeskPage
 import com.inkread.weekread.kernel.desk.DeskRenderer
+import com.inkread.weekread.kernel.desk.DeskStyle
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.NegativeHost
+import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
+import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkWidgets
+import com.shuiyu.octoberrain.core.wereadsync.WereadAssetRefreshState
 import com.shuiyu.octoberrain.core.wereadsync.WereadDeskEditsStore
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -68,7 +72,12 @@ internal class WereadDeskSectionView(
     private val canvasView = SectionCanvas(context)
     private val dispatcher = DeskTouchDispatcher(context, canvasView, this)
     private val guideRow = LinearLayout(context)
+    private val fingerprintEmptyHeader =
+        if (moduleId == MODULE_FP) DeskSectionStyle.buildHeader(context, "阅读指纹") else null
     private val emptyButton: TextView
+    private var assetControls: AssetSectionControls? = null
+
+    @Volatile private var assetSort = 0
     private val emptyMessage: TextView
     private val tipClearRunnable =
         Runnable {
@@ -78,6 +87,17 @@ internal class WereadDeskSectionView(
 
     init {
         orientation = VERTICAL
+        if (moduleId == MODULE_RANK) {
+            assetControls =
+                AssetSectionControls(
+                    context,
+                    refresh = { refreshEmptySection() },
+                    reloadAll = { confirmAssetReload() },
+                    sort = { selected -> selectAssetSort(selected) },
+                    wallpaper = { generateWallpaper() },
+                )
+            addView(assetControls)
+        }
         emptyButton =
             InkWidgets.button(context, if (moduleId == MODULE_FP) "选择指纹书目" else "同步微信读书", filled = false) {
                 refreshEmptySection()
@@ -87,7 +107,7 @@ internal class WereadDeskSectionView(
         guideRow.visibility = GONE
         val inset = DeskSectionStyle.paddingXPx(context.resources.displayMetrics.widthPixels)
         guideRow.setPadding(inset, 0, inset, 0)
-        guideRow.addView(emptyButton)
+        if (moduleId != MODULE_RANK) guideRow.addView(emptyButton)
         guideRow.addView(emptyMessage)
         emptyMessage.setOnClickListener { AppServices.router.navigate(Destination.WereadSettings) }
         guideRow.addView(
@@ -95,6 +115,10 @@ internal class WereadDeskSectionView(
                 AppServices.router.navigate(Destination.WereadSettings)
             },
         )
+        fingerprintEmptyHeader?.let { header ->
+            header.visibility = GONE
+            addView(header)
+        }
         addView(canvasView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(guideRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
@@ -184,10 +208,7 @@ internal class WereadDeskSectionView(
             if (!valid(state, token)) return@execute
             runCatching {
                 val page =
-                    state.page ?: DeskPage(deskHost.host).also { created ->
-                        created.bind()
-                        state.page = created
-                    }
+                    pageFor(state)
                 if (valid(state, token)) action(page, state, token)
             }.onFailure {
                 mainHandler.post {
@@ -200,6 +221,16 @@ internal class WereadDeskSectionView(
         }
     }
 
+    private fun pageFor(state: WorkerState): DeskPage =
+        state.page ?: DeskPage(deskHost.host).also { page ->
+            page.bind()
+            if (moduleId == MODULE_RANK) {
+                page.onAction(DeskActions.ASSET_SORT_BASE + assetSort)
+                state.assetNotice = WereadAssetRefreshState.notice(File(context.filesDir, "weread"))
+            }
+            state.page = page
+        }
+
     /** 多个输入共享一次待渲染任务；内核页面只在所属队列内读写。 */
     private fun requestFrame(
         state: WorkerState,
@@ -211,12 +242,7 @@ internal class WereadDeskSectionView(
             state.executor.execute {
                 state.frameQueued = false
                 if (!valid(state, token)) return@execute
-                val page =
-                    state.page
-                        ?: runCatching { DeskPage(deskHost.host).also { it.bind() } }.getOrNull()?.also {
-                            state.page =
-                                it
-                        }
+                val page = runCatching { pageFor(state) }.getOrNull()
                 if (page == null) return@execute
                 val rendered = runCatching { renderFrame(page, requestedWidth, state) }.getOrNull()
                 mainHandler.post {
@@ -247,10 +273,10 @@ internal class WereadDeskSectionView(
     ): SectionFrame? {
         if (width <= 0) return null
         val unit = deskHost.host.scale()
-        val header = renderer.headerHeight(unit)
+        val header = contentOffset(unit)
         val total = page.height(width).toFloat()
-        val blank = isEmptyData(page.data()) || total <= header
-        // 指纹没有内滚动；保留整张内容高度，交给墨台外层滚动，不能按资产窗口裁切。
+        val blank = (moduleId != MODULE_BILL && isEmptyData(page.data())) || total <= header
+        // 指纹交给外层滚动；墨单使用宿主位移，资产使用内核滚动。
         val cap =
             if (moduleId == MODULE_FP) {
                 MAX_CACHE_HEIGHT_PX.toFloat()
@@ -258,6 +284,8 @@ internal class WereadDeskSectionView(
                 MAX_SECTION_HEIGHT_DP * resources.displayMetrics.density
             }
         val height = if (blank) MIN_SECTION_HEIGHT_DP * unit else (total - header).coerceIn(1f, cap)
+        state.billScrollMax = if (moduleId == MODULE_BILL) (total - header - height).coerceAtLeast(0f) else 0f
+        state.billScroll = state.billScroll.coerceIn(0f, state.billScrollMax)
         val pixels = ceil(height).toInt().coerceIn(1, MAX_CACHE_HEIGHT_PX)
         val spare = state.spare?.takeUnless { it.isRecycled }
         state.spare = null
@@ -275,16 +303,30 @@ internal class WereadDeskSectionView(
             if (bitmap != null) {
                 val canvas = Canvas(bitmap)
                 canvas.translate(0f, -header)
-                page.render(canvas, width, ceil(height + header).toInt().coerceAtLeast(1), 0)
+                page.render(canvas, width, ceil(height + header).toInt().coerceAtLeast(1), state.billScroll.toInt())
             }
-            SectionFrame(bitmap, width, height, header, blank, page.padOpen(), page.canScroll())
+            SectionFrame(
+                bitmap,
+                width,
+                height,
+                header,
+                blank,
+                page.padOpen(),
+                page.canScroll() || state.billScrollMax > 0f,
+                state.assetNotice,
+            )
         }.onFailure { bitmap?.recycle() }.getOrThrow()
     }
 
     private fun applyFrame(next: SectionFrame) {
         frame = next
+        assetControls?.notice?.apply {
+            text = next.assetNotice.orEmpty()
+            visibility = if (next.assetNotice == null) GONE else VISIBLE
+        }
         sectionHeight = next.height
         canvasView.visibility = if (next.empty) GONE else VISIBLE
+        fingerprintEmptyHeader?.visibility = if (next.empty) VISIBLE else GONE
         guideRow.visibility = if (next.empty) VISIBLE else GONE
         if (next.empty) updateEmptyGuide()
         canvasView.requestLayout()
@@ -310,7 +352,7 @@ internal class WereadDeskSectionView(
         keypad: Boolean,
     ) {
         submit { page, state, token ->
-            val offset = renderer.headerHeight(deskHost.host.scale())
+            val offset = contentOffset(deskHost.host.scale())
             if (keypad || page.padOpen()) {
                 val key = page.hitPad(x, y + offset)
                 if (key >= 0) handlePricePress(page, key, state, token)
@@ -346,7 +388,7 @@ internal class WereadDeskSectionView(
         y: Float,
     ) {
         submit { page, state, token ->
-            val action = page.longActionAt(x, y + renderer.headerHeight(deskHost.host.scale()))
+            val action = page.longActionAt(x, y + contentOffset(deskHost.host.scale()))
             if (action == DeskActions.LONG_ASSET_TITLE) {
                 val saved = editBridge.saveHidden(page)
                 val title = page.pendingTitle()
@@ -390,7 +432,11 @@ internal class WereadDeskSectionView(
                         queuedState.scrollQueued = false
                     }
                 }
-            page.scrollBy(amount)
+            if (moduleId == MODULE_BILL) {
+                queuedState.billScroll = (queuedState.billScroll + amount).coerceIn(0f, queuedState.billScrollMax)
+            } else {
+                page.scrollBy(amount)
+            }
             requestFrame(queuedState, token)
         }
     }
@@ -405,13 +451,14 @@ internal class WereadDeskSectionView(
                 !hasKey -> "填写微信读书 API Key"
                 sync?.isRunning() == true -> "正在同步…"
                 moduleId == MODULE_FP -> "选择指纹书目"
+                moduleId == MODULE_RANK -> "刷新阅读资产"
                 else -> "同步微信读书"
             }
         emptyButton.isEnabled = sync?.isRunning() != true || !hasKey
         emptyMessage.text = if (!hasKey) "尚未配置微信读书，点击上方按钮填写" else "暂无可展示数据 · ${sync?.statusText() ?: "同步服务未就绪"}"
     }
 
-    private fun refreshEmptySection() {
+    private fun refreshEmptySection(forceAll: Boolean = false) {
         if (AppServices.config.state.value.integrations.wereadApiKey
                 .isBlank()
         ) {
@@ -426,18 +473,55 @@ internal class WereadDeskSectionView(
         if (sync == null) {
             AppServices.router.toast("请先在设置中配置微信读书")
         } else {
-            val accepted =
-                sync.syncNow { _, message ->
-                    mainHandler.post {
-                        if (!released) {
-                            emptyMessage.text = message
-                            reload()
-                        }
+            val onFinished: (Boolean, String) -> Unit = { _, message ->
+                mainHandler.post {
+                    if (!released) {
+                        AppServices.router.toast(message)
+                        emptyMessage.text = message
+                        reload()
                     }
                 }
-            if (accepted) updateEmptyGuide() else emptyMessage.text = sync.statusText()
+            }
+            val accepted =
+                if (moduleId == MODULE_RANK) {
+                    sync.refresh(WereadRefreshRequest(if (forceAll) "assets_full" else "assets"), onFinished)
+                } else {
+                    sync.syncNow(onFinished)
+                }
+            if (accepted) {
+                if (moduleId == MODULE_RANK) AppServices.router.toast("正在刷新阅读资产…")
+                updateEmptyGuide()
+            } else {
+                emptyMessage.text = sync.statusText()
+                AppServices.router.toast(sync.statusText())
+            }
         }
     }
+
+    private fun confirmAssetReload() {
+        InkDialogs.confirm(
+            context,
+            "重新拉取阅读资产",
+            "将对当前书架电子书和本地历史资产书目全部重新取数，跳过增量缓存，可能耗时较长。" +
+                "手动录价、隐藏书目等设置保留；失败书目保留旧值并提示未完成。",
+            confirmLabel = "重新拉取",
+            onConfirm = { refreshEmptySection(forceAll = true) },
+        )
+    }
+
+    private fun selectAssetSort(selected: Int) {
+        if (selected == assetSort) return
+        assetSort = selected
+        submit { page, state, token ->
+            page.onAction(DeskActions.ASSET_SORT_BASE + selected)
+            requestFrame(state, token)
+        }
+    }
+
+    /** 资产原绘制头由原位置的原生标题与下拉框替代，命中与绘制共享同一偏移。 */
+    private fun contentOffset(unit: Float): Float =
+        renderer.headerHeight(unit) +
+            if (moduleId == MODULE_RANK) DeskStyle.secHeadH(unit) else 0f
 
     /** 壁纸同样使用页面所属队列，避免与帧渲染、释放并发。 */
     fun generateWallpaper() {
@@ -522,6 +606,9 @@ internal class WereadDeskSectionView(
     }
 
     private class WorkerState {
+        var billScroll = 0f
+        var billScrollMax = 0f
+        var assetNotice: String? = null
         val executor: ExecutorService =
             Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, LOAD_THREAD_NAME).apply { isDaemon = true }
@@ -541,6 +628,7 @@ internal class WereadDeskSectionView(
         val empty: Boolean,
         val padOpen: Boolean,
         val canScroll: Boolean,
+        val assetNotice: String?,
     )
 
     /**

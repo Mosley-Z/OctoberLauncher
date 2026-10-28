@@ -186,7 +186,18 @@ class ImageWidget(
             }
             WidgetTouchAction.CANCEL -> swipeStep = ImageSwipe.STEP_NONE
         }
-        return false
+        // 先在系统触摸阈值认领方向，实际切图仍需36dp，避免桌面较短的翻页阈值抢走序列。
+        return action == WidgetTouchAction.MOVE &&
+            images.size > 1 &&
+            ImageSwipe.step(
+                config.desktop.effectiveImageSwipeDirection,
+                x - pressX,
+                y - pressY,
+                android.view.ViewConfiguration
+                    .get(context)
+                    .scaledTouchSlop
+                    .toFloat(),
+            ) != ImageSwipe.STEP_NONE
     }
 
     /** 依据配置方向判断本次移动是否切图，切图后重排自动轮播。 */

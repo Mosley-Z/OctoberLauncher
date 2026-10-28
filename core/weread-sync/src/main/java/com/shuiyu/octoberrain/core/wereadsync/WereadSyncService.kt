@@ -118,6 +118,7 @@ class WereadSyncService(
     suspend fun sync(
         bases: List<WereadSyncPeriod> = defaultPeriods(),
         includeLibrary: Boolean = true,
+        includeAssets: Boolean = false,
     ): WereadSyncReport =
         mutex.withLock {
             // 同步包含网络请求与多次整档写入，调用方可能在主线程协程中等待；
@@ -126,7 +127,7 @@ class WereadSyncService(
                 return@withLock WereadSyncReport(false, "同步或迁移正在进行，请稍后重试")
             }
             try {
-                withContext(Dispatchers.IO) { runSync(bases, includeLibrary) }
+                withContext(Dispatchers.IO) { runSync(bases, includeLibrary, includeAssets) }
             } finally {
                 WereadDataGate.endSync()
             }
@@ -145,11 +146,12 @@ class WereadSyncService(
     private suspend fun runSync(
         bases: List<WereadSyncPeriod>,
         includeLibrary: Boolean,
+        includeAssets: Boolean,
     ): WereadSyncReport {
         val started = clock()
         val shelf = provider.shelf()
         val stats = fetchStats(bases)
-        val assets = if (includeLibrary) provider.assets() else null
+        val assets = if (includeAssets) provider.assets() else null
         val shelfCount = writeShelf(enrichShelf(shelf, assets))
         val statCount = writeStats(stats)
         val billCount = writeBills(bases, stats)

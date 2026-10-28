@@ -129,8 +129,11 @@ internal class WereadBoardCoverLoader(
             if (bitmap != null && !bitmap.isRecycled) bitmap.recycle()
             return
         }
-        if (bitmap != null && !bitmap.isRecycled) covers.put(bookId, bitmap)
-        onChanged()
+        // 缺失/解码失败不是内容变化；通知会令宿主立即重试并形成持续重绘。
+        if (bitmap != null && !bitmap.isRecycled) {
+            covers.put(bookId, bitmap)
+            onChanged()
+        }
     }
 
     /** 释放执行器与缓存，回收全部位图。 */

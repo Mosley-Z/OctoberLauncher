@@ -185,7 +185,7 @@ class WereadSyncServiceTest {
         assertEquals(28, report.statCount)
         // 账单只为周与月两类周期写入，合计 24 期。
         assertEquals(24, report.billCount)
-        assertEquals(1, report.assetCount)
+        assertEquals(0, report.assetCount)
         assertEquals(0, report.noteCount)
         assertTrue(store.hasShelf())
         val state = parseSyncState(store.getString(WereadSyncService.KEY_SYNC_STATE))

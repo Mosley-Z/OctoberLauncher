@@ -123,7 +123,7 @@ class WidgetPickerScreen(
         // 选中项以反白徽标与反相边框区分，卡片底色保持纸白，避免出现灰底
         val surface = InkColors.PAPER
         val primary = InkColors.INK
-        val secondary = InkColors.INK_3
+        val secondary = InkColors.INK
         val border = if (selected) InkColors.INK else InkColors.INK_3
 
         val cellView =

@@ -188,7 +188,7 @@ internal class ImmersiveHome {
         paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         centerText(canvas, clock, center, edge + size, size)
         paint.typeface = DesignRuntime.typeface()
-        val dateSize = if (landscape) minOf(t.textBody, book.width() * .026f) else t.textBody
+        val dateSize = if (landscape) maxOf(20f, t.textCaption) else t.textBody
         centerText(canvas, date, center, edge + size + dateSize * 1.7f, dateSize)
     }
 

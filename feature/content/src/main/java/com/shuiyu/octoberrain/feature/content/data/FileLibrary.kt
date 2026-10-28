@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.StatFs
+import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import com.shuiyu.octoberrain.core.common.InkLog
@@ -138,6 +139,44 @@ class FileLibrary(
             }.onFailure { InkLog.w(TAG, "扫描最近文件失败：${it.message}") }
         }
         return files.sortedByDescending { it.modifiedAt }.take(RECENT_LIMIT)
+    }
+
+    /** 最近图片独立查询，包含DCIM/下载目录，不受最近5个混合文件影响。后台线程调用。 */
+    fun recentImages(limit: Int = 4): List<File> {
+        val indexed =
+            runCatching {
+                val result = ArrayList<File>()
+                val uri =
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                        .buildUpon()
+                        .appendQueryParameter("limit", "64")
+                        .build()
+                context.contentResolver
+                    .query(
+                        uri,
+                        arrayOf(MediaStore.Images.Media.DATA),
+                        null,
+                        null,
+                        "${MediaStore.Images.Media.DATE_ADDED} DESC",
+                    )?.use { cursor ->
+                        val column = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+                        var scanned = 0
+                        while (scanned++ < 64 && cursor.moveToNext()) {
+                            cursor.getString(column)?.let { path -> File(path).takeIf { it.isFile }?.let(result::add) }
+                        }
+                    }
+                result
+            }.getOrDefault(emptyList())
+        val root = externalDirectory()
+        val fallback =
+            RecentImageFiles.collect(
+                listOf(picturesDirectory(), File(root, "DCIM"), File(root, "Download")),
+                limit,
+            )
+        return (indexed + fallback)
+            .distinctBy { it.absolutePath }
+            .sortedByDescending { it.lastModified() }
+            .take(limit.coerceAtLeast(0))
     }
 
     /** 从根目录到当前目录的路径层级，用于面包屑与上级跳转。 */

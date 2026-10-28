@@ -161,7 +161,7 @@ class BeautifyScreen : Screen {
     /** 底部状态行：默认隐藏，选图结果以静态文字呈现，不使用弹窗。 */
     private fun buildStatusLine(context: Context): TextView {
         val tokens = DesignRuntime.tokens
-        return InkWidgets.textView(context, "", tokens.textSmall, InkColors.INK_3).apply {
+        return InkWidgets.textView(context, "", tokens.textSmall, InkColors.INK_2).apply {
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.END
             setPadding(tokens.pageGutter, 0, tokens.pageGutter, tokens.gap / 4)

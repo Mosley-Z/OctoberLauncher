@@ -26,7 +26,7 @@ internal object DesktopEntries {
         listOf(
             SpecialSpec("special:weread", "微信读书", SpecialEntry.WEREAD),
             SpecialSpec("special:files", "文件", SpecialEntry.FILES),
-            SpecialSpec("special:settings", "设置", SpecialEntry.SETTINGS),
+            SpecialSpec("special:settings", "十雨设置", SpecialEntry.SETTINGS),
         )
 
     /**

@@ -19,20 +19,20 @@ import org.junit.Test
  * 覆盖默认五项启用状态、模块列表增删、设置页展示顺序与上下移动的写入结果。
  */
 class NegativeSettingsLogicTest {
-    /** 默认配置启用四项卡片，阅读指纹与墨台默认掩码一致处于关闭状态。 */
+    /** 默认配置启用三项卡片，阅读资产与阅读指纹由用户开启。 */
     @Test
-    fun `默认配置启用四张卡片`() {
+    fun `默认配置启用五张卡片`() {
         val config = LauncherConfig()
         val modules = config.desktop.negativePage.modules
         assertEquals(
-            listOf("bookshelf", "negative_files", "bill", "rank"),
+            listOf("bookshelf", "negative_files", "bill", "rank", "fp"),
             modules,
         )
         assertTrue(NegativeSettingsLogic.enabled(config, "bookshelf"))
         assertTrue(NegativeSettingsLogic.enabled(config, "negative_files"))
         assertTrue(NegativeSettingsLogic.enabled(config, "bill"))
         assertTrue(NegativeSettingsLogic.enabled(config, "rank"))
-        assertFalse(NegativeSettingsLogic.enabled(config, "fp"))
+        assertTrue(NegativeSettingsLogic.enabled(config, "fp"))
     }
 
     /** 关闭书架卡片后模块列表不再包含书架标识。 */
@@ -85,7 +85,11 @@ class NegativeSettingsLogicTest {
     /** 阅读指纹不在默认列表，注册后仍以关闭状态追加到展示顺序末尾。 */
     @Test
     fun `关闭的阅读指纹追加到展示顺序末尾`() {
-        val config = LauncherConfig()
+        val base = LauncherConfig()
+        val config =
+            base.copy(
+                integrations = base.integrations.copy(wereadDesk = base.integrations.wereadDesk.copy(onMask = 3)),
+            )
         val order = NegativeSettingsLogic.moduleOrder(config, listOf(FakeModule("fp", "阅读指纹")))
         assertEquals(
             listOf("bookshelf", "negative_files", "bill", "rank", "fp"),
@@ -117,7 +121,12 @@ class NegativeSettingsLogicTest {
     /** 指纹原本没有显示位，外部开启后共享消费者立即可见；墨台关闭后外部状态同步。 */
     @Test
     fun `两个入口共用指纹显示状态`() {
-        val enabled = NegativeSettingsLogic.toggle(LauncherConfig(), "fp")
+        val base = LauncherConfig()
+        val off =
+            base.copy(
+                integrations = base.integrations.copy(wereadDesk = base.integrations.wereadDesk.copy(onMask = 3)),
+            )
+        val enabled = NegativeSettingsLogic.toggle(off, "fp")
         assertTrue(enabled.integrations.wereadDesk.onMask and WereadDeskConfig.BIT_FP != 0)
         assertTrue(DeskModulePolicy.visibleOrder(enabled).contains("fp"))
         val disabled = DeskModulePolicy.toggle(enabled, "fp")
@@ -161,7 +170,7 @@ class NegativeSettingsLogicTest {
         val config = LauncherConfig()
         val moved = NegativeSettingsLogic.move(config, "rank", -1, emptyList())
         assertEquals(
-            listOf("bookshelf", "negative_files", "rank", "bill"),
+            listOf("bookshelf", "negative_files", "rank", "bill", "fp"),
             moved.desktop.negativePage.modules,
         )
         assertTrue(moved.desktop.negativePage.cardOrderInitialized)

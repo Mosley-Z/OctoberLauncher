@@ -27,9 +27,6 @@ import java.io.File
 import java.text.Collator
 import java.util.Locale
 
-/** 系统设置包名：桌面以「设置」特殊入口替代该应用图标。 */
-private const val SYSTEM_SETTINGS_PACKAGE = "com.android.settings"
-
 /**
  * 应用目录实现：枚举可启动应用，缓存图标，并提供内置入口。
  *
@@ -119,6 +116,15 @@ class AppCatalogImpl(
         entry: SpecialEntry,
         sizePx: Int,
     ): Bitmap? {
+        // 用户指定十雨设置采用品牌图标；使用独立版本键，避免旧齿轮缓存继续命中。
+        if (entry == SpecialEntry.SETTINGS) {
+            val settingsKey = "launcher-settings-v2@$sizePx"
+            return memoryCache.get(settingsKey) ?: withContext(Dispatchers.Default) {
+                com.shuiyu.octoberrain.core.design.LauncherSettingsIcon.bitmap(context, sizePx).also {
+                    memoryCache.put(settingsKey, it)
+                }
+            }
+        }
         // 单入口覆盖优先：桌面长按菜单或美化模式为特殊入口指定的图片直接作为图标。
         val override =
             if (AppServices.hasIconOverrides()) {
@@ -154,8 +160,11 @@ class AppCatalogImpl(
     }
 
     override fun launch(app: InstalledApp) {
+        if (launchVendorSettings(app)) return
         val intent =
-            packageManager.getLaunchIntentForPackage(app.packageName) ?: Intent(
+            app.activityName?.let { activity ->
+                Intent.makeMainActivity(android.content.ComponentName(app.packageName, activity))
+            } ?: packageManager.getLaunchIntentForPackage(app.packageName) ?: Intent(
                 Intent.ACTION_MAIN,
             ).apply {
                 addCategory(Intent.CATEGORY_LAUNCHER)
@@ -163,6 +172,32 @@ class AppCatalogImpl(
             }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         runCatching { context.startActivity(intent) }
+    }
+
+    /** S4真正的设置页由原生桌面承载；保留独立图标和原名，只适配启动目标。 */
+    private fun launchVendorSettings(app: InstalledApp): Boolean {
+        if (!android.os.Build.MODEL
+                .equals("S4", ignoreCase = true) ||
+            app.packageName != "com.android.settings"
+        ) {
+            return false
+        }
+        return runCatching {
+            val component =
+                android.content.ComponentName(
+                    "com.wetao.elauncher",
+                    "com.wetao.elauncher.ui.main.MainActivity",
+                )
+            val info = packageManager.getActivityInfo(component, 0)
+            if (!info.exported || !info.enabled || !info.applicationInfo.enabled) return@runCatching false
+            context.startActivity(
+                Intent
+                    .makeMainActivity(component)
+                    .putExtra("fragment", "SettingFragment")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED),
+            )
+            true
+        }.getOrDefault(false)
     }
 
     override fun launchSpecial(entry: SpecialEntry) {
@@ -180,17 +215,23 @@ class AppCatalogImpl(
         }
     }
 
-    /** 查询所有带启动图标的应用，排除自身与系统设置，按中文标签排序。 */
+    /** 查询所有带启动图标的应用，仅排除自身，按中文标签排序。 */
     private fun queryLaunchable(): List<InstalledApp> {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val resolved = packageManager.queryIntentActivities(intent, 0)
+        val resolved = packageManager.queryIntentActivities(intent, 0).toMutableList()
+        // 某些设备只通过标准系统设置action公开入口，没有独立LAUNCHER图标。
+        packageManager.queryIntentActivities(Intent(android.provider.Settings.ACTION_SETTINGS), 0).forEach { entry ->
+            if (entry.activityInfo?.exported == true &&
+                resolved.none { it.activityInfo?.packageName == entry.activityInfo.packageName }
+            ) {
+                resolved.add(entry)
+            }
+        }
         val result = ArrayList<InstalledApp>(resolved.size)
         for (info in resolved) {
             val activityInfo = info.activityInfo ?: continue
             val packageName = activityInfo.packageName ?: continue
             if (packageName == context.packageName) continue
-            // 系统设置由桌面的「设置」特殊入口承载，避免固件设置页在小屏上排版错乱
-            if (packageName == SYSTEM_SETTINGS_PACKAGE) continue
             val label =
                 runCatching {
                     activityInfo.loadLabel(packageManager).toString()

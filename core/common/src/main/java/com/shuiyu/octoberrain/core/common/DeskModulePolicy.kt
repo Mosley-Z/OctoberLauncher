@@ -2,7 +2,7 @@ package com.shuiyu.octoberrain.core.common
 
 /** 墨台五个模块共用的显示、排序及开关规则。 */
 object DeskModulePolicy {
-    val moduleIds: List<String> = DEFAULT_NEGATIVE_MODULES + "fp"
+    val moduleIds: List<String> = (DEFAULT_NEGATIVE_MODULES + "fp").distinct()
 
     /** 已配置模块保持原顺序；关闭全部时不补回默认模块。 */
     fun visibleOrder(config: LauncherConfig): List<String> =

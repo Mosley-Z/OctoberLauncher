@@ -52,7 +52,7 @@ class AutomaticSyncServiceTest {
             assertTrue(manual.success)
             assertEquals(28, manual.statCount)
             assertEquals(24, manual.billCount)
-            assertEquals(1, assets)
+            assertEquals(0, assets)
             assertEquals(1, notes)
         }
 }

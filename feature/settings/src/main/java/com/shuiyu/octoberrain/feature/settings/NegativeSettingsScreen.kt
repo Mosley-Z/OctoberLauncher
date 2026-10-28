@@ -121,7 +121,7 @@ class NegativeSettingsScreen : SettingsBaseScreen("负一屏设置") {
         row.addView(moveButton(context, "下移", index < size - 1) { moveModule(moduleId, 1) })
         val stateText =
             InkWidgets
-                .textView(context, if (enabled) "开" else "关", tokens.textCaption, InkColors.INK_3)
+                .textView(context, if (enabled) "开" else "关", tokens.textCaption, InkColors.INK_2)
                 .apply { setPadding(tokens.gap, 0, 0, 0) }
         val check = InkGlyphs.view(context, InkGlyphs.Kind.CHECK)
         check.alpha = if (enabled) 1f else 0f

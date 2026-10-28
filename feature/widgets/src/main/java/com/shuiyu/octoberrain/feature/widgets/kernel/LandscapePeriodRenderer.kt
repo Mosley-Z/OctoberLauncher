@@ -125,7 +125,7 @@ internal object LandscapePeriodRenderer {
                 weekdays[day],
                 LandscapeRect(x, bottom + 4f * u, x + barWidth, bottom + 24f * u),
                 13f,
-                if (future) Color.GRAY else Color.BLACK,
+                Color.BLACK,
             )
         }
         ink.rule(g.body.left, bottom, g.body.right, bottom, Color.GRAY)
@@ -203,7 +203,7 @@ internal object LandscapePeriodRenderer {
         size: Float,
     ) {
         ink.paint.typeface = Typeface.DEFAULT
-        ink.paint.textSize = size * ink.unit
+        ink.paint.textSize = maxOf(18f, size * ink.unit)
         ink.text(value, edge - ink.paint.measureText(value), top, size)
     }
 

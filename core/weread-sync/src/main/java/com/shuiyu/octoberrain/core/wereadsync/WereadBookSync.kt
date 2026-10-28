@@ -24,6 +24,9 @@ class WereadBookSync(
     private val cache = readCache().toMutableMap()
     private val requested = mutableSetOf<String>()
     private val failures = mutableSetOf<String>()
+    private var strictProgress = false
+    private var cacheBatchSize = 1
+    private var pendingProgress = 0
     private var networkFailed = false
     val warnings: List<String>
         get() = if (failures.isEmpty()) emptyList() else listOf("${failures.size} 本书进度暂未取得，已保留缓存或未知状态")
@@ -31,7 +34,7 @@ class WereadBookSync(
     private var shelfSnapshot: List<WereadShelfBook>? = null
 
     /** 每次完整同步重新读取书架，最近在读始终补查，历史书按变化和有效期补查。 */
-    fun shelf(): List<WereadShelfBook>? {
+    fun shelf(refreshCurrent: Boolean = true): List<WereadShelfBook>? {
         requested.clear()
         cache.clear()
         cache.putAll(readCache())
@@ -42,7 +45,7 @@ class WereadBookSync(
         val books = response?.get("books") as? JsonArray ?: return null
         val parsed = books.mapNotNull { (it as? JsonObject)?.let(::shelfBook) }
         val current = parsed.filter { it.readUpdateTime > 0 }.maxByOrNull { it.readUpdateTime }
-        current?.let { fetch(it, force = true) }
+        if (refreshCurrent) current?.let { fetch(it, force = true) }
         shelfSnapshot = parsed.map(::enrich)
         return shelfSnapshot
     }
@@ -52,6 +55,104 @@ class WereadBookSync(
         val books = shelfSnapshot ?: shelf() ?: return null
         books.filter { it.readUpdateTime > 0 }.forEach { fetch(it, force = false) }
         return cachedAssets()
+    }
+
+    /** 资产专用手动刷新：无条数上限；逐书源版本未变时不因缓存年龄重复出网。 */
+    fun refreshAssets(forceAll: Boolean = false): WereadSyncReport {
+        val report = runAssetRefresh(forceAll)
+        WereadAssetRefreshState.save(root, report, clock())
+        return report
+    }
+
+    private fun runAssetRefresh(forceAll: Boolean): WereadSyncReport {
+        val books = shelf(refreshCurrent = false) ?: return WereadSyncReport(false, "读取书架失败，已保留资产")
+        val candidates =
+            if (forceAll) {
+                (books + historyBooks()).distinctBy {
+                    it.bookId
+                }
+            } else {
+                books.distinctBy { it.bookId }
+            }
+        val skipped = refreshAssetCandidates(candidates, forceAll)
+        val store = WereadStore(root)
+        val saved =
+            store.writeShelf(books.map(::enrich), clock()) &&
+                store.writeShelfIds(books.map { it.bookId }) &&
+                store.writeAssets(cachedAssets())
+        val pricesUpdated = refreshAssetPrices(store)
+        val priceIndex = if (networkFailed) null else WereadNoteSync(request, root, clock).sync(bookIds = emptySet())
+        val indexUpdated = priceIndex != null && store.writeNotes(priceIndex.indexJson, emptyList())
+        val success = saved && failures.isEmpty() && pricesUpdated && indexUpdated
+        val detail = "范围 ${candidates.size} 本，查询 ${requested.size} 本，复用 $skipped 本"
+        val message =
+            if (success) {
+                "资产刷新完成：$detail；统计与笔记价格索引已更新；未提供价格的书仍显示未知"
+            } else {
+                "资产部分刷新：$detail；进度未完成 ${failures.size} 本；" +
+                    "统计${if (pricesUpdated) "已更新" else "未更新"}；价格索引${if (indexUpdated) "已更新" else "未更新"}；保留旧值"
+            }
+        return WereadSyncReport(success, message)
+    }
+
+    private fun refreshAssetCandidates(
+        candidates: List<WereadShelfBook>,
+        forceAll: Boolean,
+    ): Int {
+        var skipped = 0
+        strictProgress = true
+        cacheBatchSize = 16
+        try {
+            for (book in candidates) {
+                val previous = cache[book.bookId]
+                val unchanged =
+                    previous != null &&
+                        previous.long("at") > 0 &&
+                        book.readUpdateTime > 0 &&
+                        previous.long("readUpdateTime") == book.readUpdateTime &&
+                        (previous.long("fin") > 0) == book.finished
+                if (!forceAll && unchanged) skipped++ else fetch(book, force = true)
+            }
+        } finally {
+            if (pendingProgress > 0) saveCache()
+            pendingProgress = 0
+            cacheBatchSize = 1
+            strictProgress = false
+        }
+        return skipped
+    }
+
+    private fun historyBooks(): List<WereadShelfBook> =
+        cachedAssets().map { asset ->
+            WereadShelfBook(
+                asset.bookId,
+                asset.title,
+                asset.author,
+                "",
+                asset.readingSeconds,
+                asset.progress,
+                asset.finished,
+                asset.finishTimeMillis,
+                asset.readUpdateTime,
+            )
+        }
+
+    /** 原价链来自已有账单/统计及手填价，getprogress自身不包含价格。只补一次统计，不逐书猜价。 */
+    private fun refreshAssetPrices(store: WereadStore): Boolean {
+        val payload =
+            if (networkFailed) {
+                null
+            } else {
+                request.request(
+                    "/readdata/detail",
+                    buildJsonObject {
+                        put("mode", "overall")
+                        put("baseTime", 0)
+                    },
+                )
+            }
+        val valid = payload?.keys?.any { it in setOf("readLongest", "totalReadTime", "readTimes") } == true
+        return payload != null && valid && store.writeStats("overall", 0L, payload.toString(), clock())
     }
 
     /** 复用已补查的累计值，不产生网络请求。 */
@@ -115,10 +216,22 @@ class WereadBookSync(
             } else {
                 // 公众号、听书等合法响应可能没有进度，不阻断其他书。
                 val payload = response["book"] as? JsonObject
-                if (payload != null && payload.keys.any { it in PROGRESS_FIELDS }) saveProgress(book, payload)
+                val supported = payload?.keys?.any { it in PROGRESS_FIELDS } == true
+                val complete = !strictProgress || payload?.let(::cumulativeTimeKnown) == true
+                if (payload != null && supported && complete) {
+                    saveProgress(book, payload)
+                } else if (strictProgress) {
+                    failures += book.bookId
+                }
             }
         }
     }
+
+    /** 资产完整统计不能把接口未提供的累计时长当作零覆盖缓存。 */
+    private fun cumulativeTimeKnown(payload: JsonObject): Boolean =
+        listOf("readingTime", "recordReadingTime").any { key ->
+            (payload[key]?.jsonPrimitive?.intOrNull ?: -1) >= 0
+        }
 
     private fun needsFetch(
         book: WereadShelfBook,
@@ -151,7 +264,11 @@ class WereadBookSync(
                 put("readUpdateTime", book.readUpdateTime)
             }
         cache[book.bookId] = record
-        saveCache()
+        pendingProgress++
+        if (pendingProgress >= cacheBatchSize) {
+            saveCache()
+            pendingProgress = 0
+        }
     }
 
     private fun enrich(book: WereadShelfBook): WereadShelfBook {

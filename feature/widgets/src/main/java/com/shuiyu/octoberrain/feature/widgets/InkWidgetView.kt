@@ -157,7 +157,7 @@ abstract class InkWidgetView(
         canvas: Canvas,
         message: String,
     ) {
-        val paint = textPaint(tokens.textCaption, InkColors.INK_3)
+        val paint = textPaint(tokens.textCaption, InkColors.INK_2)
         InkDraw.textCenter(
             canvas,
             message,

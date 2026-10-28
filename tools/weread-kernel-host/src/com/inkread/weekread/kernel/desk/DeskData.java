@@ -29,6 +29,7 @@ public final class DeskData {
     private final DeskHost host;
     /** 原盘读取器。 */
     private final KernelDataLoader loader;
+    private final File loaderRoot;
 
     /** 当前选中的周期类型，空串表示未选择。 */
     private String periodMode = "";
@@ -61,6 +62,7 @@ public final class DeskData {
      */
     public DeskData(DeskHost host, File root) {
         this.host = host;
+        this.loaderRoot = root;
         this.loader = new KernelDataLoader(root);
         this.view = DeskPrefs.view(host);
         this.paidAlgo = DeskPrefs.paidAlgo(host);
@@ -480,8 +482,48 @@ public final class DeskData {
         }
     }
 
+    /** Cached notebook metadata is a price source, never a manual-price override. */
+    private int notePriceFen(String bookId) {
+        ensureNotePrices();
+        Integer value = notePrices.get(bookId);
+        return value == null ? -1 : value.intValue();
+    }
+
+    private final Map<String, Integer> notePrices = new HashMap<String, Integer>();
+    private boolean notePricesReady;
+
+    private void ensureNotePrices() {
+        if (notePricesReady) return;
+        notePricesReady = true;
+        File file = new File(host == null ? loaderRoot : host.filesDir(), "nt_index.json");
+        try {
+            String raw = new String(java.nio.file.Files.readAllBytes(file.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+            Object parsed = new org.json.JSONTokener(raw).nextValue();
+            org.json.JSONArray books = parsed instanceof org.json.JSONArray ? (org.json.JSONArray) parsed
+                    : ((org.json.JSONObject) parsed).optJSONArray("books");
+            if (books == null) return;
+            for (int i = 0; i < books.length(); i++) {
+                org.json.JSONObject book = books.optJSONObject(i);
+                if (book == null) continue;
+                String id = book.optString("bookId", "");
+                org.json.JSONObject metadata = book.optJSONObject("book");
+                if (metadata == null) metadata = book;
+                int fen = BillMath.fenOf(metadata.optInt("centPrice", 0),
+                        metadata.optDouble("price", metadata.optDouble("priceY", 0)),
+                        metadata.optInt("originalPrice", metadata.optInt("origY", 0)),
+                        metadata.optInt("free", 0) == 1);
+                if (!id.isEmpty() && fen >= 0) notePrices.put(id, Integer.valueOf(fen));
+            }
+        } catch (Exception ignored) {
+            // Missing or incomplete metadata leaves price unknown.
+        }
+    }
+
     /** 账单落盘的市场价（分），无记录返回 -1。 */
     public int billFenOf(String bookId) {
+        int note = notePriceFen(bookId);
+        if (note > 0) return note;
+        if (note == 0) return -1;
         ensureLedger();
         Integer v = billFen.get(bookId);
         return v == null ? -1 : v.intValue();
@@ -489,6 +531,8 @@ public final class DeskData {
 
     /** 账单是否把该书目标记为免费。 */
     public boolean billFree(String bookId) {
+        int note = notePriceFen(bookId);
+        if (note >= 0) return note == 0;
         ensureLedger();
         return billFree.contains(bookId);
     }
@@ -549,6 +593,8 @@ public final class DeskData {
     /** 重新读取原盘数据并作废价格链索引。 */
     public void invalidateAll() {
         notesCache = null;
+        notePricesReady = false;
+        notePrices.clear();
         ledgerReady = false;
         billFen.clear();
         billFree.clear();
