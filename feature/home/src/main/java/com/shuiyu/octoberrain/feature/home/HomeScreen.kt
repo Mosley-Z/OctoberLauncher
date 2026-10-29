@@ -10,6 +10,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.MinuteTicker
 import com.shuiyu.octoberrain.core.common.Screen
+import com.shuiyu.octoberrain.core.common.VendorSettingsSession
 import com.shuiyu.octoberrain.core.common.VolumeKeySink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,8 @@ internal class HomeScreen :
     private var minuteTicker: MinuteTicker? = null
     private var resumed = false
     private var pendingData = true
+    private val widgetResumeRefresh = HomeResumeRefresh()
+    private var pausedForVendorSettings = false
 
     /** 创建桌面视图并建立数据订阅。 */
     override fun createView(context: Context): View {
@@ -79,7 +82,7 @@ internal class HomeScreen :
         AppServices.content.dataVersion?.let { version ->
             job.launch {
                 version.drop(1).collect {
-                    if (resumed) home.refreshCurrentWidget(true) else pendingData = true
+                    if (resumed) home.refreshCurrentWidget(true) else widgetResumeRefresh.invalidate()
                 }
             }
         }
@@ -87,23 +90,25 @@ internal class HomeScreen :
         return home
     }
 
-    /** 回到桌面仅重读组件本地数据；完整同步由到期策略或用户操作触发。 */
+    /** 从系统设置返回复用未变化的内容；其他页面返回仍按原策略重读本地内容。 */
     override fun onResume() {
         val job = scope ?: return
         resumed = true
         minuteTicker?.start(immediate = false)
         val home = view
-        home?.setHostVisible(true)
         if (pendingData) {
             home?.applyData(AppServices.catalog.apps.value, AppServices.config.state.value)
             pendingData = false
         }
-        home?.refreshCurrentWidget(true)
+        home?.setHostVisible(true)
+        home?.refreshCurrentWidget(widgetResumeRefresh.resume(pausedForVendorSettings))
+        pausedForVendorSettings = false
         job.launch { runCatching { AppServices.catalog.refresh() } }
     }
 
     /** 不可见时延后配置加载，并暂停组件轮播。 */
     override fun onPause() {
+        pausedForVendorSettings = VendorSettingsSession.active
         resumed = false
         minuteTicker?.stop()
         view?.setHostVisible(false)

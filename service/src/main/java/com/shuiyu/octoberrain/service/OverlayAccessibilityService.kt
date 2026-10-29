@@ -1,6 +1,7 @@
 package com.shuiyu.octoberrain.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -8,6 +9,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -15,7 +17,9 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.MinuteTicker
 import com.shuiyu.octoberrain.core.common.NotificationPanelAccess
 import com.shuiyu.octoberrain.core.common.UiVisibility
+import com.shuiyu.octoberrain.core.common.VendorSettingsSession
 import com.shuiyu.octoberrain.core.design.DesignRuntime
+import com.shuiyu.octoberrain.core.device.HomeRole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,6 +50,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     private var flashing = false
 
     private var foregroundPackage: String = ""
+    private val settingsBack = SettingsBackSequence()
 
     private val statusTicker = MinuteTicker { updateStatus() }
 
@@ -59,6 +64,13 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        if (Build.MODEL.equals("S4", ignoreCase = true)) {
+            serviceInfo =
+                serviceInfo.apply {
+                    flags = flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS or
+                        AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+                }
+        }
         windowManager = runCatching { getSystemService(WindowManager::class.java) }.getOrNull()
         observeStates()
         applyOverlayVisibility()
@@ -66,6 +78,8 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        settingsBack.clear()
+        VendorSettingsSession.clear()
         NotificationPanelAccess.disconnect()
         return super.onUnbind(intent)
     }
@@ -76,6 +90,9 @@ class OverlayAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString().orEmpty()
         if (pkg.isEmpty()) return
         foregroundPackage = pkg
+        if (pkg !in setOf(packageName, "com.wetao.elauncher", "com.android.settings", "com.android.systemui")) {
+            VendorSettingsSession.clear()
+        }
         // 200 毫秒去抖，避免窗口连续变化时重复挂载窗口
         handler.removeCallbacks(debounce)
         handler.postDelayed(debounce, DEBOUNCE_MS)
@@ -83,7 +100,64 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode != KeyEvent.KEYCODE_BACK) return false
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN ->
+                settingsBack.down(event.downTime, event.deviceId, event.repeatCount, canReturnFromSettings())
+            KeyEvent.ACTION_UP -> {
+                val consumed = settingsBack.up(event.downTime, event.deviceId)
+                if (consumed && !event.isCanceled && canReturnFromSettings()) {
+                    VendorSettingsSession.clear()
+                    android.util.Log.i("S4SettingsBack", "settings root BACK -> home")
+                    val intent =
+                        Intent(Intent.ACTION_MAIN)
+                            .addCategory(Intent.CATEGORY_HOME)
+                            .setClassName(packageName, "com.shuiyu.octoberrain.MainActivity")
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    runCatching { startActivity(intent) }.onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
+                }
+                consumed
+            }
+            else -> false
+        }
+    }
+
+    private fun canReturnFromSettings(): Boolean {
+        val enabled = Build.MODEL.equals("S4", true) && VendorSettingsSession.active && HomeRole.isDefault(this)
+        val root = if (enabled) rootInActiveWindow else null
+        if (root == null) return false
+        return try {
+            settingsBackEligible(
+                s4 = true,
+                defaultHome = true,
+                session = true,
+                packageName = root.packageName?.toString(),
+                settingsTitle = hasVisibleId(root, "settings_title"),
+                settingsItems = hasVisibleId(root, "ll_item"),
+            )
+        } finally {
+            @Suppress("DEPRECATION")
+            root.recycle()
+        }
+    }
+
+    private fun hasVisibleId(
+        root: android.view.accessibility.AccessibilityNodeInfo,
+        id: String,
+    ): Boolean {
+        val nodes = root.findAccessibilityNodeInfosByViewId("com.wetao.elauncher:id/$id")
+        return try {
+            nodes.any { it.isVisibleToUser }
+        } finally {
+            @Suppress("DEPRECATION")
+            nodes.forEach { it.recycle() }
+        }
+    }
+
     override fun onDestroy() {
+        settingsBack.clear()
+        VendorSettingsSession.clear()
         NotificationPanelAccess.disconnect()
         handler.removeCallbacksAndMessages(null)
         statusTicker.stop()

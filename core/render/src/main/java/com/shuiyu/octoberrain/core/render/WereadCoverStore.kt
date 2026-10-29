@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
+import com.shuiyu.octoberrain.core.common.UiVisibility
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -94,7 +95,11 @@ object WereadCoverStore {
         source: String?,
         onReady: (String) -> Unit,
     ): () -> Unit {
-        val skip = source.isNullOrBlank() || !isRemote(source) || local(context, bookId, source) != null
+        val skip =
+            !UiVisibility.active.value ||
+                source.isNullOrBlank() ||
+                !isRemote(source) ||
+                local(context, bookId, source) != null
         if (skip) return {}
         val start =
             synchronized(callbacks) {
@@ -169,6 +174,7 @@ object WereadCoverStore {
     ) {
         val done =
             runCatching {
+                check(UiVisibility.active.value) { "封面预取已暂停" }
                 val target = cacheFile(context, bookId) ?: throw IOException("封面缓存目录不可用")
                 download(source, target)
             }.isSuccess
@@ -242,7 +248,7 @@ object WereadCoverStore {
      * @param source 封面地址
      * @param target 目标文件
      */
-    private fun download(
+    internal fun download(
         source: String,
         target: File,
     ) {
@@ -252,12 +258,15 @@ object WereadCoverStore {
             connection.readTimeout = TIMEOUT_MS
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("User-Agent", USER_AGENT)
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) return
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) throw IOException("封面请求失败")
             val temp = File(target.parentFile, "${target.name}.part")
             connection.inputStream.use { input ->
                 temp.outputStream().use { output -> copyLimited(input, output) }
             }
-            if (!temp.renameTo(target)) temp.delete()
+            if (temp.length() == 0L || !temp.renameTo(target)) {
+                temp.delete()
+                throw IOException("封面缓存未保存")
+            }
         } finally {
             connection.disconnect()
         }

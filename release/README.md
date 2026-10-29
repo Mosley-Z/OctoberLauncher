@@ -56,3 +56,16 @@ gh release create v1.0.0 dist/1.0.0/OctoberLauncher-v1.0.0.apk dist/1.0.0/update
 ```
 
 上面是字段说明，实际发布必须使用打包脚本生成的有效摘要与大小。清单源与下载源要求HTTPS。尚未配置国内域名，不携带GitHub私有访问令牌，不假定镜像已经可用。连接真实国内源后应测试GitHub不可达时的完整检查、下载、校验和系统安装流程。
+
+## 每次 Release 后的站点准备（必做）
+
+用户已要求从 V1.0.2 起，每次 GitHub Release 发布后自动完成 WorkBuddy 站点本地准备：
+
+```powershell
+$env:PYTHONIOENCODING = 'utf-8'
+python scripts/prepare-workbuddy-site.py
+```
+
+脚本读取当前 VERSION 与 dist 对应正式五件套，复制同一APK，更新十雨下载入口和 update-october.json，保留首页CRLF及其他产品，更新对应冻结契约，执行上线卡指定 preflight.py，退出0才生成待发布单。默认工作目录为 D:/WorkBuddyStation/2026-10-03-03-42-56，可用 --workspace 指定。运行前先读该目录的《上线卡_任何AI都能执行.md》，若卡片约定改变先调整脚本。仓库外写入需使用宿主批准的文件访问权限。
+
+此步骤属于每次发布的必要收尾，不再重复询问是否准备。实际云端部署由WorkBuddy会话按上线卡执行，完成后运行线上自检。

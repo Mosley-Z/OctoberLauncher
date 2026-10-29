@@ -15,6 +15,7 @@ import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.InstalledApp
 import com.shuiyu.octoberrain.core.common.Router
 import com.shuiyu.octoberrain.core.common.SpecialEntry
+import com.shuiyu.octoberrain.core.common.VendorSettingsSession
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkGlyphs
 import com.shuiyu.octoberrain.core.render.ImageDecoder
@@ -116,22 +117,22 @@ class AppCatalogImpl(
         entry: SpecialEntry,
         sizePx: Int,
     ): Bitmap? {
-        // 用户指定十雨设置采用品牌图标；使用独立版本键，避免旧齿轮缓存继续命中。
-        if (entry == SpecialEntry.SETTINGS) {
-            val settingsKey = "launcher-settings-v2@$sizePx"
-            return memoryCache.get(settingsKey) ?: withContext(Dispatchers.Default) {
-                com.shuiyu.octoberrain.core.design.LauncherSettingsIcon.bitmap(context, sizePx).also {
-                    memoryCache.put(settingsKey, it)
-                }
-            }
-        }
-        // 单入口覆盖优先：桌面长按菜单或美化模式为特殊入口指定的图片直接作为图标。
+        // 自定义图标优先于内置品牌图标，恢复默认后再回退品牌图标。
         val override =
             if (AppServices.hasIconOverrides()) {
                 AppServices.iconOverrides.loadOverride(IconTargets.specialKey(entry), sizePx)
             } else {
                 null
             }
+        // 用户指定十雨设置采用品牌图标；使用独立版本键，避免旧齿轮缓存继续命中。
+        if (entry == SpecialEntry.SETTINGS) {
+            val settingsKey = "launcher-settings-v2@$sizePx"
+            return override ?: memoryCache.get(settingsKey) ?: withContext(Dispatchers.Default) {
+                com.shuiyu.octoberrain.core.design.LauncherSettingsIcon.bitmap(context, sizePx).also {
+                    memoryCache.put(settingsKey, it)
+                }
+            }
+        }
         val key = "special:${entry.name}@$sizePx"
         return override ?: memoryCache.get(key) ?: withContext(Dispatchers.Default) {
             val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -190,6 +191,7 @@ class AppCatalogImpl(
                 )
             val info = packageManager.getActivityInfo(component, 0)
             if (!info.exported || !info.enabled || !info.applicationInfo.enabled) return@runCatching false
+            VendorSettingsSession.begin()
             context.startActivity(
                 Intent
                     .makeMainActivity(component)
@@ -197,7 +199,7 @@ class AppCatalogImpl(
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED),
             )
             true
-        }.getOrDefault(false)
+        }.onFailure { VendorSettingsSession.clear() }.getOrDefault(false)
     }
 
     override fun launchSpecial(entry: SpecialEntry) {

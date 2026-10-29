@@ -427,12 +427,13 @@ class MainActivity : Activity() {
         )
     }
 
-    /** 返回上一页；根页面时退到后台。 */
+    /** 返回上一页；根桌面消耗返回键，兼容实体HOME映射为BACK。 */
     private fun goBack(): Boolean {
         if (AppServices.lock.isLocked) return true
         val top = stack.lastOrNull() ?: return false
         if (top.screen.onBack()) return true
         if (stack.size <= 1) {
+            if (top.destination == Destination.Home) return true
             moveTaskToBack(true)
             return true
         }
@@ -525,7 +526,7 @@ class MainActivity : Activity() {
         if (!AppServices.config.state.value.onboarding.completed) return
         if (openIncomingDocument(intent)) return
         val homeIndex = stack.indexOfLast { it.destination == Destination.Home }
-        if (homeIndex >= 0) popTo(homeIndex)
+        if (homeIndex >= 0 && homeIndex < stack.lastIndex) popTo(homeIndex)
     }
 
     /** 外部授权文档复用同一宿主，锁屏覆盖层仍由原锁契约控制。 */
@@ -574,6 +575,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        com.shuiyu.octoberrain.core.common.VendorSettingsSession
+            .clear()
         UiVisibility.setForeground(true)
         // 回到前台后重新按栈顶页面校正状态栏底色，避免停在非桌面页后返回仍保留白底。
         updateStatusBarBackground()
