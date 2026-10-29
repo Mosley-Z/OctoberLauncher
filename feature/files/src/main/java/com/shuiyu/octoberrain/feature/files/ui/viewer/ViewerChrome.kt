@@ -24,6 +24,9 @@ enum class ViewerAction {
 
     /** 另存副本。 */
     SAVE,
+
+    /** 设置为系统壁纸，仅 S4 通道支持。 */
+    SET_WALLPAPER,
 }
 
 /**
@@ -40,6 +43,7 @@ object ViewerHitTest {
             ViewerAction.CROP,
             ViewerAction.FILTER,
             ViewerAction.SAVE,
+            ViewerAction.SET_WALLPAPER,
         )
 
     /**
@@ -80,13 +84,14 @@ object ViewerHitTest {
             ViewerAction.CROP -> "裁剪"
             ViewerAction.FILTER -> "滤镜"
             ViewerAction.SAVE -> "另存"
+            ViewerAction.SET_WALLPAPER -> "设置为"
         }
 }
 
 /**
  * 查看器顶栏与底栏绘制。
  *
- * 顶栏包含返回、文件名、信息三部分；底栏包含旋转、裁剪、滤镜、另存四个等分按钮。
+ * 顶栏包含返回、文件名、信息三部分；底栏包含旋转、裁剪、滤镜、另存、设置为五个等分按钮。
  * 绘制只读取 [ViewerMetrics]，不重复计算几何；命中判定由 [ViewerHitTest] 完成。
  *
  * 参数 context 用于取密度换算字号；参数 metrics 为当前布局。

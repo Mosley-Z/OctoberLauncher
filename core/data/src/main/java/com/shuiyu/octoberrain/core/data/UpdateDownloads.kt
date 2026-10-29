@@ -44,3 +44,12 @@ internal fun fileSha256(file: File): String {
     }
     return digest.digest().joinToString("") { "%02x".format(it) }
 }
+
+/** 备用清单仅能替代当前用户确认的同一安装包，避免站点滞后时降级或换包。 */
+internal fun matchesUpdatePackage(
+    expected: UpdateInfo,
+    backup: UpdateInfo,
+): Boolean =
+    expected.versionCode == backup.versionCode &&
+        expected.sizeBytes == backup.sizeBytes &&
+        expected.sha256.equals(backup.sha256, ignoreCase = true)

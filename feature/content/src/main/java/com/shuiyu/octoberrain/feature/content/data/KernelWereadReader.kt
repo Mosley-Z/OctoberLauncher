@@ -52,7 +52,7 @@ class KernelWereadReader(
                     author = book.author.orEmpty(),
                     coverPath = book.coverUrl?.takeIf { it.isNotBlank() },
                     progress = book.progress.coerceIn(0, 100) / 100f,
-                    deepLink = null,
+                    deepLink = book.bookId?.takeIf { it.isNotBlank() }?.let(WereadParsing::deepLink),
                 )
             }
         val ordered = orderByRecentRead(items, readTimes())

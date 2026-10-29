@@ -48,35 +48,43 @@ class ViewerChromeTest {
         assertNull(ViewerHitTest.hit(240, 400, metrics()))
     }
 
-    /** 底栏四个等分区域依次命中旋转、裁剪、滤镜、另存。 */
+    /** 底栏五个等分区域依次命中旋转、裁剪、滤镜、另存、设置为。 */
     @Test
     fun `底栏动作按等分顺序命中`() {
         val geometry = metrics()
         assertEquals(ViewerAction.ROTATE, ViewerHitTest.hit(10, 760, geometry))
         assertEquals(ViewerAction.CROP, ViewerHitTest.hit(130, 760, geometry))
-        assertEquals(ViewerAction.FILTER, ViewerHitTest.hit(250, 760, geometry))
-        assertEquals(ViewerAction.SAVE, ViewerHitTest.hit(470, 760, geometry))
-        assertEquals(ViewerAction.SAVE, ViewerHitTest.hit(479, 799, geometry))
+        assertEquals(ViewerAction.FILTER, ViewerHitTest.hit(220, 760, geometry))
+        assertEquals(ViewerAction.SAVE, ViewerHitTest.hit(330, 760, geometry))
+        assertEquals(ViewerAction.SET_WALLPAPER, ViewerHitTest.hit(470, 760, geometry))
+        assertEquals(ViewerAction.SET_WALLPAPER, ViewerHitTest.hit(479, 799, geometry))
     }
 
     /** 底栏动作枚举顺序与几何划分一致。 */
     @Test
     fun `底栏动作顺序固定`() {
         assertEquals(
-            listOf(ViewerAction.ROTATE, ViewerAction.CROP, ViewerAction.FILTER, ViewerAction.SAVE),
+            listOf(
+                ViewerAction.ROTATE,
+                ViewerAction.CROP,
+                ViewerAction.FILTER,
+                ViewerAction.SAVE,
+                ViewerAction.SET_WALLPAPER,
+            ),
             ViewerHitTest.bottomActions,
         )
     }
 
     /** 动作文案与界面按钮一致。 */
     @Test
-    fun `动作文案覆盖六个动作`() {
+    fun `动作文案覆盖七个动作`() {
         assertEquals("返回", ViewerHitTest.labelOf(ViewerAction.BACK))
         assertEquals("信息", ViewerHitTest.labelOf(ViewerAction.INFO))
         assertEquals("旋转", ViewerHitTest.labelOf(ViewerAction.ROTATE))
         assertEquals("裁剪", ViewerHitTest.labelOf(ViewerAction.CROP))
         assertEquals("滤镜", ViewerHitTest.labelOf(ViewerAction.FILTER))
         assertEquals("另存", ViewerHitTest.labelOf(ViewerAction.SAVE))
+        assertEquals("设置为", ViewerHitTest.labelOf(ViewerAction.SET_WALLPAPER))
     }
 
     /** 窄视口下顶栏与底栏收缩后仍可命中。 */
@@ -93,6 +101,6 @@ class ViewerChromeTest {
             )
         assertEquals(ViewerAction.BACK, ViewerHitTest.hit(5, 5, narrow))
         assertEquals(ViewerAction.INFO, ViewerHitTest.hit(239, 5, narrow))
-        assertEquals(ViewerAction.SAVE, ViewerHitTest.hit(239, 319, narrow))
+        assertEquals(ViewerAction.SET_WALLPAPER, ViewerHitTest.hit(239, 319, narrow))
     }
 }

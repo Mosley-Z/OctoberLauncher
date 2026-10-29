@@ -72,6 +72,15 @@ internal object EditStrings {
     /** 裁剪页应用按钮。 */
     const val CROP_APPLY = "应用裁剪"
 
+    /** 本机尺寸应用按钮。 */
+    const val FRAME_APPLY = "应用本机尺寸"
+
+    /** 无法读取屏幕尺寸时的提示。 */
+    const val NATIVE_UNAVAILABLE = "无法读取本机屏幕尺寸"
+
+    /** 背景灰度标签前缀。 */
+    const val GRAY_LABEL = "灰度 "
+
     /** 裁剪页重置按钮。 */
     const val CROP_RESET = "重置"
 

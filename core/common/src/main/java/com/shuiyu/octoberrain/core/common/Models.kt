@@ -844,7 +844,7 @@ data class IntegrationsConfig(
     val wereadStatsRange: String = WEREAD_STATS_DEFAULT,
     val updateChannel: String = "stable",
     val updateUrl: String = "",
-    /** 可选国内更新清单地址，按顺序尝试；GitHub内置地址始终作为兜底。 */
+    /** 可选国内更新清单地址，按顺序尝试；随后依次尝试内置GitHub与产品站点地址。 */
     val updateFallbackUrls: List<String> = emptyList(),
     /** 墨单卡片的外观与筛选配置，同时作用于负一屏墨单与桌面整体卡片的墨单形态。 */
     val wereadMenu: WereadMenuConfig = WereadMenuConfig(),

@@ -347,7 +347,7 @@ class OnboardingScreen(
         guide("桌面偏好", "调整桌面布局、外观、小组件、状态栏、墨水屏刷新、锁屏密码，以及权限与备份。")
         guide("美化与图标", "更换应用图标，调整应用顺序。")
         guide("微读墨记", "配置微信读书连接，查看阅读数据、笔记并管理待办。")
-        guide("检查更新", "查看当前版本、更新日志，检查新版本。")
+        guide("检查更新", "查看当前版本，检查新版本；发现更新后显示该版本说明。")
         body.addView(button("下一步") { moveTo(7) })
         body.addView(button("上一步", filled = false) { moveTo(5) })
     }

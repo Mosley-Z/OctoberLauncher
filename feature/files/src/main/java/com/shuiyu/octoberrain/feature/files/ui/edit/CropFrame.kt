@@ -151,8 +151,18 @@ object CropDrag {
         val rawHeight = abs(cornerY - anchorY).coerceAtLeast(minEdge)
         val width = if (aspectRatio == null) rawWidth else rawHeight * aspectRatio
         val height = if (aspectRatio == null) rawHeight else width / aspectRatio
-        val sizedWidth = max(width, minEdge)
-        val sizedHeight = max(height, minEdge)
+        val directionWidth = if (cornerX < anchorX) anchorX else 1f - anchorX
+        val directionHeight = if (cornerY < anchorY) anchorY else 1f - anchorY
+        val constrainedHeight =
+            if (aspectRatio != null) {
+                val minimum = max(minEdge, minEdge / aspectRatio)
+                val maximum = minOf(directionHeight, directionWidth / aspectRatio)
+                height.coerceIn(minOf(minimum, maximum), maximum)
+            } else {
+                null
+            }
+        val sizedWidth = constrainedHeight?.let { it * aspectRatio!! } ?: max(width, minEdge)
+        val sizedHeight = constrainedHeight ?: max(height, minEdge)
         val directionX = if (cornerX < anchorX) -1f else 1f
         val directionY = if (cornerY < anchorY) -1f else 1f
         val left = if (directionX > 0) anchorX else anchorX - sizedWidth

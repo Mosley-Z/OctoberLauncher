@@ -2,11 +2,9 @@ package com.shuiyu.octoberrain.feature.settings
 
 import android.text.format.Formatter
 import com.shuiyu.octoberrain.core.common.AppServices
-import com.shuiyu.octoberrain.core.common.ChangelogEntry
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.UpdateInfo
-import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.design.InkWidgets
 import kotlinx.coroutines.launch
@@ -14,7 +12,7 @@ import kotlinx.coroutines.launch
 /**
  * 检查更新页面。
  *
- * 进入页面后自动查询更新地址，展示新版本信息与更新日志；
+ * 进入页面后自动查询更新地址，仅在发现新版本时弹出该版本更新说明；
  * 下载完成后通过系统安装器安装，安装失败时给出允许未知来源的提示。
  */
 class UpdateScreen : SettingsBaseScreen("检查更新") {
@@ -47,8 +45,6 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
 
     private var state: State = State.Idle
     private var autoStarted = false
-    private var changelog: List<ChangelogEntry> = emptyList()
-    private var changelogRequested = false
 
     override fun build(
         page: InkPage,
@@ -92,8 +88,6 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
             }
         }
 
-        buildChangelog(page)
-
         SettingsUi.note(
             page,
             "安装前需在系统设置中允许本应用安装未知来源应用。",
@@ -108,10 +102,6 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
         if (!autoStarted) {
             autoStarted = true
             if (state is State.Idle) check()
-        }
-        if (!changelogRequested) {
-            changelogRequested = true
-            loadChangelog()
         }
     }
 
@@ -128,36 +118,6 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
         if (info.sha256.isNotBlank()) {
             section.info("校验摘要", info.sha256.take(16) + "…")
         }
-        if (info.notes.isNotBlank()) {
-            SettingsUi.note(page, "更新说明：${info.notes}")
-        }
-    }
-
-    /** 更新日志列表。 */
-    private fun buildChangelog(page: InkPage) {
-        val section = SettingsUi.section(page, "更新日志", "按版本倒序")
-        if (changelog.isEmpty()) {
-            section.info("记录", if (changelogRequested) "暂无记录" else "读取中…")
-            return
-        }
-        changelog.forEach { entry ->
-            section.subheading("${entry.version} · ${entry.date}")
-            entry.items.forEach { item ->
-                paragraph(page, section, "· $item")
-            }
-        }
-    }
-
-    /** 向分组追加一段带内边距的正文。 */
-    private fun paragraph(
-        page: InkPage,
-        section: SettingsSection,
-        text: String,
-    ) {
-        val body = InkWidgets.body(page.context, text)
-        val gap = DesignRuntime.tokens.gap
-        body.setPadding(gap, gap / 2, gap, gap / 2)
-        section.content(body)
     }
 
     /** 查询更新。 */
@@ -175,10 +135,54 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
                     onFailure = { State.Failure("检查失败，请确认网络与更新地址") },
                 )
             rebuildLater()
-            if (state is State.Available) {
-                SettingsUi.toast(context, "发现新版本")
+            val available = (state as? State.Available)?.info
+            if (available != null && contextOrNull() === context) {
+                showUpdateNotes(available)
             }
         }
+    }
+
+    /** 长说明放在可滚动正文中，操作按钮始终可见。 */
+    private fun showUpdateNotes(info: UpdateInfo) {
+        val context = contextOrNull() ?: return
+        val dialog = android.app.Dialog(context)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val tokens = com.shuiyu.octoberrain.core.design.DesignRuntime.tokens
+        val root =
+            android.widget.LinearLayout(context).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(tokens.dialogPadding, tokens.dialogPadding, tokens.dialogPadding, tokens.dialogPadding)
+                background =
+                    InkWidgets.background(
+                        tokens.radius,
+                        com.shuiyu.octoberrain.core.design.InkColors.PAPER,
+                        tokens.stroke,
+                        com.shuiyu.octoberrain.core.design.InkColors.INK,
+                    )
+            }
+        root.addView(InkWidgets.title(context, "发现新版本 ${info.versionName}"))
+        val scroll =
+            android.widget.ScrollView(context).apply {
+                addView(InkWidgets.body(context, info.notes.ifBlank { "此版本暂无更新说明" }))
+            }
+        root.addView(
+            scroll,
+            android.widget.LinearLayout.LayoutParams(
+                -1,
+                context.resources.displayMetrics.heightPixels / 2,
+            ),
+        )
+        root.addView(
+            InkWidgets.button(context, "下载并安装", filled = true) {
+                dialog.dismiss()
+                if ((state as? State.Available)?.info == info) downloadAndInstall(info)
+            },
+        )
+        root.addView(InkWidgets.button(context, "稍后") { dialog.dismiss() })
+        dialog.setContentView(root)
+        dialog.show()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setLayout((context.resources.displayMetrics.widthPixels * 0.86f).toInt(), -2)
     }
 
     /** 下载安装包并启动系统安装器。 */
@@ -203,14 +207,6 @@ class UpdateScreen : SettingsBaseScreen("检查更新") {
                 state = State.Failure("已交给系统安装器处理")
                 rebuildLater()
             }
-        }
-    }
-
-    /** 读取更新日志。 */
-    private fun loadChangelog() {
-        scope.launch {
-            changelog = runCatching { AppServices.updates.changelog() }.getOrDefault(emptyList())
-            rebuildLater()
         }
     }
 }

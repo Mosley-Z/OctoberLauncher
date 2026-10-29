@@ -830,6 +830,13 @@ object AppServices {
     lateinit var layoutProvider: DesktopLayoutProvider
     lateinit var previewProvider: DesktopPreviewProvider
 
+    /**
+     * S4 系统壁纸通道，由应用层装配服务实现。
+     *
+     * 为空表示当前构建不含该通道；调用方必须处理空值并按不支持提示。
+     */
+    var wallpaper: WallpaperChannel? = null
+
     /** 微信读书数据迁移入口，由应用层装配；为空表示当前构建未包含迁移能力。 */
     var wereadImport: WereadImporter? = null
 

@@ -18,8 +18,17 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.Screen
+import com.shuiyu.octoberrain.core.common.WallpaperResult
+import com.shuiyu.octoberrain.core.common.WallpaperScope
 import com.shuiyu.octoberrain.core.design.InkColors
+import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.render.ImageDecoder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicInteger
@@ -93,6 +102,12 @@ class PhotoSurface(
     private val generation = AtomicInteger(0)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val prefetched = HashMap<Int, Bitmap>()
+
+    /** 壁纸设置任务的协程作用域，页面销毁时取消。 */
+    private val wallpaperScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** 在途的壁纸设置任务。 */
+    private var wallpaperJob: Job? = null
     private var metrics: ViewerMetrics? = null
     private var chrome: ViewerChrome? = null
     private var bitmap: Bitmap? = null
@@ -186,6 +201,7 @@ class PhotoSurface(
     /** 释放位图与预取缓存。 */
     fun detach() {
         detached = true
+        wallpaperScope.cancel()
         generation.incrementAndGet()
         mainHandler.removeCallbacksAndMessages(null)
         bitmap?.recycle()
@@ -398,10 +414,11 @@ class PhotoSurface(
             ViewerAction.FILTER,
             ViewerAction.SAVE,
             -> openEdit()
+            ViewerAction.SET_WALLPAPER -> openWallpaperMenu()
         }
     }
 
-    /** 底栏四个动作进入编辑页，编辑页负责裁剪、旋转、滤镜与另存。 */
+    /** 底栏编辑类动作进入编辑页，编辑页负责裁剪、旋转、滤镜与另存。 */
     private fun openEdit() {
         val path = state.path
         if (path.isEmpty()) return
@@ -494,6 +511,68 @@ class PhotoSurface(
             else -> Unit
         }
     }
+
+    /** 打开壁纸目标选择菜单。 */
+    private fun openWallpaperMenu() {
+        val path = state.path
+        val channel = AppServices.wallpaper
+        when {
+            path.isEmpty() -> Unit
+            channel == null -> toast("当前版本不含壁纸通道")
+            !channel.supports() -> toast("当前设备不支持壁纸设置")
+            channel.isBusy() -> toast("正在设置壁纸")
+            else -> chooseWallpaperScope(path)
+        }
+    }
+
+    /** 弹出休眠壁纸、关机壁纸与同时设置三个选项。 */
+    private fun chooseWallpaperScope(path: String) {
+        val labels = WallpaperScope.entries.map { it.label }
+        InkDialogs.choose(context, "设置为", labels) { index ->
+            WallpaperScope.entries.getOrNull(index)?.let { scope -> startWallpaper(path, scope) }
+        }
+    }
+
+    /** 执行壁纸设置，完成后按逐目标结果给出提示。 */
+    private fun startWallpaper(
+        path: String,
+        scope: WallpaperScope,
+    ) {
+        val channel = AppServices.wallpaper ?: return
+        wallpaperJob?.cancel()
+        toast("正在设置${scope.label}")
+        wallpaperJob =
+            wallpaperScope.launch {
+                val result =
+                    runCatching {
+                        channel.apply(path, scope)
+                    }.getOrElse { error ->
+                        WallpaperResult.Failed(emptyList(), error.message ?: "设置失败")
+                    }
+                if (!detached) toast(resultMessage(result))
+            }
+    }
+
+    /** 把逐目标结果整理为单行提示。 */
+    private fun resultMessage(result: WallpaperResult): String =
+        when (result) {
+            is WallpaperResult.AllDone -> result.outcomes.joinToString("；") { "${it.target.label}完成" }
+            is WallpaperResult.Partial ->
+                "部分完成：" +
+                    result.outcomes.joinToString("；") { outcome ->
+                        "${outcome.target.label}${if (outcome.success) "完成" else "失败"}"
+                    }
+            is WallpaperResult.Failed ->
+                if (result.outcomes.isEmpty()) {
+                    result.message
+                } else {
+                    "设置失败：" +
+                        result.outcomes.joinToString("；") { outcome ->
+                            "${outcome.target.label}${if (outcome.success) "完成" else "失败"}"
+                        }
+                }
+            is WallpaperResult.Unavailable -> result.message
+        }
 
     private fun drawPicture(
         canvas: Canvas,

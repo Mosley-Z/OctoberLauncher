@@ -39,14 +39,38 @@ class UpdateReleaseTest {
 
     @Test
     fun emptyConfigurationUsesGithubAndPreservesCustomSourcePriority() {
-        assertEquals(listOf(UpdateSources.GITHUB_MANIFEST_URL), UpdateSources.manifests(""))
         assertEquals(
-            listOf(primary, mirror, UpdateSources.GITHUB_MANIFEST_URL),
+            listOf(UpdateSources.GITHUB_MANIFEST_URL, UpdateSources.PRODUCT_MANIFEST_URL),
+            UpdateSources.manifests(""),
+        )
+        assertEquals(
+            listOf(primary, mirror, UpdateSources.GITHUB_MANIFEST_URL, UpdateSources.PRODUCT_MANIFEST_URL),
             UpdateSources.manifests(primary, listOf(mirror, primary)),
         )
         val old = AppJson.format.decodeFromString<IntegrationsConfig>("""{"updateUrl":"$primary"}""")
         assertEquals(primary, old.updateUrl)
         assertEquals(emptyList<String>(), old.updateFallbackUrls)
+    }
+
+    @Test
+    fun builtInGithubFailureUsesProductSite() {
+        val tried = mutableListOf<String>()
+        val result =
+            readUpdate(UpdateSources.manifests(""), 51) {
+                tried += it
+                if (it == UpdateSources.GITHUB_MANIFEST_URL) throw IOException("offline")
+                manifest
+            }
+        assertEquals(listOf(UpdateSources.GITHUB_MANIFEST_URL, UpdateSources.PRODUCT_MANIFEST_URL), tried)
+        assertEquals(52, result?.versionCode)
+    }
+
+    @Test
+    fun downloadBackupMustMatchApprovedPackage() {
+        val info = UpdateInfo("1.0.0", 52, "", primary, "a".repeat(64), 100)
+        org.junit.Assert.assertTrue(matchesUpdatePackage(info, info.copy(downloadUrl = mirror)))
+        assertFalse(matchesUpdatePackage(info, info.copy(versionCode = 51)))
+        assertFalse(matchesUpdatePackage(info, info.copy(sha256 = "b".repeat(64))))
     }
 
     @Test

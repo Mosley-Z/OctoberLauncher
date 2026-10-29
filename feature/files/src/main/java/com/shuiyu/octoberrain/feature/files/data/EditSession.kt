@@ -58,6 +58,18 @@ sealed interface EditOp {
     data class Contrast(
         val level: Int,
     ) : EditOp
+
+    /**
+     * 本机尺寸处理。
+     *
+     * 参数 spec 为目标像素、模式与背景亮度；crop 为裁剪模式下的归一化裁剪矩形，
+     * 其余模式为空表示使用整幅图片。该操作在滤镜之后应用，补色不受滤镜影响，
+     * 最终输出为指定宽高的不透明位图。
+     */
+    data class Frame(
+        val spec: FrameSpec,
+        val crop: CropRect? = null,
+    ) : EditOp
 }
 
 /**
@@ -226,34 +238,63 @@ class EditSession(
  * 重放操作序列。
  *
  * 参数 source 为源位图；ops 为操作列表。几何操作按顺序执行，滤镜与对比度
- * 取最后选择的值并在末尾统一应用。返回新位图，源位图与中间位图之外的结果由调用方负责回收。
+ * 取最后选择的值并在末尾统一应用；本机尺寸处理在滤镜之后执行，使补色不参与滤镜。
+ * 返回新位图，源位图与中间位图之外的结果由调用方负责回收。
  */
 internal fun applyOps(
     source: Bitmap,
     ops: List<EditOp>,
 ): Bitmap {
-    val created = mutableListOf<Bitmap>()
-    var current = source
-    var filterLevel = -1
-    var contrast = 1
-    for (op in ops) {
-        when (op) {
-            is EditOp.Rotate -> current = addTransform(created, transformBitmap(current, op.quarters))
-            EditOp.Mirror -> current = addTransform(created, mirrorBitmap(current))
-            is EditOp.Crop -> current = addTransform(created, cropBitmap(current, op.rect))
-            is EditOp.Filter -> filterLevel = op.level
-            is EditOp.Contrast -> contrast = op.level
-        }
-    }
-    val result =
-        if (filterLevel >= 0) {
-            addTransform(created, filterBitmap(current, filterLevel, contrast))
-        } else {
-            current
-        }
-    created.filter { it !== result && it !== source }.forEach { it.recycle() }
+    val state = OpsState(source, mutableListOf())
+    for (op in ops) applyOne(state, op)
+    val filtered = applyFilter(state)
+    val result = applyFrame(state, filtered)
+    state.created.filter { it !== result && it !== source }.forEach { it.recycle() }
     return result
 }
+
+/** 重放过程中的可变状态。 */
+private class OpsState(
+    var current: Bitmap,
+    val created: MutableList<Bitmap>,
+    var filterLevel: Int = -1,
+    var contrast: Int = 1,
+    var frame: EditOp.Frame? = null,
+)
+
+/** 执行单个操作，几何操作立即产生新位图，滤镜类操作只记录参数。 */
+private fun applyOne(
+    state: OpsState,
+    op: EditOp,
+) {
+    when (op) {
+        is EditOp.Rotate -> state.current = addTransform(state.created, transformBitmap(state.current, op.quarters))
+        EditOp.Mirror -> state.current = addTransform(state.created, mirrorBitmap(state.current))
+        is EditOp.Crop -> state.current = addTransform(state.created, cropBitmap(state.current, op.rect))
+        is EditOp.Filter -> state.filterLevel = op.level
+        is EditOp.Contrast -> state.contrast = op.level
+        is EditOp.Frame -> state.frame = op
+    }
+}
+
+/** 应用末尾的滤镜与对比度，未选择时返回当前位图。 */
+private fun applyFilter(state: OpsState): Bitmap =
+    if (state.filterLevel >= 0) {
+        addTransform(state.created, filterBitmap(state.current, state.filterLevel, state.contrast))
+    } else {
+        state.current
+    }
+
+/** 应用本机尺寸处理，未设置时返回输入位图。 */
+private fun applyFrame(
+    state: OpsState,
+    filtered: Bitmap,
+): Bitmap =
+    state.frame?.takeIf { it.spec.isValid }?.let { op ->
+        // 裁剪模式先按裁剪框取区域，再统一缩放到目标像素
+        val prepared = op.crop?.let { rect -> addTransform(state.created, cropBitmap(filtered, rect)) } ?: filtered
+        addTransform(state.created, FrameCompose.apply(prepared, op.spec))
+    } ?: filtered
 
 /** 把新位图加入中间结果列表并返回该位图。 */
 private fun addTransform(

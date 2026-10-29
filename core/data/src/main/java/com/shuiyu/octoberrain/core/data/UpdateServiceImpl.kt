@@ -39,10 +39,24 @@ class UpdateServiceImpl(
 
     override suspend fun download(info: UpdateInfo): File? =
         withContext(Dispatchers.IO) {
-            downloadUpdate(info, downloadDir) { url, partial ->
-                httpGetStream(url) { input ->
-                    java.io.FileOutputStream(partial).use { output -> input.copyTo(output) }
-                }
+            val primary = downloadPackage(info)
+            primary ?: run {
+                val backup =
+                    runCatching {
+                        readUpdate(
+                            listOf(UpdateSources.PRODUCT_MANIFEST_URL),
+                            0,
+                            ::httpGet,
+                        )
+                    }.getOrNull()
+                backup?.takeIf { matchesUpdatePackage(info, it) }?.let { downloadPackage(it) }
+            }
+        }
+
+    private fun downloadPackage(info: UpdateInfo): File? =
+        downloadUpdate(info, downloadDir) { url, partial ->
+            httpGetStream(url) { input ->
+                java.io.FileOutputStream(partial).use { output -> input.copyTo(output) }
             }
         }
 

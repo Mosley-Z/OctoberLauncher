@@ -316,7 +316,10 @@ internal class DeskContainerView(
                     entry.item.author,
                     entry.item.progress,
                     entry.item.coverPath,
-                    entry.item.deepLink,
+                    entry.item.deepLink?.takeIf { it.isNotBlank() }
+                        ?: entry.item.bookId
+                            .takeIf { it.isNotBlank() }
+                            ?.let { "weread://reading?bId=$it" },
                 )
             is ShelfEntry.Local -> openDocument(DocumentRef.LocalPath(entry.item.path))
         }
@@ -371,7 +374,12 @@ internal class DeskContainerView(
     ) {
         overlay.showBook(title, author, progress, coverPath) {
             val link = deepLink
-            if (link != null) runCatching { AppServices.router.openUrl(link) }
+            if (link.isNullOrBlank()) {
+                AppServices.router.toast("该书没有可用的阅读入口")
+            } else {
+                runCatching { AppServices.router.openUrl(link) }
+                    .onFailure { AppServices.router.toast("无法打开该书，请确认已安装微信读书") }
+            }
         }
     }
 

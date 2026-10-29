@@ -20,6 +20,7 @@ import com.shuiyu.octoberrain.core.common.UiVisibility
 import com.shuiyu.octoberrain.core.common.VendorSettingsSession
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.device.HomeRole
+import com.shuiyu.octoberrain.service.wallpaper.S4WallpaperChannelAccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -75,12 +76,14 @@ class OverlayAccessibilityService : AccessibilityService() {
         observeStates()
         applyOverlayVisibility()
         NotificationPanelAccess.connect { performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) }
+        S4WallpaperChannelAccess.attach(this)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
         settingsBack.clear()
         VendorSettingsSession.clear()
         NotificationPanelAccess.disconnect()
+        S4WallpaperChannelAccess.detach()
         return super.onUnbind(intent)
     }
 
@@ -159,6 +162,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         settingsBack.clear()
         VendorSettingsSession.clear()
         NotificationPanelAccess.disconnect()
+        S4WallpaperChannelAccess.detach()
         handler.removeCallbacksAndMessages(null)
         statusTicker.stop()
         removeStatusWindow()

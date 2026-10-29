@@ -276,7 +276,7 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
             },
             CardSpec(
                 label = "检查更新",
-                hint = "版本检查与更新日志",
+                hint = "版本检查与下载安装",
                 icon = glyph(InkGlyphs.Kind.REFRESH),
             ) { AppServices.router.navigate(Destination.Update) },
         )

@@ -22,6 +22,7 @@ import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.core.device.PermissionCenter
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
+import com.shuiyu.octoberrain.service.wallpaper.S4WallpaperChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -104,6 +105,8 @@ class OctoberRainApp : Application() {
         AppServices.backup = BackupServiceImpl(this)
         AppServices.iconOverrides = iconOverrides
         AppServices.themes = themes
+        // S4 壁纸通道由服务层实现，无障碍服务连接后注入实例；其余机型通道返回不支持
+        AppServices.wallpaper = S4WallpaperChannel(this)
         HostWereadSync.attach(filesDir)
         AppServices.wereadSync = HostWereadSync
         AppServices.wereadKeyEntry =

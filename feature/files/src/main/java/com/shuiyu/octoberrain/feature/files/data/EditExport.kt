@@ -150,7 +150,8 @@ object EditExport {
         val edge = targetEdge(memoryClassOf(context))
         val sample = ImageSizing.sampleFor(maxOf(bounds[0], bounds[1]), edge / 2)
         val decoded = ImageDecoder.decodeWithSample(sourcePath, sample) ?: return ExportResult.Failure("图片解码失败")
-        val scaled = scaleToEdge(decoded, edge)
+        // 本机尺寸操作自带目标像素，预先按长边缩放没有收益，直接交给重放阶段处理
+        val scaled = if (ops.any { it is EditOp.Frame }) decoded else scaleToEdge(decoded, edge)
         val edited = applyOps(scaled, ops)
         val directory = StorageAccess(context).editOutputRoot()
         val name = uniqueName(directory, source.nameWithoutExtension, timestamp)

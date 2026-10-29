@@ -70,7 +70,7 @@ object LauncherRouter : Router {
                 Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             host.startActivity(intent)
-        }.onFailure { InkLog.w("路由", "打开链接失败 $url", it) }
+        }.getOrElse { throw it }
     }
 
     override fun toast(message: String) {
