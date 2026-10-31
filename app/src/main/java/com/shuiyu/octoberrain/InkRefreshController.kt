@@ -10,6 +10,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.RefreshPolicy
 import com.shuiyu.octoberrain.core.common.RefreshReason
 import com.shuiyu.octoberrain.core.common.UiVisibility
+import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 
 /**
@@ -81,6 +82,10 @@ object InkRefreshController : RefreshPolicy {
     override fun requestFullRefresh(reason: RefreshReason) {
         if (!UiVisibility.active.value) return
         val host = root ?: return
+        if (!DeviceRuntime.isReady() || !DeviceRuntime.profile.display.isEink) {
+            host.invalidate()
+            return
+        }
         if (host !is ViewGroup) return
         if (flashing) return
         flashing = true

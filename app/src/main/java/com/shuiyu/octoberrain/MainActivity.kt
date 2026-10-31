@@ -33,6 +33,7 @@ import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkWidgets
+import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.core.device.HomeRole
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -124,6 +125,7 @@ class MainActivity : Activity() {
                 applyDesktopOrientation(it)
             }
         }
+        refreshWindowProfile()
         buildLayout()
         configureWindow()
         if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0) {
@@ -162,6 +164,20 @@ class MainActivity : Activity() {
         val deferHome = AppServices.config.state.value.onboarding.completed && isIncomingDocument(intent)
         startInitialScreen(deferHome)
         if (!openIncomingDocument(intent) && deferHome) resumeTopScreen()
+    }
+
+    private fun refreshWindowProfile() {
+        DesignRuntime.updateTextMetrics(resources.displayMetrics)
+        DeviceRuntime.refresh(this)
+        DesignRuntime.updateDevice(DeviceRuntime.profile)
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        refreshWindowProfile()
+        super.onConfigurationChanged(newConfig)
+        rebuildStatusBar()
+        root.requestLayout()
+        root.invalidate()
     }
 
     /** 仅请求本 Activity 方向，不改变系统全局自动旋转。 */

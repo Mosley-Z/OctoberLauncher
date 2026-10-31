@@ -42,6 +42,57 @@ class WereadBookSyncTest {
             { now },
         )
 
+    @Test fun explicitZeroTimeAndProgressReplacePreviousValues() {
+        assertTrue(sync().refreshAssets().success)
+        progressJson = """{"book":{"readingTime":0,"recordReadingTime":0,"progress":0}}"""
+        sync().currentBook("b1")
+        val cached = sync().cachedAssets().single()
+        assertEquals(0, cached.readingSeconds)
+        assertEquals(0, cached.progress)
+        assertEquals(now, cached.fetchedAtMillis)
+    }
+
+    @Test fun firstShelfWithoutAssetSyncFillsAllRecentBooks() {
+        shelfJson =
+            """{"books":[{"bookId":"recent","readUpdateTime":200},{"bookId":"second","readUpdateTime":100}]}"""
+        val books = sync().shelf()!!
+        assertEquals(listOf(35, 35), books.map { it.progress })
+        assertEquals(2, requests.count { it.startsWith("/book/getprogress") })
+        requests.clear()
+        val reloaded = sync().shelf()!!
+        assertEquals(listOf(35, 35), reloaded.map { it.progress })
+        assertEquals(listOf("/shelf/sync:", "/book/getprogress:recent"), requests)
+    }
+
+    @Test fun ordinaryProgressWithoutTimePreservesTotalAndRemainsRetryable() {
+        assertTrue(sync().refreshAssets().success)
+        val completeAt = now
+        now += 1000L
+        progressJson = """{"book":{"progress":60}}"""
+        sync().currentBook("b1")
+        val cached = sync().cachedAssets().single()
+        assertEquals(103831, cached.readingSeconds)
+        assertEquals(60, cached.progress)
+        assertEquals(completeAt, cached.fetchedAtMillis)
+        progressJson = """{"book":{"progress":65,"readingTime":104000}}"""
+        requests.clear()
+        assertTrue(sync().refreshAssets().success)
+        assertTrue("/book/getprogress:b1" in requests)
+        assertEquals(104000, sync().cachedAssets().single().readingSeconds)
+    }
+
+    @Test fun ordinaryTimeOnlyResponsePreservesProgressAndCompletion() {
+        progressJson = """{"book":{"progress":100,"readingTime":103831,"finishTime":123}}"""
+        assertTrue(sync().refreshAssets().success)
+        progressJson = """{"book":{"readingTime":104000}}"""
+        sync().currentBook("b1")
+        val cached = sync().cachedAssets().single()
+        assertEquals(104000, cached.readingSeconds)
+        assertEquals(100, cached.progress)
+        assertTrue(cached.finished)
+        assertEquals(123000L, cached.finishTimeMillis)
+    }
+
     @Test fun assetRefreshFetchesPriceIndexWithoutDownloadingBodies() {
         val calls = mutableListOf<String>()
         val worker =

@@ -214,7 +214,7 @@ internal data class DesktopMetrics(
         if (forPage(page) !== this) return forPage(page).slotAt(0, x, y)
         val areaTop = appAreaTop(page)
         val rowGap = rowGapOf(page)
-        if (y < areaTop) return -1
+        if (y < areaTop || y >= bottom) return -1
         if (isList) {
             if (x < left || x > right) return -1
             val slot = ((y - areaTop) / (rowHeight + rowGap)).toInt()
@@ -328,10 +328,38 @@ internal data class DesktopMetrics(
                     normal
                 }
             return computePage(width, height, config.copy(desktop = normal.copy(widgetId = ""))).copy(
-                firstPage = computePage(width, height, config.copy(desktop = first)),
+                firstPage = portraitFirstMetrics(width, height, config, first),
                 viewportWidth = width,
                 viewportHeight = height,
             )
+        }
+
+        private fun portraitFirstMetrics(
+            width: Int,
+            height: Int,
+            config: LauncherConfig,
+            first: com.shuiyu.octoberrain.core.common.DesktopConfig,
+        ): DesktopMetrics {
+            val initial = computePage(width, height, config.copy(desktop = first))
+            val automatic = (config.desktop.portraitFirstPageRows ?: config.desktop.firstPageRows) <= 0
+            val rows =
+                if (first.effectiveWidgetId.isNotBlank() && first.kind != DesktopKind.LIST && automatic) {
+                    portraitFirstRows(
+                        initial.bottom - initial.top,
+                        initial.cellHeight,
+                        initial.gap,
+                        initial.widgetGap,
+                        (initial.cellHeight * WIDGET_MIN_CELL_RATIO).toInt(),
+                        first.firstPageRows,
+                    )
+                } else {
+                    first.firstPageRows
+                }
+            return if (rows == first.firstPageRows) {
+                initial
+            } else {
+                computePage(width, height, config.copy(desktop = first.copy(rows = rows, firstPageRows = rows)))
+            }
         }
 
         /** 横屏首页在启用组件时保留 64:36 分栏；未启用组件时整页铺满应用宫格。 */
@@ -423,11 +451,11 @@ internal data class DesktopMetrics(
             val t = DesignRuntime.tokens
             val columns = first.columns.coerceIn(1, 2)
             val available = availableHeight.coerceAtLeast(1)
-            val minCell = t.dp(48f)
+            val minCell = maxOf(t.dp(48f), first.labelHeight + t.dp(24f) + t.gap)
             val fitting = ((available + t.gap) / (minCell + t.gap)).coerceAtLeast(1)
             val rows = (firstRows.takeIf { it > 0 } ?: 4).coerceIn(1, minOf(4, fitting))
             val cellHeight = ((available - t.gap * (rows - 1)) / rows).coerceAtLeast(1)
-            val label = if (first.showLabels) minOf(t.labelHeight, t.dp(16f)) else 0
+            val label = if (first.showLabels) first.labelHeight else 0
             val icon =
                 minOf(
                     iconSizeDp.takeIf { it > 0 }?.let { t.dp(it.toFloat()) } ?: t.dp(48f),
@@ -494,6 +522,7 @@ internal data class DesktopMetrics(
 
             val inputs =
                 PageInputs(
+                    width,
                     desktop,
                     left,
                     right,
@@ -515,7 +544,7 @@ internal data class DesktopMetrics(
         private fun computeList(input: PageInputs): DesktopMetrics =
             with(input) {
                 val tokens = DesignRuntime.tokens
-                val rowHeight = tokens.listRowHeight
+                val rowHeight = maxOf(tokens.listRowHeight, desktopLabelHeight(desktop.labelTextSp) + gap * 2)
                 // 列表形态行间默认不留公共间距，仅当用户显式设置行间距时启用。
                 val listRowBase = 0
                 // 列表形态每页最多十行，矮屏按可用高度继续减少；
@@ -578,7 +607,7 @@ internal data class DesktopMetrics(
                         GridAlign.CENTER -> (((right - left) - totalGridWidth) / 2).coerceAtLeast(0)
                         GridAlign.RIGHT -> ((right - left) - totalGridWidth).coerceAtLeast(0)
                     }
-                val labelHeight = if (showLabels) tokens.labelHeight else 0
+                val labelHeight = if (showLabels) desktopLabelHeight(desktop.labelTextSp) else 0
                 val cellHeight = maxOf(tokens.dp(48f), iconSize + labelHeight + rowBaseGap)
                 val rowsFitting = ((available + rowBaseGap) / (cellHeight + rowBaseGap).coerceAtLeast(1)).toInt()
                 // 用户覆盖行数同样受实际可容纳行数约束，避免溢出屏幕。
@@ -674,6 +703,7 @@ private data class WidgetBlock(
 
 /** 单页公共边界；列表与宫格消费同一份坐标。 */
 private data class PageInputs(
+    val viewportWidth: Int,
     val desktop: com.shuiyu.octoberrain.core.common.DesktopConfig,
     val left: Int,
     val right: Int,
@@ -702,8 +732,23 @@ private const val ICON_MIN_RATIO = 0.55f
 /** 自定义图标尺寸相对单元格宽度的上界比例。 */
 private const val ICON_MAX_CELL_RATIO = 0.8f
 
-/** 首页应用行数下限：首页至少保留两行应用。 */
+/** 首页应用行数下限：首页至少保留一行应用。 */
 private const val MIN_FIRST_ROWS = 1
+
+private fun desktopLabelHeight(sp: Float): Int {
+    val tokens = DesignRuntime.tokens
+    val size =
+        if (sp >
+            0f
+        ) {
+            tokens.textSize(sp).coerceIn(tokens.textBody * 0.6f, tokens.textBody * 2.4f)
+        } else {
+            tokens.textBody
+        }
+    val paint = DesignRuntime.textPaint(size)
+    val fm = paint.fontMetrics
+    return maxOf(tokens.labelHeight, Math.ceil((fm.descent - fm.ascent).toDouble()).toInt())
+}
 
 private fun gridColumns(input: PageInputs): Int =
     with(input) {
@@ -712,7 +757,10 @@ private fun gridColumns(input: PageInputs): Int =
             if (desktop.columns > 0) {
                 desktop.columns
             } else {
-                DeviceRuntime.profile.gridColumns(tokens.cellMinWidth)
+                DeviceRuntime.profile.gridColumns(
+                    tokens.cellMinWidthDp,
+                    (viewportWidth / tokens.density).toInt(),
+                )
             }
         ).coerceIn(1, minOf(8, ((right - left + gap) / (tokens.dp(48f) + gap)).coerceAtLeast(1)))
     }

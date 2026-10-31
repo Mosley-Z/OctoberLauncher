@@ -51,6 +51,16 @@ class SearchScreen : ContentScreen("搜索") {
         }
     }
 
+    /** 重建字号和尺寸，同时保留尚未提交的搜索文字与光标。 */
+    override fun onDimensionsChanged() {
+        val draft = input?.text?.toString().orEmpty()
+        val cursor = input?.selectionStart ?: draft.length
+        buildUi()
+        onResume()
+        input?.setText(draft)
+        input?.setSelection(cursor.coerceIn(0, draft.length))
+    }
+
     /** 构建固定输入区与结果容器。 */
     private fun buildUi() {
         val tokens = tokens

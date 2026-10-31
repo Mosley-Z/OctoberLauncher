@@ -40,6 +40,12 @@ class WidgetPickerScreen(
     override fun createView(context: Context): View {
         val page = InkPage(context, title, showBack = true) { AppServices.router.back() }
         fill(context, page.content)
+        page.onDimensionsChanged = {
+            val position = page.scrollPosition()
+            page.content.removeAllViews()
+            fill(context, page.content)
+            page.post { page.restoreScroll(position) }
+        }
         return page
     }
 

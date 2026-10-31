@@ -95,13 +95,14 @@ class BookScreen : ContentScreen("本书") {
         val card = ContentUi.card(context)
         val reading = shelf.count { it.progress > 0f && it.progress < 1f }
         val finished = shelf.count { it.progress >= 1f }
-        val average = shelf.map { it.progress.coerceIn(0f, 1f) }.average().roundToInt()
+        val known = shelf.map { it.progress }.filter { it >= 0f }
+        val average = if (known.isEmpty()) "未知" else "${(known.average() * 100).roundToInt()}%"
         card.addView(InkWidgets.caption(context, "书架概览"))
         card.addView(InkWidgets.heading(context, "在读 $reading 本 · 读完 $finished 本"))
         card.addView(
             InkWidgets.caption(
                 context,
-                "平均进度 $average% · 划线 ${notes.notes.size} 条（累计 ${notes.total} 条）",
+                "平均进度 $average · 划线 ${notes.notes.size} 条（累计 ${notes.total} 条）",
             ),
         )
         card.addView(

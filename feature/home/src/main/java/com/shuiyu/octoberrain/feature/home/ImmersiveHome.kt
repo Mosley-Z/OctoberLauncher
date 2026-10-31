@@ -6,6 +6,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.MotionEvent
 import com.shuiyu.octoberrain.core.common.LauncherEntry
+import com.shuiyu.octoberrain.core.common.immersivePortraitBalance
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import java.text.SimpleDateFormat
@@ -34,12 +35,19 @@ internal class ImmersiveHome {
         height: Int,
     ): RectF {
         val t = DesignRuntime.tokens
-        val edge = t.pageGutter.toFloat()
+        val edge = if (width > height) t.pageGutter.toFloat() else portraitEdge(width, height)
         val rail = t.dp(88f).toFloat()
         return if (width > height) {
-            RectF(edge + t.dp(12f), edge, width - rail - edge - 20f, height - edge)
+            val inset = landscapeInset(width, height)
+            RectF(inset + edge + t.dp(12f), edge, width - inset - rail - edge - 20f, height - edge)
         } else {
-            RectF(edge, edge + t.dp(110f), width - edge, height - rail - edge)
+            paint.typeface = DesignRuntime.typeface()
+            paint.textSize = t.textBody
+            val balance = portraitBalance(width, height)
+            val clockSize = minOf(t.dp(52f).toFloat(), width * .16f) * (1f + .30f * balance)
+            val dateBottom = edge + height * .041f * balance + clockSize + t.textBody * 1.7f + paint.fontMetrics.descent
+            val top = maxOf(edge + t.dp(110f), dateBottom + t.dp(4f))
+            RectF(edge, top, width - edge, height - rail - edge - height * .037f * balance)
         }
     }
 
@@ -56,7 +64,7 @@ internal class ImmersiveHome {
         redraw: () -> Unit,
     ) {
         val t = DesignRuntime.tokens
-        val edge = t.pageGutter.toFloat()
+        val edge = if (width > height) t.pageGutter.toFloat() else portraitEdge(width, height)
         hits.clear()
         if (drawerOpen) {
             drawDrawer(canvas, width, height, entries, drawIcon, launch, exit, redraw)
@@ -68,9 +76,14 @@ internal class ImmersiveHome {
         val bounds = bookBounds(width, height)
         val rail =
             if (landscape) {
-                RectF(bounds.right + edge, edge, width - edge - 20f, height - edge)
+                RectF(bounds.right + edge, edge, width - landscapeInset(width, height) - edge - 20f, height - edge)
             } else {
-                RectF(edge, bounds.bottom + edge, width - edge, height - edge)
+                RectF(
+                    edge,
+                    bounds.bottom + edge,
+                    width - edge,
+                    height - edge - height * .037f * portraitBalance(width, height),
+                )
             }
         drawRail(canvas, rail, landscape, favorites, showLabels, drawIcon, launch, redraw)
     }
@@ -86,7 +99,10 @@ internal class ImmersiveHome {
         redraw: () -> Unit,
     ) {
         val t = DesignRuntime.tokens
-        val count = favorites.size + 1
+        val gap = t.dp(4f).toFloat()
+        val padding = t.dp(4f).toFloat()
+        val visibleFavorites = railFavorites(paint, rail, landscape, favorites)
+        val count = visibleFavorites.size + 1
         val extent = (if (landscape) rail.height() else rail.width()) / count
         for (index in 0 until count) {
             val cell =
@@ -100,27 +116,26 @@ internal class ImmersiveHome {
                 } else {
                     RectF(rail.left + index * extent, rail.top, rail.left + (index + 1) * extent, rail.bottom)
                 }
-            val entry = favorites.getOrNull(index)
-            val size = minOf(t.dp(40f).toFloat(), cell.width() * .65f, cell.height() * .6f)
-            val icon =
-                RectF(
-                    cell.centerX() - size / 2,
-                    cell.centerY() - size / 2 - t.textSmall / 2,
-                    cell.centerX() + size / 2,
-                    cell.centerY() + size / 2 - t.textSmall / 2,
+            val entry = visibleFavorites.getOrNull(index)
+            val hasLabel = entry == null || showLabels
+            val fontSize = if (entry == null) minOf(t.textSmall, cell.width() / 4.2f) else t.textSmall
+            paint.textSize = fontSize
+            val metrics = paint.fontMetrics
+            val textHeight = if (hasLabel) metrics.descent - metrics.ascent else 0f
+            val textGap = if (hasLabel) gap else 0f
+            val size =
+                minOf(
+                    t.dp(40f).toFloat(),
+                    cell.width() * .65f,
+                    (cell.height() - padding * 2 - textGap - textHeight).coerceAtLeast(0f),
                 )
-            if (!landscape) icon.offset(0f, -2f)
+            val top = cell.centerY() - (size + textGap + textHeight) / 2f
+            val icon = RectF(cell.centerX() - size / 2, top, cell.centerX() + size / 2, top + size)
+            val labelBaseline = icon.bottom + textGap - metrics.ascent
             if (entry != null) {
                 drawIcon(canvas, icon, entry, false)
                 if (showLabels) {
-                    dockLabel(
-                        canvas,
-                        entry.label,
-                        cell,
-                        icon.bottom + t.textSmall * 1.25f,
-                        t.textSmall,
-                        !landscape,
-                    )
+                    dockLabel(canvas, entry.label, cell, labelBaseline, t.textSmall)
                 }
                 hits += cell to { launch(entry) }
             } else {
@@ -129,9 +144,8 @@ internal class ImmersiveHome {
                     canvas,
                     "全部应用",
                     cell,
-                    icon.bottom + t.textSmall * 1.25f,
+                    labelBaseline,
                     minOf(t.textSmall, cell.width() / 4.2f),
-                    !landscape,
                 )
                 hits += cell to {
                     drawerOpen = true
@@ -147,7 +161,6 @@ internal class ImmersiveHome {
         cell: RectF,
         y: Float,
         size: Float,
-        outline: Boolean,
     ) {
         paint.textSize = size
         val maxWidth = cell.width() - 4f
@@ -158,16 +171,6 @@ internal class ImmersiveHome {
                 val length = paint.breakText(label, true, (maxWidth - paint.measureText("…")).coerceAtLeast(0f), null)
                 label.take(length) + "…"
             }
-        if (outline) {
-            paint.textAlign = Paint.Align.CENTER
-            paint.color = android.graphics.Color.WHITE
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 2f
-            paint.strokeJoin = Paint.Join.ROUND
-            canvas.drawText(value, cell.centerX(), y, paint)
-            paint.style = Paint.Style.FILL
-            paint.textAlign = Paint.Align.LEFT
-        }
         centerText(canvas, value, cell.centerX(), y, size)
     }
 
@@ -177,19 +180,27 @@ internal class ImmersiveHome {
         height: Int,
     ) {
         val t = DesignRuntime.tokens
-        val edge = t.pageGutter.toFloat()
+        val edge = if (width > height) t.pageGutter.toFloat() else portraitEdge(width, height)
         val landscape = width > height
         val now = Date()
         val clock = SimpleDateFormat("HH:mm", Locale.CHINA).format(now)
         val date = SimpleDateFormat(if (landscape) "M月d日　EEEE" else "EEEE，M月d日", Locale.CHINA).format(now)
-        val size = minOf(t.dp(if (landscape) 50f else 52f).toFloat(), width * .16f)
+        val balance = if (landscape) 0f else portraitBalance(width, height)
+        val offset = height * .041f * balance
+        val size = minOf(t.dp(if (landscape) 50f else 52f).toFloat(), width * .16f) * (1f + .30f * balance)
         val book = bookBounds(width, height)
         val center = if (landscape) book.left + book.width() * .14f + 20f else book.centerX()
         paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-        centerText(canvas, clock, center, edge + size, size)
+        centerText(canvas, clock, center, edge + offset + size, size)
         paint.typeface = DesignRuntime.typeface()
         val dateSize = if (landscape) maxOf(20f, t.textCaption) else t.textBody
-        centerText(canvas, date, center, edge + size + dateSize * 1.7f, dateSize)
+        if (landscape) {
+            val left = book.left + 20f
+            val right = book.left + book.width() * .30f
+            dockLabel(canvas, date, RectF(left, 0f, right, 0f), edge + size + dateSize * 1.7f, dateSize)
+        } else {
+            centerText(canvas, date, center, edge + offset + size + dateSize * 1.7f, dateSize)
+        }
     }
 
     private fun centerText(
@@ -289,8 +300,82 @@ internal class ImmersiveHome {
         y: Float,
         size: Float,
     ) {
-        paint.color = InkColors.INK
         paint.textSize = size
+        paint.color = android.graphics.Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeJoin = Paint.Join.ROUND
+        paint.strokeWidth = maxOf(DesignRuntime.tokens.dpF(1f), size * .06f)
+        canvas.drawText(value, x, y, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = InkColors.INK
         canvas.drawText(value, x, y, paint)
     }
+}
+
+private fun landscapeInset(
+    width: Int,
+    height: Int,
+): Float {
+    val contentWidth = minOf(width.toFloat(), DesignRuntime.tokens.dpF(720f), height * 1.85f)
+    return (width - contentWidth) / 2f
+}
+
+private fun railFavorites(
+    paint: Paint,
+    rail: RectF,
+    landscape: Boolean,
+    favorites: List<LauncherEntry>,
+): List<LauncherEntry> {
+    val t = DesignRuntime.tokens
+    paint.typeface = DesignRuntime.typeface()
+    paint.textSize = t.textSmall
+    val labelMetrics = paint.fontMetrics
+    val gap = t.dp(4f).toFloat()
+    val padding = t.dp(4f).toFloat()
+    val requiredHeight =
+        maxOf(
+            t.dp(48f).toFloat(),
+            minOf(t.dp(40f).toFloat(), rail.width() * .65f) +
+                gap + labelMetrics.descent - labelMetrics.ascent + padding * 2,
+        )
+    return if (landscape) {
+        val slots = (rail.height() / requiredHeight).toInt().coerceAtLeast(1)
+        favorites.take((slots - 1).coerceAtLeast(0))
+    } else {
+        favorites
+    }
+}
+
+/** 竖屏富余空间优先用于上下留白，小高度退回基础页边距。 */
+private fun portraitEdge(
+    width: Int,
+    height: Int,
+): Float {
+    val t = DesignRuntime.tokens
+    val base = t.pageGutter.toFloat()
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.typeface = DesignRuntime.typeface()
+    paint.textSize = t.textBody
+    val dateHeight = minOf(t.dpF(52f), width * .16f) + t.textBody * 1.7f + paint.fontMetrics.descent
+    val spare = height - dateHeight - t.dpF(88f) - t.dpF(200f) - base * 2
+    return base + (spare / 2).coerceIn(0f, (t.dpF(28f) - base).coerceAtLeast(0f))
+}
+
+/** 文字和应用栏优先，紧高度下逐渐撤回视觉微调。 */
+private fun portraitBalance(
+    width: Int,
+    height: Int,
+): Float {
+    val t = DesignRuntime.tokens
+    val paint =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = DesignRuntime.typeface()
+            textSize = t.textBody
+        }
+    val clock = minOf(t.dpF(52f), width * .16f)
+    val spare =
+        height - clock - t.textBody * 1.7f - paint.fontMetrics.descent - t.dpF(288f) - portraitEdge(width, height) * 2
+    val needed = height * .078f + clock * .30f
+    return immersivePortraitBalance(width.toFloat(), height.toFloat()) *
+        (spare / needed.coerceAtLeast(1f)).coerceIn(0f, 1f)
 }

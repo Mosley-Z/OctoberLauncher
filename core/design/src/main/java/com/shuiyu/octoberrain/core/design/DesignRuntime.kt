@@ -33,6 +33,22 @@ object DesignRuntime {
     @Volatile
     private var defaultTypeface: Typeface = Typeface.DEFAULT
 
+    private var textConverter: ((Float) -> Float)? = null
+
+    /** 更新系统 sp 换算，仅捕获资源指标，不持有 Activity。 */
+    fun updateTextMetrics(metrics: android.util.DisplayMetrics) {
+        textConverter = { sp ->
+            android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, metrics)
+        }
+    }
+
+    private fun createTokens(profile: DeviceProfile): InkTokens =
+        InkTokens(
+            profile,
+            appearance.textScale.coerceIn(0.85f, 1.6f),
+            textConverter ?: { it * profile.density },
+        )
+
     /** 安装运行时，需在第一次创建界面前调用。 */
     fun install(
         profile: DeviceProfile,
@@ -41,17 +57,22 @@ object DesignRuntime {
     ) {
         this.appearance = appearance
         this.fontProvider = fonts
-        tokens = InkTokens(profile, appearance.textScale.coerceIn(0.85f, 1.6f))
+        tokens = createTokens(profile)
         labelTypefaceCache = fonts?.labelTypeface()
         defaultTypeface = labelTypefaceCache ?: Typeface.DEFAULT
         applyThemeTokens(appearance)
+    }
+
+    /** 同步窗口画像，保留外观和字体提供者。 */
+    fun updateDevice(profile: DeviceProfile) {
+        tokens = createTokens(profile)
     }
 
     /** 配置变化后重算令牌与字体；调用方负责重建界面。 */
     fun update(appearance: AppearanceConfig) {
         if (!this::tokens.isInitialized) return
         this.appearance = appearance
-        tokens = InkTokens(tokens.device, appearance.textScale.coerceIn(0.85f, 1.6f))
+        tokens = createTokens(tokens.device)
         labelTypefaceCache = fontProvider?.labelTypeface()
         defaultTypeface = labelTypefaceCache ?: Typeface.DEFAULT
         applyThemeTokens(appearance)

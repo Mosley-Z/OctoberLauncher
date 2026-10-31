@@ -214,13 +214,20 @@ object SettingsUi {
         title: CharSequence,
         mimeTypes: Array<String>,
         extensions: Set<String>,
+        forImport: Boolean = false,
         onPicked: (Uri) -> Unit,
     ) {
         if (AppServices.hasPicker()) {
             val opened =
                 runCatching {
-                    AppServices.picker.pick(mimeTypes) { uri ->
-                        if (uri != null) onPicked(uri)
+                    val callback: (Uri?) -> Unit = { uri -> if (uri != null) onPicked(uri) }
+                    if (forImport) {
+                        AppServices.picker.pickForImport(
+                            mimeTypes,
+                            callback,
+                        )
+                    } else {
+                        AppServices.picker.pick(mimeTypes, callback)
                     }
                 }.getOrDefault(false)
             if (opened) return
@@ -620,7 +627,7 @@ class SettingsSection internal constructor(
         val tokens = DesignRuntime.tokens
         return InkWidgets.textView(context, label, tokens.textBody, InkColors.INK).apply {
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(tokens.dp(32f), tokens.dp(32f))
+            layoutParams = LinearLayout.LayoutParams(tokens.dp(32f), maxOf(tokens.dp(32f), tokens.labelHeight))
             background =
                 InkWidgets.background(
                     tokens.radiusSmall,

@@ -25,6 +25,10 @@ import kotlinx.coroutines.launch
  * 连续步进以 [STEP_DEBOUNCE_MS] 合并写入，避免每次点击都重建整页。
  */
 class DesktopPrefsScreen : SettingsBaseScreen("桌面与布局") {
+    override fun beforeDimensionsRebuild() {
+        flushPendingDesktop()
+    }
+
     /** 尚未写入的桌面配置，连续步进在该对象上累加。 */
     private var pendingDesktop: DesktopConfig? = null
 

@@ -40,7 +40,7 @@ internal object DesktopModeSettings {
         section.choose(
             "方向",
             listOf("竖屏", "横屏 90°", "横屏 270°"),
-            { orientations.indexOf(desktop.orientation) },
+            { orientations.indexOf(SettingsUi.settings().desktop.orientation) },
         ) { index ->
             beforeChange()
             edit { it.copy(orientation = orientations[index]) }

@@ -133,11 +133,7 @@ class LauncherPrefsScreen : SettingsBaseScreen("桌面偏好") {
                 rightMargin = tokens.gap
             },
         )
-        row.addView(
-            titleView(context, entry.label),
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
-        )
-        row.addView(statusView(context, entry.status))
+        addEntryText(row, context, entry)
         row.addView(
             InkGlyphs.view(context, InkGlyphs.Kind.CHEVRON, tokens.dp(16f)),
             LinearLayout.LayoutParams(tokens.dp(16f), tokens.dp(16f)).apply {
@@ -147,6 +143,30 @@ class LauncherPrefsScreen : SettingsBaseScreen("桌面偏好") {
         row.setOnClickListener { entry.onOpen() }
         row.setOnTouchListener(pressFeedback)
         return row
+    }
+
+    private fun addEntryText(
+        row: LinearLayout,
+        context: Context,
+        entry: PrefEntry,
+    ) {
+        val tokens = DesignRuntime.tokens
+        val title = titleView(context, entry.label)
+        val status = statusView(context, entry.status)
+        val needed = title.paint.measureText(entry.label.toString()) + status.paint.measureText(status.text.toString())
+        if (needed > tokens.device.widthPx - tokens.dp(96f)) {
+            val text = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            title.isSingleLine = false
+            status.isSingleLine = false
+            status.gravity = Gravity.START
+            status.setPadding(0, 0, 0, 0)
+            text.addView(title)
+            text.addView(status)
+            row.addView(text, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        } else {
+            row.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(status)
+        }
     }
 
     /** 标题文本：单行省略，避免长标签挤压状态。 */

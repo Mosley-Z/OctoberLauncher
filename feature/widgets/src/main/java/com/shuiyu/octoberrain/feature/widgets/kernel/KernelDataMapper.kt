@@ -51,7 +51,7 @@ internal object KernelDataMapper {
         book.title = item.title
         book.author = item.author
         book.coverUrl = item.coverPath
-        book.progress = (item.progress * PERCENT_MAX).roundToInt()
+        book.progress = if (item.progress < 0f) -1 else (item.progress * PERCENT_MAX).roundToInt()
         return book
     }
 

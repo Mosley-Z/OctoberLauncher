@@ -97,6 +97,15 @@ class WereadScreen(
                 context = context,
                 tokens = DesignRuntime.tokens,
             )
+        created.onDimensionsChanged = {
+            tabs.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, DesignRuntime.tokens.buttonHeight)
+            content.layoutParams =
+                LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+                    topMargin = DesignRuntime.tokens.gap
+                }
+            sectionViews = WereadSectionViews(context, DesignRuntime.tokens)
+            onResume()
+        }
         return created
     }
 

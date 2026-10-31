@@ -82,56 +82,70 @@ internal object ImageWidgetSettings {
             scope.launch {
                 val target =
                     withContext(Dispatchers.IO) {
-                        val directory =
-                            File(
-                                context.filesDir,
-                                if (pageIndex ==
-                                    0
-                                ) {
-                                    "widget-image"
-                                } else {
-                                    "widget-image/page-$pageIndex"
-                                },
-                            ).apply { mkdirs() }
-                        val candidate = File.createTempFile("widget-", ".img", directory)
-                        runCatching {
-                            context.contentResolver.openInputStream(uri)?.use { input ->
-                                candidate.outputStream().use { output -> input.copyTo(output) }
-                            } ?: error("无法读取图片")
-                            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                            BitmapFactory.decodeFile(candidate.absolutePath, bounds)
-                            check(bounds.outWidth > 0 && bounds.outHeight > 0)
-                            candidate
-                        }.getOrElse {
-                            candidate.delete()
-                            null
-                        }
+                        copyImage(context, uri, pageIndex)
                     }
                 if (target == null) {
                     AppServices.router.toast("图片读取失败")
                     return@launch
                 }
+                WidgetImageSource.retainAccess(context, uri)
+                val previous =
+                    AppServices.config.state.value.desktop
+                        .forWidgetPage(pageIndex)
+                        .widgetImagePath
                 AppServices.config.edit { config ->
                     config.copy(
                         desktop =
                             config.desktop.editWidgetPage(
                                 pageIndex,
-                            ) { it.copy(widgetImagePath = target.absolutePath) },
+                            ) { it.copy(widgetImagePath = target.absolutePath, widgetImageSourceUri = uri.toString()) },
                     )
                 }
-                if (AppServices.config.state.value.desktop
+                val saved =
+                    AppServices.config.state.value.desktop
                         .forWidgetPage(pageIndex)
-                        .widgetImagePath !=
-                    target.absolutePath
-                ) {
+                if (saved.widgetImagePath != target.absolutePath || saved.widgetImageSourceUri != uri.toString()) {
                     target.delete()
                     AppServices.router.toast("图片设置未保存，请重试")
                     return@launch
                 }
+                deleteUnusedCopy(context, previous)
                 changed()
                 onChanged()
                 AppServices.router.toast("已更新图片组件")
             }
+        }
+    }
+
+    /** 将来源复制到当前页私有目录并校验图片；失败时清理本轮临时副本。 */
+    private fun copyImage(
+        context: Context,
+        uri: Uri,
+        pageIndex: Int,
+    ): File? {
+        val directory =
+            File(
+                context.filesDir,
+                if (pageIndex ==
+                    0
+                ) {
+                    "widget-image"
+                } else {
+                    "widget-image/page-$pageIndex"
+                },
+            ).apply { mkdirs() }
+        val candidate = File.createTempFile("widget-", ".img", directory)
+        return runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                candidate.outputStream().use { output -> input.copyTo(output) }
+            } ?: error("无法读取图片")
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(candidate.absolutePath, bounds)
+            check(bounds.outWidth > 0 && bounds.outHeight > 0)
+            candidate
+        }.getOrElse {
+            candidate.delete()
+            null
         }
     }
 
@@ -144,7 +158,7 @@ internal object ImageWidgetSettings {
         if (AppServices.hasPicker()) {
             val opened =
                 runCatching {
-                    AppServices.picker.pick(arrayOf("image/*")) { uri ->
+                    AppServices.picker.pickForImport(arrayOf("image/*")) { uri ->
                         if (uri != null) onPicked(uri)
                     }
                 }.getOrDefault(false)
@@ -200,34 +214,37 @@ internal object ImageWidgetSettings {
                 .forWidgetPage(pageIndex)
                 .widgetImagePath
         AppServices.config.edit { config ->
-            config.copy(desktop = config.desktop.editWidgetPage(pageIndex) { it.copy(widgetImagePath = null) })
+            config.copy(
+                desktop =
+                    config.desktop.editWidgetPage(pageIndex) {
+                        it.copy(widgetImagePath = null, widgetImageSourceUri = null)
+                    },
+            )
         }
-        if (AppServices.config.state.value.desktop
+        val saved =
+            AppServices.config.state.value.desktop
                 .forWidgetPage(pageIndex)
-                .widgetImagePath != null
-        ) {
+        if (saved.widgetImagePath != null || saved.widgetImageSourceUri != null) {
             AppServices.router.toast("图片设置未保存，请重试")
             return
         }
-        val desktop = AppServices.config.state.value.desktop
-        val sources =
-            listOfNotNull(desktop.widgetImagePath) + desktop.pageWidgets.values.mapNotNull { it.widgetImagePath }
-        val sourceDirectory = path?.let { File(it).parentFile }
-        val stillUsed = sourceDirectory != null && sources.any { File(it).parentFile == sourceDirectory }
-        path?.takeUnless { stillUsed }?.let { value ->
-            val file = File(value)
-            ThumbCacheRegistry.invalidate(context, file)
-            val parent = file.canonicalFile.parentFile
-            if (listOf("widget-image", "widgets", "widget-image/page-$pageIndex").any {
-                    parent ==
-                        File(context.filesDir, it).canonicalFile
-                }
-            ) {
-                file.delete()
-            }
-        }
+        deleteUnusedCopy(context, path)
         changed()
         AppServices.router.toast("组件图片已清除")
+    }
+
+    /** 仅删除已无任何页面引用的组件私有副本，不删除用户来源文件。 */
+    private fun deleteUnusedCopy(
+        context: Context,
+        path: String?,
+    ) {
+        val desktop = AppServices.config.state.value.desktop
+        val references =
+            listOfNotNull(desktop.widgetImagePath) + desktop.pageWidgets.values.mapNotNull { it.widgetImagePath }
+        WidgetImageFiles.unusedManaged(path, context.filesDir, references)?.let { file ->
+            ThumbCacheRegistry.invalidate(context, file)
+            file.delete()
+        }
     }
 
     private const val MAX_CANDIDATES = 120

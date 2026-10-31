@@ -260,6 +260,7 @@ data class DesktopConfig(
     val swipeMinDp: Int = 48,
     /** 自定义图片组件的图片路径，空表示使用占位图。 */
     val widgetImagePath: String? = null,
+    val widgetImageSourceUri: String? = null,
     /**
      * 图片组件的手动切图方向，默认关闭，取值见 [IMAGE_SWIPE_OFF] 等常量。
      *

@@ -7,6 +7,20 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DesktopPageConfigTest {
+    @Test fun imageSourceIsPairedPerPageAndLegacyIsUnknown() {
+        val home =
+            DesktopConfig(widgetId = "image", widgetImagePath = "home", widgetImageSourceUri = "file:///DCIM/home.jpg")
+        val edited =
+            home.editWidgetPage(1) {
+                it.copy(widgetImagePath = "page", widgetImageSourceUri = "content://images/2")
+            }
+        val restored = Json.decodeFromString<DesktopConfig>(Json.encodeToString(edited))
+        assertEquals("file:///DCIM/home.jpg", restored.widgetImageSourceUri)
+        assertEquals("content://images/2", restored.forWidgetPage(1).widgetImageSourceUri)
+        assertNull(Json.decodeFromString<DesktopConfig>("{}").widgetImageSourceUri)
+        assertNull(Json.decodeFromString<PageWidgetConfig>("{}").widgetImageSourceUri)
+    }
+
     @Test fun `device defaults and per direction overrides preserve legacy manual values`() {
         val automatic = DesktopConfig()
         assertEquals(1, automatic.firstGridRows(false, "P4"))

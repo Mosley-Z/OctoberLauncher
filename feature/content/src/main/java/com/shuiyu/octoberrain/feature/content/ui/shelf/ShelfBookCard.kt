@@ -86,7 +86,7 @@ object ShelfBookCard {
             }
         card.addView(coverView(context, coverPath, displayTitle))
         card.addView(ribbonView(context, displayTitle, displayAuthor))
-        card.addView(badgeView(context, percent))
+        if (progress >= 0f) card.addView(badgeView(context, percent))
         return card
     }
 

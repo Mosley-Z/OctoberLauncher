@@ -90,6 +90,14 @@ class DesktopMetricsTest {
             fullOffset = 6,
         )
 
+    @Test
+    fun `页码区不命中末行应用`() {
+        val metrics = grid(hasWidget = true, firstRows = 3, widgetHeight = 400)
+        assertEquals(-1, metrics.slotAt(0, 240f, metrics.bottom.toFloat()))
+        assertEquals(-1, metrics.slotAt(0, 240f, metrics.bottom + 10f))
+        assertEquals(-1, listWise(true).slotAt(0, 240f, 790f))
+    }
+
     /** 无组件时首页与普通页容量相同，页数按每页容量向上取整。 */
     @Test
     fun `宫格无组件时按每页容量分页`() {

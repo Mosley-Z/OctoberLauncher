@@ -62,7 +62,13 @@ abstract class ContentScreen(
         hostContext = context
         val created = InkPage(context, screenTitle, onBack = { goBack() })
         pageView = created
+        created.onDimensionsChanged = { onDimensionsChanged() }
         return created
+    }
+
+    /** 按新令牌重建正文；子类有编辑状态时先保存再恢复。 */
+    protected open fun onDimensionsChanged() {
+        onResume()
     }
 
     /**

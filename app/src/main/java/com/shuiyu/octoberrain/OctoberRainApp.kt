@@ -83,6 +83,7 @@ class OctoberRainApp : Application() {
         val themes = ThemeRepositoryImpl(this, config)
 
         // 设计运行时依赖设备画像与外观配置，必须最先就绪
+        DesignRuntime.updateTextMetrics(resources.displayMetrics)
         DesignRuntime.install(DeviceRuntime.profile, config.state.value.appearance, fonts)
 
         val system = SystemControlsImpl(this)

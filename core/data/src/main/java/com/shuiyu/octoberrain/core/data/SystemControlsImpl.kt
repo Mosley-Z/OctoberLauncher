@@ -128,7 +128,12 @@ class SystemControlsImpl(
                 Settings.System.putInt(resolver, KEY_WARM, warmValue)
             }.getOrDefault(false)
         if (wroteCold || wroteWarm) {
-            _frontLight.value = FrontLightState(cold, warm, true)
+            _frontLight.value =
+                FrontLightState(
+                    cold = if (wroteCold) cold.coerceIn(0, 10) else current.cold,
+                    warm = if (wroteWarm) warm.coerceIn(0, 10) else current.warm,
+                    available = true,
+                )
         } else {
             openDisplaySettings()
         }

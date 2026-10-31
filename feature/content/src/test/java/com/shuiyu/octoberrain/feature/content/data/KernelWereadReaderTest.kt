@@ -3,7 +3,10 @@ package com.shuiyu.octoberrain.feature.content.data
 import com.shuiyu.octoberrain.core.common.WereadShelfItem
 import com.shuiyu.octoberrain.core.common.parseRecentReadTimes
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 
 /**
  * 书架最近阅读排序的单元测试。
@@ -11,6 +14,19 @@ import org.junit.Test
  * 覆盖时间降序、缺失时间的条目排在末尾，以及资产缺失时保持内核顺序。
  */
 class KernelWereadReaderTest {
+    @get:Rule val folder = TemporaryFolder()
+
+    @Test fun readerUsesCurrentShelfReadTimesBeyondThirtyBooks() {
+        val books =
+            (1..45).joinToString(",") {
+                """{"bookId":"b$it","title":"Book $it","author":"","progress":0,"readUpdateTime":$it}"""
+            }
+        File(folder.root, "shelf.json").writeText("""{"books":[$books],"savedAt":1}""")
+        val reader = KernelWereadReader(folder.root)
+        assertEquals(45, reader.readTimes().size)
+        assertEquals("b45", reader.readTimes().maxByOrNull { it.value }?.key)
+    }
+
     /** 构造待排序的书架条目，只填排序用到的字段。 */
     private fun item(
         bookId: String,

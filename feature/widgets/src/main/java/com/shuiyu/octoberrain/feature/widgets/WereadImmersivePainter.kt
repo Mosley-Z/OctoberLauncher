@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import com.shuiyu.octoberrain.core.common.immersivePortraitBalance
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 
@@ -16,33 +17,42 @@ internal class WereadImmersivePainter {
         height: Int,
         landscape: Boolean = width > height * 1.35f,
     ): WereadBoardFrame {
+        if (!landscape) return portraitLayout(width.toFloat(), height.toFloat())
         val w = width.toFloat()
         val h = height.toFloat()
-        val coverH = minOf(h * if (landscape) .58f else .48f, w * if (landscape) .43f else .63f)
-        val coverY = h * if (landscape) .65f else .27f
-        val titleY = if (landscape) h * .015f else coverY + coverH / 2 + h * .015f
-        val size = if (landscape) minOf(w * .044f, h * .065f) else minOf(w * .065f, h * .052f)
-        val barY = if (landscape) h * .245f else titleY + size * 3.6f
+        var coverH = minOf(h * .58f, w * .43f)
+        var coverY = h * .65f
+        val titleY = h * .015f
+        val size = minOf(w * .044f, h * .065f)
+        val (titleMetrics, detailMetrics) = readingFontMetrics(size)
+        val gap = DesignRuntime.tokens.dpF(4f)
+        val barY =
+            titleY + (titleMetrics.descent - titleMetrics.ascent) * 2 +
+                (detailMetrics.descent - detailMetrics.ascent) + gap * 2
+        val infoBottom = barY + 4f + gap + detailMetrics.descent - detailMetrics.ascent
+        coverH = minOf(coverH, (h * .94f - infoBottom - gap).coerceAtLeast(0f))
+        coverY = infoBottom + gap + coverH / 2
         return WereadBoardFrame.of(w, h, 0f).copy(
             coverArea =
                 BoardBounds(
-                    if (landscape) w * .30f else 0f,
-                    if (landscape) h * .32f else 0f,
+                    w * .30f,
+                    infoBottom + gap,
                     w,
-                    if (landscape) h else titleY,
+                    h,
                 ),
-            coverCenterX = if (landscape) w * .64f else w / 2,
+            coverCenterX = w * .64f,
             coverCenterY = coverY,
             coverHeight = coverH,
             coverWidth = coverH / 1.45f,
             expandedCoverRings = true,
             titleTop = titleY,
             titleSize = size,
+            infoSize = maxOf(size * .64f, DesignRuntime.tokens.textCaption),
             barBounds =
                 BoardBounds(
-                    if (landscape) w * .38f else w * .22f,
+                    w * .38f,
                     barY,
-                    if (landscape) w * .97f - DesignRuntime.tokens.dpF(44f) else w * .78f,
+                    w * .97f - DesignRuntime.tokens.dpF(44f),
                     barY + 4f,
                 ),
         )
@@ -90,14 +100,18 @@ internal class WereadImmersivePainter {
         val cx = refresh.centerX
         val cy = refresh.centerY
         val radius = DesignRuntime.tokens.dpF(7f)
-        paint.color = InkColors.INK
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = DesignRuntime.tokens.dpF(1.4f)
-        canvas.drawArc(RectF(cx - radius, cy - radius, cx + radius, cy + radius), 35f, 295f, false, paint)
-        canvas.drawLine(cx + radius, cy - radius, cx + radius, cy, paint)
-        canvas.drawLine(cx + radius, cy, cx, cy, paint)
-        paint.style = Paint.Style.FILL
-        if (busy) canvas.drawCircle(cx, cy, DesignRuntime.tokens.dpF(2f), paint)
+        val stroke = DesignRuntime.tokens.dpF(1.4f)
+        for (outline in listOf(true, false)) {
+            paint.color = if (outline) android.graphics.Color.WHITE else InkColors.INK
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = stroke + if (outline) DesignRuntime.tokens.dpF(2f) else 0f
+            paint.strokeJoin = Paint.Join.ROUND
+            canvas.drawArc(RectF(cx - radius, cy - radius, cx + radius, cy + radius), 35f, 295f, false, paint)
+            canvas.drawLine(cx + radius, cy - radius, cx + radius, cy, paint)
+            canvas.drawLine(cx + radius, cy, cx, cy, paint)
+            paint.style = Paint.Style.FILL
+            if (busy) canvas.drawCircle(cx, cy, DesignRuntime.tokens.dpF(if (outline) 3f else 2f), paint)
+        }
     }
 
     private fun drawCovers(
@@ -163,23 +177,25 @@ internal class WereadImmersivePainter {
     ) {
         val current = scene.current ?: return
         val cx = if (landscape) w * .68f else w / 2
-        val textWidth = if (landscape) w * .60f else w * .88f
+        val textWidth = if (landscape) frame.barBounds.width.coerceAtLeast(1f) else w * .88f
+        val (_, detailMetrics) = readingFontMetrics(frame.titleSize, frame.infoSize)
+        val gap = DesignRuntime.tokens.dpF(4f)
         paint.textSize = frame.titleSize
         paint.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
         val lines = InkDraw.wrap(immersiveWorkTitle(current.title), paint, textWidth, 2)
+        val (titleBaseline, titleStep, authorY) = readingBaselines(frame)
         lines.forEachIndexed { i, line ->
             text(
                 canvas,
                 line,
                 if (landscape) w * .38f else cx,
-                frame.titleTop + frame.titleSize * (i + 1) * 1.12f,
+                titleBaseline + i * titleStep,
                 frame.titleSize,
                 heading = true,
                 leftAligned = landscape,
             )
         }
-        val authorY = frame.titleTop + frame.titleSize * (lines.size * 1.12f + .95f) + DesignRuntime.tokens.dp(4f)
-        val detailSize = maxOf(frame.titleSize * .64f, DesignRuntime.tokens.textCaption)
+        val detailSize = frame.infoSize
         paint.textSize = detailSize
         paint.typeface = DesignRuntime.typeface()
         val author = InkDraw.wrap(current.author, paint, textWidth, 1).firstOrNull().orEmpty()
@@ -197,15 +213,21 @@ internal class WereadImmersivePainter {
             barY + 4f,
             paint,
         )
+        val progress = "${readingProgressText(
+            current.progressPercent,
+        )} · 累计 ${immersiveReadingDuration(current.readingSeconds)}"
+        paint.textSize = detailSize
+        val progressText = InkDraw.wrap(progress, paint, textWidth, 1).firstOrNull().orEmpty()
         text(
             canvas,
-            "已读 ${current.progressPercent.coerceIn(0, 100)}% · 累计 ${immersiveReadingDuration(current.readingSeconds)}",
-            barCenter,
-            barY + frame.titleSize * 1.05f,
+            progressText,
+            if (landscape) frame.barBounds.left else barCenter,
+            frame.barBounds.bottom + gap - detailMetrics.ascent,
             detailSize,
+            leftAligned = landscape,
         )
         if (landscape) {
-            drawVerticalStats(canvas, metrics, frame, w, h)
+            drawVerticalStats(canvas, metrics, w, h)
         } else {
             drawStats(canvas, metrics, frame, cx, h, w * .92f)
         }
@@ -214,7 +236,6 @@ internal class WereadImmersivePainter {
     private fun drawVerticalStats(
         canvas: Canvas,
         metrics: ImmersiveReadingStats,
-        frame: WereadBoardFrame,
         w: Float,
         h: Float,
     ) {
@@ -228,16 +249,27 @@ internal class WereadImmersivePainter {
             paint.color = InkColors.INK_3
             paint.strokeWidth = 1f
             canvas.drawLine(left, top, right, top, paint)
-            drawStatValue(
-                canvas,
-                value?.toString() ?: "—",
-                if (value == null) "" else units[index],
-                left,
-                top + h * .09f,
-                frame.titleSize * 1.25f,
-                leftAligned = true,
-            )
-            text(canvas, labels[index], left, top + h * .155f, DesignRuntime.tokens.textCaption, leftAligned = true)
+            val bounds = RectF(left, top, right, top + h * .21f)
+            val gap = DesignRuntime.tokens.dpF(4f)
+            val captionSize = DesignRuntime.tokens.textCaption
+            paint.typeface = DesignRuntime.typeface()
+            paint.textSize = captionSize
+            val fm = paint.fontMetrics
+            val lineHeight = fm.descent - fm.ascent
+            val valueText = "${value ?: "—"}${if (value == null) "" else units[index]}"
+            val rows =
+                if (lineHeight * 2 + gap * 3 <= bounds.height()) {
+                    listOf(valueText, labels[index])
+                } else {
+                    listOf("$valueText ${labels[index]}")
+                }
+            val contentHeight = rows.size * lineHeight + (rows.size - 1) * gap
+            rows.forEachIndexed { row, content ->
+                paint.textSize = captionSize
+                val shown = InkDraw.wrap(content, paint, bounds.width(), 1).firstOrNull().orEmpty()
+                val baseline = bounds.centerY() - contentHeight / 2 - fm.ascent + row * (lineHeight + gap)
+                text(canvas, shown, bounds.left, baseline, captionSize, leftAligned = true)
+            }
         }
     }
 
@@ -249,8 +281,9 @@ internal class WereadImmersivePainter {
         h: Float,
         statsWidth: Float,
     ) {
-        val top = h * .81f
-        val bottom = h * .98f
+        val geometry = portraitGeometry(frame.coverCenterX * 2, h)
+        val top = geometry.statsTop
+        val bottom = geometry.statsBottom
         val gap = statsWidth * .025f
         val cardWidth = (statsWidth - gap * 2) / 3
         val values =
@@ -278,44 +311,40 @@ internal class WereadImmersivePainter {
             paint.color = 0xffeeeeee.toInt()
             val radius = DesignRuntime.tokens.dp(8f).toFloat()
             canvas.drawRoundRect(RectF(left, top, left + cardWidth, bottom), radius, radius, paint)
-            val x = left + cardWidth / 2
-            drawStatValue(
-                canvas,
-                value,
-                units[i],
-                x,
-                top + (bottom - top) * .43f,
-                maxOf(frame.titleSize * .98f, DesignRuntime.tokens.textTitle),
-            )
-            text(
-                canvas,
-                labels[i],
-                x,
-                top + (bottom - top) * .79f,
-                maxOf(frame.titleSize * .55f, DesignRuntime.tokens.textCaption),
-            )
+            drawStatCard(canvas, value + units[i], labels[i], RectF(left, top, left + cardWidth, bottom), frame)
         }
     }
 
-    private fun drawStatValue(
+    private fun drawStatCard(
         canvas: Canvas,
         value: String,
-        unit: String,
-        x: Float,
-        y: Float,
-        size: Float,
-        leftAligned: Boolean = false,
+        label: String,
+        box: RectF,
+        frame: WereadBoardFrame,
     ) {
+        val padding = DesignRuntime.tokens.dpF(4f)
+        val gap = DesignRuntime.tokens.dpF(3f)
+        val valueSize = maxOf(frame.titleSize * .98f, DesignRuntime.tokens.textTitle)
+        val labelSize = DesignRuntime.tokens.textCaption
         paint.typeface = DesignRuntime.typeface()
-        paint.textSize = size
-        val numberWidth = paint.measureText(value)
-        val unitSize = DesignRuntime.tokens.textCaption
-        paint.textSize = unitSize
-        val unitWidth = paint.measureText(unit)
-        val gap = if (unit.isEmpty()) 0f else DesignRuntime.tokens.dp(3f).toFloat()
-        val left = if (leftAligned) x else x - (numberWidth + gap + unitWidth) / 2
-        text(canvas, value, left + numberWidth / 2, y, size)
-        text(canvas, unit, left + numberWidth + gap + unitWidth / 2, y, unitSize)
+        paint.textSize = valueSize
+        val valueWidth = paint.measureText(value)
+        val valueMetrics = paint.fontMetrics
+        paint.textSize = labelSize
+        val labelWidth = paint.measureText(label)
+        val labelMetrics = paint.fontMetrics
+        val lineHeights = valueMetrics.descent - valueMetrics.ascent + labelMetrics.descent - labelMetrics.ascent
+        val scale =
+            minOf(
+                1f,
+                (box.width() - padding * 2).coerceAtLeast(1f) / maxOf(valueWidth, labelWidth, 1f),
+                (box.height() - padding * 2 - gap).coerceAtLeast(1f) / lineHeights,
+            )
+        val top = box.centerY() - (lineHeights * scale + gap) / 2
+        val valueBaseline = top - valueMetrics.ascent * scale
+        val labelBaseline = valueBaseline + valueMetrics.descent * scale + gap - labelMetrics.ascent * scale
+        text(canvas, value, box.centerX(), valueBaseline, valueSize * scale)
+        text(canvas, label, box.centerX(), labelBaseline, labelSize * scale)
     }
 
     private fun text(
@@ -332,6 +361,105 @@ internal class WereadImmersivePainter {
         paint.textSize = size
         paint.typeface = if (heading) Typeface.create(Typeface.SERIF, Typeface.BOLD) else DesignRuntime.typeface()
         paint.textAlign = if (leftAligned) Paint.Align.LEFT else Paint.Align.CENTER
+        paint.color = android.graphics.Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeJoin = Paint.Join.ROUND
+        paint.strokeWidth = maxOf(DesignRuntime.tokens.dpF(1f), size * .06f)
+        canvas.drawText(value, x, y, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = InkColors.INK
         canvas.drawText(value, x, y, paint)
     }
+}
+
+private fun readingFontMetrics(
+    titleSize: Float,
+    detailSize: Float = maxOf(titleSize * .64f, DesignRuntime.tokens.textCaption),
+): Pair<Paint.FontMetrics, Paint.FontMetrics> {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+    paint.textSize = titleSize
+    val title = paint.fontMetrics
+    paint.typeface = DesignRuntime.typeface()
+    paint.textSize = detailSize
+    return title to paint.fontMetrics
+}
+
+private fun readingBaselines(frame: WereadBoardFrame): Triple<Float, Float, Float> {
+    val (title, detail) = readingFontMetrics(frame.titleSize, frame.infoSize)
+    val gap = DesignRuntime.tokens.dpF(4f)
+    return Triple(
+        frame.titleTop - title.ascent,
+        title.descent - title.ascent,
+        frame.barBounds.top - gap - detail.descent,
+    )
+}
+
+/** 竖屏绘制与点击共用一份阅读几何。 */
+private data class PortraitReadingGeometry(
+    val frame: WereadBoardFrame,
+    val statsTop: Float,
+    val statsBottom: Float,
+)
+
+private fun portraitLayout(
+    w: Float,
+    h: Float,
+): WereadBoardFrame = portraitGeometry(w, h).frame
+
+/** 统计紧随进度，剩余高度分配在内容组上下。 */
+private fun portraitGeometry(
+    w: Float,
+    h: Float,
+): PortraitReadingGeometry {
+    val t = DesignRuntime.tokens
+    val window = t.device
+    val balance = immersivePortraitBalance(window.widthPx.toFloat(), window.heightPx.toFloat())
+    val gap = t.dpF(4f)
+    val coverGap = gap + window.heightPx * .009f * balance
+    val initialTitle = minOf(w * .065f, h * .052f)
+    val initialDetail = maxOf(initialTitle * .64f, t.textCaption)
+    val (tm, dm) = readingFontMetrics(initialTitle, initialDetail)
+    val statsPaint =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = DesignRuntime.typeface()
+            textSize = maxOf(initialTitle * .98f, t.textTitle)
+        }
+    val vm = statsPaint.fontMetrics
+    statsPaint.textSize = t.textCaption
+    val lm = statsPaint.fontMetrics
+    val budget =
+        portraitReadingBudget(
+            h,
+            minOf(h * .48f, w * .63f),
+            2 * (tm.descent - tm.ascent + dm.descent - dm.ascent),
+            vm.descent - vm.ascent + lm.descent - lm.ascent + t.dpF(11f),
+            gap * 3 + coverGap + 4f,
+            t.dpF(20f) + window.heightPx * .032f * balance,
+            gap,
+        )
+    val titleSize = initialTitle * budget.textScale
+    val detailSize = initialDetail * budget.textScale
+    val (title, detail) = readingFontMetrics(titleSize, detailSize)
+    val coverHeight = budget.coverHeight * (1f - .09f * balance)
+    val saved = budget.coverHeight - coverHeight
+    val shift = -minOf(window.heightPx * .0125f * balance, budget.leading)
+    val coverTop = budget.leading + saved - shift
+    val titleTop = coverTop + coverHeight + coverGap
+    val barTop = titleTop + 2 * (title.descent - title.ascent) + detail.descent - detail.ascent + gap * 2
+    val statsTop = barTop + 4f + gap + detail.descent - detail.ascent + budget.statsGap
+    val frame =
+        WereadBoardFrame.of(w, h, 0f).copy(
+            coverArea = BoardBounds(0f, coverTop, w, titleTop),
+            coverCenterX = w / 2,
+            coverCenterY = coverTop + coverHeight / 2,
+            coverHeight = coverHeight,
+            coverWidth = coverHeight / 1.45f,
+            expandedCoverRings = true,
+            titleTop = titleTop,
+            titleSize = titleSize,
+            infoSize = detailSize,
+            barBounds = BoardBounds(w * .22f, barTop, w * .78f, barTop + 4f),
+        )
+    return PortraitReadingGeometry(frame, statsTop, statsTop + budget.statsHeight)
 }

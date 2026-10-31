@@ -13,6 +13,7 @@ import com.shuiyu.octoberrain.core.device.SizeClass
 class InkTokens(
     private val profile: DeviceProfile,
     val textScale: Float = 1f,
+    private val spToPx: (Float) -> Float = { it * profile.density },
 ) {
     /** 设备画像只读引用。 */
     val device: DeviceProfile get() = profile
@@ -41,7 +42,7 @@ class InkTokens(
      *
      * 参数 value 为设计稿中的 sp 数值。
      */
-    fun textSize(value: Float): Float = value * textScale * density
+    fun textSize(value: Float): Float = spToPx(value * textScale)
 
     /** 页面左右留白。 */
     val pageGutter: Int get() = dp(if (sizeClass == SizeClass.Compact) 14f else 20f)
@@ -100,16 +101,18 @@ class InkTokens(
     val textStatus: Float get() = textSize(if (sizeClass == SizeClass.Compact) 14f else 16f)
 
     /** 状态栏高度。 */
-    val statusBarHeight: Int get() = dp(if (heightClass == HeightClass.Short) 28f else 34f)
+    val statusBarHeight: Int get() =
+        maxOf(dp(if (heightClass == HeightClass.Short) 28f else 34f), Math.ceil(textStatus * 1.4).toInt() + dp(8f))
 
     /** 状态栏图标尺寸。 */
     val statusIcon: Int get() = dp(16f)
 
     /** 状态栏时间区域宽度。 */
-    val statusTimeWidth: Int get() = dp(if (sizeClass == SizeClass.Compact) 64f else 82f)
+    val statusTimeWidth: Int get() =
+        maxOf(dp(if (sizeClass == SizeClass.Compact) 64f else 82f), Math.ceil(textStatus * 3.6).toInt())
 
-    /** 应用宫格的最小单元格宽度。 */
-    val cellMinWidth: Int get() = dp(84f)
+    /** 应用宫格自动列数的最小单元格宽度，单位 dp。 */
+    val cellMinWidthDp: Int get() = 84
 
     /** 图标框允许的最大边长。 */
     val iconMax: Int get() = dp(if (heightClass == HeightClass.Short) 56f else 66f)
@@ -122,13 +125,13 @@ class InkTokens(
     fun iconFrame(cellWidth: Int): Int = minOf(iconMax, (cellWidth * 0.58f).toInt())
 
     /** 图标标签行高。 */
-    val labelHeight: Int get() = dp(if (sizeClass == SizeClass.Compact) 22f else 24f)
+    val labelHeight: Int get() = maxOf(dp(22f), Math.ceil(textBody * 1.4).toInt())
 
     /** 标签按压下划线厚度。 */
     val labelUnderline: Int get() = maxOf(2, dp(2f))
 
     /** 列表行高。 */
-    val listRowHeight: Int get() = dp(if (heightClass == HeightClass.Short) 40f else 46f)
+    val listRowHeight: Int get() = maxOf(dp(48f), labelHeight + gap * 2)
 
     /** 列表图标尺寸。 */
     val listIcon: Int get() = dp(26f)
@@ -143,7 +146,7 @@ class InkTokens(
     val indicatorHeight: Int get() = dp(14f)
 
     /** 按钮高度。 */
-    val buttonHeight: Int get() = dp(if (heightClass == HeightClass.Short) 36f else 42f)
+    val buttonHeight: Int get() = maxOf(dp(48f), labelHeight + gap * 2)
 
     /** 按钮最小宽度。 */
     val buttonMinWidth: Int get() = dp(72f)

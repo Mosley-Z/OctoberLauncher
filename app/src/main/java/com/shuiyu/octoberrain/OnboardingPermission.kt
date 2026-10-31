@@ -17,7 +17,7 @@ internal fun onboardingPermissions(model: String): List<OnboardingPermission> {
     val others =
         listOf(
             OnboardingPermission("home", "主屏幕应用", "将十雨设为默认桌面"),
-            OnboardingPermission("storage", "存储访问", "用于访问文件、导入壁纸和字体"),
+            OnboardingPermission("storage", "存储访问", "浏览 DCIM、Download 等本地文件夹需要存储访问；单次选图无需此权限"),
             OnboardingPermission("notification_listener", "通知读取", "用于桌面通知角标"),
         )
     return if (p4) listOf(accessibility) + others else others + accessibility

@@ -19,9 +19,9 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.ContentSource
 import com.shuiyu.octoberrain.core.common.InkLog
 import com.shuiyu.octoberrain.core.common.WereadAppearance
+import com.shuiyu.octoberrain.core.common.WereadRecentReadCache
 import com.shuiyu.octoberrain.core.common.WereadRefreshRequest
 import com.shuiyu.octoberrain.core.common.WereadStatsPeriod
-import com.shuiyu.octoberrain.core.common.parseRecentReadTimes
 import com.shuiyu.octoberrain.core.common.sortByRecentRead
 import com.shuiyu.octoberrain.core.data.WereadBookSelection
 import com.shuiyu.octoberrain.core.data.WereadNoteLibrary
@@ -76,8 +76,7 @@ internal class KernelDataSourceImpl(
     private val todoCache = SnapshotCache<List<TodoEntry>>()
 
     /** 最近阅读时间缓存，文件未变化时复用，避免每次读取书架都解析资产文件。 */
-    @Volatile
-    private var readTimesCache: ReadTimesCache? = null
+    private val readTimesCache = WereadRecentReadCache()
 
     /** App 与桌面共享的持久化本记状态。 */
     private var selection: WereadNoteSelection? = null
@@ -164,28 +163,15 @@ internal class KernelDataSourceImpl(
     /**
      * 读取书目最近阅读时间。
      *
-     * 资产文件未变化时直接复用上次解析结果；文件缺失或解析失败返回空映射，
+     * 书架与资产文件未变化时直接复用上次解析结果；文件缺失或解析失败返回空映射，
      * 此时书架保持原有顺序。
      *
      * @return 书目编号到 Unix 秒时间的映射
      */
-    private fun readTimes(): Map<String, Long> {
-        val file = kernelRoot()?.resolve(ASSETS_FILE)?.takeIf { it.isFile } ?: return emptyMap()
-        val modified = file.lastModified()
-        val size = file.length()
-        val cached = readTimesCache
-        return when {
-            cached != null && cached.modified == modified && cached.size == size -> cached.times
-            else -> {
-                val times = runCatching { parseRecentReadTimes(file.readText()) }.getOrDefault(emptyMap())
-                readTimesCache = ReadTimesCache(modified, size, times)
-                times
-            }
-        }
-    }
+    private fun readTimes(): Map<String, Long> = kernelRoot()?.let(readTimesCache::read).orEmpty()
 
     /**
-     * 读取最近阅读前十本轮播书目，完整书架不受截取影响。
+     * 读取最近阅读前五本轮播书目，完整书架不受截取影响。
      *
      * 进度取内核百分数；累计阅读秒数在内容服务路径下缺失，此时按逐书资产补齐，
      * 资产同样缺失的条目保留零值，由组件隐藏时长。
@@ -202,7 +188,7 @@ internal class KernelDataSourceImpl(
                 title = book.title,
                 author = book.author,
                 coverPath = book.coverUrl,
-                progressPercent = book.progress.coerceIn(0, PERCENT_MAX),
+                progressPercent = book.progress.coerceIn(-1, PERCENT_MAX),
                 readingSeconds = book.readingSec.takeIf { it > 0 } ?: assets[book.bookId] ?: 0,
             )
         }
@@ -438,7 +424,6 @@ internal class KernelDataSourceImpl(
         monthCache.clear()
         notesCache.clear()
         todoCache.clear()
-        readTimesCache = null
     }
 
     /**
@@ -535,22 +520,6 @@ internal class SnapshotCache<T : Any> {
     }
 }
 
-/** 书架资产文件名。 */
-private const val ASSETS_FILE: String = "assets.json"
-
-/**
- * 最近阅读时间缓存。
- *
- * @property modified 文件最后修改时间，单位毫秒
- * @property size 文件字节数
- * @property times 书目编号到最近阅读时间的映射
- */
-internal data class ReadTimesCache(
-    val modified: Long,
-    val size: Long,
-    val times: Map<String, Long>,
-)
-
 /**
  * 按最近阅读时间重排书架快照。
  *
@@ -593,8 +562,8 @@ internal fun preferredShelf(vararg providers: () -> ShelfSnapshot?): ShelfSnapsh
     return null
 }
 
-/** 仅轮播使用最近阅读前十本，书架原快照与选中记忆均不改写。 */
+/** 仅轮播使用最近阅读前五本，书架原快照与选中记忆均不改写。 */
 internal fun recentCarouselBooks(
     snapshot: ShelfSnapshot,
     readTimes: Map<String, Long>,
-): List<ShelfBook> = sortByRecentRead(snapshot.books, ShelfBook::bookId, readTimes).take(10)
+): List<ShelfBook> = sortByRecentRead(snapshot.books, ShelfBook::bookId, readTimes).take(5)

@@ -78,7 +78,8 @@ object InkWidgets {
             gravity = Gravity.CENTER
             minWidth = tokens.buttonMinWidth
             minimumWidth = tokens.buttonMinWidth
-            setPadding(tokens.gapLarge, 0, tokens.gapLarge, 0)
+            minimumHeight = tokens.buttonHeight
+            setPadding(tokens.gapLarge, tokens.gap, tokens.gapLarge, tokens.gap)
             background =
                 if (filled) {
                     background(tokens.radius, InkColors.INK, 0, InkColors.INK)
@@ -90,7 +91,7 @@ object InkWidgets {
             layoutParams =
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    tokens.buttonHeight,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
                 )
             setOnClickListener { onClick() }
         }
@@ -232,6 +233,32 @@ class InkPage(
         }
 
     private val titleView: TextView
+    private val header: LinearLayout
+    private val scroll = ScrollView(context)
+    private var backTarget: FrameLayout? = null
+    var onDimensionsChanged: (() -> Unit)? = null
+
+    fun scrollPosition(): Int = scroll.scrollY
+
+    fun restoreScroll(position: Int) {
+        scroll.scrollTo(0, position)
+    }
+
+    fun refreshDimensions() {
+        val t = DesignRuntime.tokens
+        header.minimumHeight = maxOf(t.topBarHeight, t.dp(48f))
+        header.setPadding(t.pageGutter, 0, t.pageGutter, 0)
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_PX, t.textHeading)
+        titleView.setPadding(t.gap, 0, 0, 0)
+        content.setPadding(t.pageGutter, t.gap, t.pageGutter, t.pageBottom)
+        backTarget?.layoutParams = LinearLayout.LayoutParams(t.dp(48f), t.dp(48f))
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        refreshDimensions()
+        onDimensionsChanged?.invoke()
+    }
 
     init {
         setBackgroundColor(InkColors.PAPER)
@@ -242,7 +269,7 @@ class InkPage(
             }
         addView(root)
 
-        val header =
+        header =
             LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -255,14 +282,24 @@ class InkPage(
                 layoutParams =
                     LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
-                        DesignRuntime.tokens.topBarHeight,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
                     )
             }
         if (showBack) {
             header.addView(
-                InkGlyphs.view(context, InkGlyphs.Kind.BACK).apply {
+                FrameLayout(context).apply {
+                    backTarget = this
                     isClickable = true
                     isFocusable = true
+                    contentDescription = "返回"
+                    addView(
+                        InkGlyphs.view(context, InkGlyphs.Kind.BACK),
+                        FrameLayout.LayoutParams(
+                            DesignRuntime.tokens.settingsIcon,
+                            DesignRuntime.tokens.settingsIcon,
+                            Gravity.CENTER,
+                        ),
+                    )
                     setOnClickListener { onBack?.invoke() }
                 },
             )
@@ -283,7 +320,7 @@ class InkPage(
         root.addView(header)
         root.addView(InkWidgets.divider(context))
         root.addView(
-            ScrollView(context).apply {
+            scroll.apply {
                 isFillViewport = true
                 layoutParams =
                     LinearLayout.LayoutParams(
@@ -294,6 +331,7 @@ class InkPage(
                 addView(content)
             },
         )
+        refreshDimensions()
     }
 
     /** 更新标题文本。 */

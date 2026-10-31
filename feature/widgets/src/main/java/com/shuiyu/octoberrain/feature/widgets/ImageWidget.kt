@@ -19,7 +19,7 @@ import java.io.File
 import kotlin.math.roundToInt
 
 /**
- * 图片组件：展示桌面配置中的自定义图片，图片目录内存在多张时按轮播间隔依次切换。
+ * 图片组件：展示桌面配置中的自定义图片，私有导入仅显示选中图片，历史外部目录保留轮播。
  *
  * 图片写入应用私有目录后记录绝对路径；绘制时等比铺满可用区域并居中裁剪。
  * 单击在图片多于一张时切到下一张，单张时打开系统图片选择器，长按沿用组件基类行为。
@@ -38,6 +38,7 @@ class ImageWidget(
 
     /** 当前展示的图片在 [images] 中的序号。 */
     private var index: Int = 0
+    private var selectedPath: String? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private var ticking = false
@@ -60,7 +61,18 @@ class ImageWidget(
         }
 
     override suspend fun loadData(force: Boolean): Boolean {
-        val candidates = resolveImages()
+        val pathSelection = config.desktop.widgetImagePath
+        val candidates =
+            if (WidgetImageSource.missing(context, config.desktop.widgetImageSourceUri)) {
+                emptyList()
+            } else {
+                WidgetImageFiles.resolve(pathSelection, context.filesDir)
+            }
+        if (pathSelection != selectedPath) {
+            index = candidates.indexOfFirst { it.absolutePath == pathSelection }.coerceAtLeast(0)
+            selectedPath = pathSelection
+            stopTicker()
+        }
         images = candidates
         if (candidates.isEmpty()) {
             releaseBitmap()
@@ -127,27 +139,6 @@ class ImageWidget(
         val paint = textPaint(tokens.textCaption, InkColors.INK_2)
         val message = if (config.desktop.widgetImagePath.isNullOrBlank()) "轻触选择图片" else "图片无法读取"
         InkDraw.textCenter(canvas, message, area.centerX(), area.centerY() - InkDraw.lineHeight(paint) / 2f, paint)
-    }
-
-    /**
-     * 解析可轮播的图片列表。
-     *
-     * 以配置中的图片路径所在目录为图片来源，目录内的图片文件按文件名升序排列；
-     * 配置路径对应文件不在目录内时，仅使用配置路径本身。
-     *
-     * @return 图片文件列表，未选择图片时为空列表
-     */
-    private fun resolveImages(): List<File> {
-        val path = config.desktop.widgetImagePath?.takeIf { it.isNotBlank() }
-        val current = path?.let { File(it) }?.takeIf { it.isFile }
-        val directory = current?.parentFile?.takeIf { it.isDirectory }
-        val siblings =
-            directory
-                ?.listFiles()
-                ?.filter { it.isFile }
-                ?.sortedBy { it.name }
-                .orEmpty()
-        return siblings.ifEmpty { current?.let { listOf(it) }.orEmpty() }
     }
 
     /** 切到下一张图片并重新解码，仅在图片多于一张时生效。 */

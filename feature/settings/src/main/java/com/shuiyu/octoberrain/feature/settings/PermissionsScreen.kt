@@ -12,6 +12,8 @@ import com.shuiyu.octoberrain.core.device.PermissionCenter
  * 电池优化单独列出一行，便于关闭后台限制。
  */
 class PermissionsScreen : SettingsBaseScreen("权限与授权") {
+    override fun needsRebuild(): Boolean = true
+
     override fun build(
         page: InkPage,
         config: LauncherConfig,
@@ -80,7 +82,7 @@ class PermissionsScreen : SettingsBaseScreen("权限与授权") {
                 PermissionItem(
                     key = PermissionCenter.KEY_STORAGE,
                     label = "存储访问",
-                    hint = "导入壁纸、字体与电子书需要访问文件",
+                    hint = "浏览 DCIM、Download 等本地文件夹；单次选图无需此权限",
                 ) { it.openStorageSettings() },
             )
     }

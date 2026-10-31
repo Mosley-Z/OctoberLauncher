@@ -57,7 +57,13 @@ class LockSettingsScreen : SettingsBaseScreen("锁屏密码") {
     /** 选择锁屏壁纸：调用系统文件选择器，选中后写入锁屏壁纸配置。 */
     private fun pickLockWallpaper() {
         val context = contextOrNull() ?: return
-        SettingsUi.pickFile(context, "选择锁屏壁纸", arrayOf("image/*"), setOf("jpg", "jpeg", "png", "webp", "bmp")) { uri ->
+        SettingsUi.pickFile(
+            context,
+            "选择锁屏壁纸",
+            arrayOf("image/*"),
+            setOf("jpg", "jpeg", "png", "webp", "bmp"),
+            forImport = true,
+        ) { uri ->
             applyLockWallpaper(uri)
         }
     }

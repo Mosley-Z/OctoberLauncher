@@ -328,6 +328,7 @@ object ContentUi {
 
     /** 阅读进度文案：0 表示尚未开始，其余按百分比取整。 */
     private fun progressLabel(progress: Float): String {
+        if (progress < 0f) return "进度未知"
         val percent = (progress.coerceIn(0f, 1f) * 100f).toInt()
         return if (percent > 0) "已读 $percent%" else "未开始"
     }

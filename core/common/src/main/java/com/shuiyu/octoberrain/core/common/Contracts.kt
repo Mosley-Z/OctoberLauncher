@@ -1009,6 +1009,12 @@ interface FilePicker {
         onPicked: (android.net.Uri?) -> Unit,
     ): Boolean
 
+    /** 选择后立即导入应用私有目录，不依赖长期 URI 授权。 */
+    fun pickForImport(
+        mimeTypes: Array<String>,
+        onPicked: (android.net.Uri?) -> Unit,
+    ): Boolean = pick(mimeTypes, onPicked)
+
     /** 选择保存位置，用于导出主题与字体，返回是否成功发起请求。 */
     fun save(
         fileName: String,

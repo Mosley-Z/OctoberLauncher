@@ -15,6 +15,7 @@ data class PageWidgetConfig(
     val todoWeekStartDay: Int = TODO_WEEK_START_DEFAULT,
     val wereadBoardPoolMask: Int = WEREAD_BOARD_POOL_DEFAULT,
     val boardForm: Int? = null,
+    val widgetImageSourceUri: String? = null,
 )
 
 fun DesktopConfig.forWidgetPage(page: Int): DesktopConfig {
@@ -23,6 +24,7 @@ fun DesktopConfig.forWidgetPage(page: Int): DesktopConfig {
     return copy(
         widgetId = slot.widgetId,
         widgetImagePath = slot.widgetImagePath,
+        widgetImageSourceUri = slot.widgetImageSourceUri,
         imageCarouselMinutes = slot.imageCarouselMinutes,
         imageSwipeDirection = slot.imageSwipeDirection,
         todoWeekStartDay = slot.todoWeekStartDay,
@@ -54,6 +56,7 @@ fun DesktopConfig.editWidgetPage(
             edited.todoWeekStartDay,
             edited.wereadBoardPoolMask,
             edited.negativePage.forms[WEREAD_BOARD_WIDGET_ID],
+            edited.widgetImageSourceUri,
         )
     return copy(pageWidgets = if (slot.widgetId.isBlank()) pageWidgets - page else pageWidgets + (page to slot))
 }

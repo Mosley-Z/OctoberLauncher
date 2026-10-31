@@ -23,7 +23,14 @@ internal fun readingDurationText(seconds: Int): String {
  * @param percent 阅读进度百分数，越界时按 0 到 100 截断
  * @return 已读文案
  */
-internal fun readingProgressText(percent: Int): String = "已读 ${percent.coerceIn(0, PERCENT_MAX)}%"
+internal fun readingProgressText(percent: Int): String =
+    if (percent <
+        0
+    ) {
+        "进度未知"
+    } else {
+        "已读 ${percent.coerceAtMost(PERCENT_MAX)}%"
+    }
 
 /**
  * 拼接底部信息带的文字部分，百分比与时长以间隔点分隔。

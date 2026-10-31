@@ -392,6 +392,14 @@ internal class HomeView(
 
     // region 生命周期与尺寸
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        noteOverlay.close()
+        recomputeMetrics()
+        clampPage()
+        invalidate()
+    }
+
     override fun onSizeChanged(
         w: Int,
         h: Int,
@@ -835,14 +843,7 @@ internal class HomeView(
         val editingLabelVisible = editing && isTransparent(entry)
         if (normalLabelVisible || editingLabelVisible) {
             // 标签字号取正文令牌，按图墨以较小字号呈现完整名称。
-            labelPaint.textSize =
-                if (width >
-                    height
-                ) {
-                    minOf(labelTextSize(tokens.textBody), m.labelHeight.toFloat())
-                } else {
-                    labelTextSize(tokens.textBody)
-                }
+            labelPaint.textSize = labelTextSize(tokens.textBody)
             val maxWidth = cell.width()
             val text = ellipsize(entry.label, labelPaint, maxWidth)
             val baseline = gridLabelBaseline(m, cell)
@@ -962,10 +963,7 @@ internal class HomeView(
     private fun labelTextSize(fallbackPx: Float): Float {
         val sp = config?.desktop?.labelTextSp ?: 0f
         if (sp <= 0f) return fallbackPx
-        // 以系统字体缩放倍率与像素密度相乘得到 sp 到像素的换算系数。
-        val density = resources.displayMetrics.density
-        val fontScale = resources.configuration.fontScale
-        val scaled = sp * density * fontScale
+        val scaled = DesignRuntime.tokens.textSize(sp)
         return scaled.coerceIn(fallbackPx * 0.6f, fallbackPx * 2.4f)
     }
 
@@ -1759,8 +1757,8 @@ internal class HomeView(
         }
         val opened =
             runCatching {
-                AppServices.picker.pick(arrayOf("image/*")) { uri ->
-                    if (uri == null) return@pick
+                AppServices.picker.pickForImport(arrayOf("image/*")) { uri ->
+                    if (uri == null) return@pickForImport
                     scope.launch {
                         val applied =
                             runCatching { AppServices.appearance.setWallpaper(uri) }
