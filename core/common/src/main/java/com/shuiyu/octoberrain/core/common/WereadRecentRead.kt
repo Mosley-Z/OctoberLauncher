@@ -1,9 +1,16 @@
 package com.shuiyu.octoberrain.core.common
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.longOrNull
+import java.io.File
+
 // 微读资产文件中的「最近阅读时间」解析与排序。
 //
-// 内核书架快照只带书目基础字段，不携带阅读时间；需要「最近在读」顺序时，
-// 从原盘 assets.json 取出每本书的 readUpdateTime，再按时间降序排列。
+// 最近在读优先使用当前 shelf.json 的阅读时间，assets.json 仅补缺失时间。
 // 微读墨记与十雨桌面两侧都读同一个文件，集中在这里避免两份实现出现顺序差异。
 
 /** 资产文本中书目编号的匹配式。 */
@@ -51,4 +58,55 @@ fun <T> sortByRecentRead(
 ): List<T> {
     if (times.isEmpty() || items.size < 2) return items
     return items.sortedByDescending { times[bookIdOf(it)] ?: Long.MIN_VALUE }
+}
+
+/** 当前书架时间优先，旧资产时间仅补缺失字段。 */
+fun mergeRecentReadTimes(
+    assetsJson: String,
+    shelfJson: String,
+): Map<String, Long> {
+    val fallback = parseRecentReadTimes(assetsJson)
+    val books =
+        runCatching {
+            (Json.parseToJsonElement(shelfJson) as? JsonObject)?.get("books") as? JsonArray
+        }.getOrNull()
+    val current =
+        books
+            .orEmpty()
+            .mapNotNull { element ->
+                val book = element as? JsonObject ?: return@mapNotNull null
+                val id = (book["bookId"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+                val time = (book["readUpdateTime"] as? JsonPrimitive)?.longOrNull ?: 0L
+                if (id.isBlank() || time <= 0L) null else id to time
+            }.toMap()
+    return fallback + current
+}
+
+/** 书架或资产文件变化时重读；不同数据根目录不共用快照。 */
+class WereadRecentReadCache {
+    private data class Stamp(
+        val path: String,
+        val exists: Boolean,
+        val modified: Long,
+        val size: Long,
+    )
+
+    private var stamps: List<Stamp>? = null
+    private var times: Map<String, Long> = emptyMap()
+
+    @Synchronized
+    fun read(root: File): Map<String, Long> {
+        val assets = File(root, "assets.json")
+        val shelf = File(root, "shelf.json")
+        val next = listOf(assets, shelf).map { Stamp(it.absolutePath, it.isFile, it.lastModified(), it.length()) }
+        if (stamps != next) {
+            times =
+                mergeRecentReadTimes(
+                    runCatching { assets.readText() }.getOrDefault(""),
+                    runCatching { shelf.readText() }.getOrDefault(""),
+                )
+            stamps = next
+        }
+        return times
+    }
 }

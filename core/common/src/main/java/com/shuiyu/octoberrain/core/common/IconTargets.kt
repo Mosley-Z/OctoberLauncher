@@ -37,10 +37,45 @@ object IconTargets {
         if (targetId.startsWith(SPECIAL_PREFIX)) targetId else APP_PREFIX + targetId
 
     /**
+     * 构造组件级图标目标标识。
+     *
+     * 参数 packageName 为包名；参数 activityName 为启动 Activity 完整类名。
+     * 返回值形如 `com.example.app/com.example.app.MainActivity`，与入口键去掉
+     * `app:` 前缀后的形式一致，因此 [normalizeStoredKey] 对组件入口键可直接复用。
+     */
+    fun componentTarget(
+        packageName: String,
+        activityName: String,
+    ): String = "$packageName/$activityName"
+
+    /** 组件级目标的解析结果。 */
+    data class ComponentTarget(
+        /** 包名。 */
+        val packageName: String,
+        /** 启动 Activity 完整类名。 */
+        val activityName: String,
+    )
+
+    /**
+     * 解析组件级图标目标。
+     *
+     * 参数 targetId 为归一后的目标标识；形如 `包名/Activity` 时返回包名与类名，
+     * 包名与 `special:` 标识返回空。调用方据此区分按包名、按组件与按特殊入口取图标。
+     */
+    fun parseComponentTarget(targetId: String): ComponentTarget? {
+        val separator = if (targetId.startsWith(SPECIAL_PREFIX)) -1 else targetId.indexOf('/')
+        if (separator <= 0 || separator == targetId.lastIndex) return null
+        return ComponentTarget(
+            packageName = targetId.substring(0, separator),
+            activityName = targetId.substring(separator + 1),
+        )
+    }
+
+    /**
      * 归一已保存的图标覆盖键。
      *
      * 参数 storedKey 为历史版本写入的键：可能带 `app:`、`special:` 前缀或为裸包名。
-     * 返回值统一为包名或 `special:` 标识；无法识别的特殊名称保持原样。
+     * 返回值统一为包名、组件目标或 `special:` 标识；无法识别的特殊名称保持原样。
      */
     fun normalizeStoredKey(storedKey: String): String {
         if (storedKey.startsWith(SPECIAL_PREFIX)) {
@@ -97,7 +132,18 @@ object IconTargets {
 }
 
 /**
- * 桌面入口的图标目标标识：应用为包名，特殊入口为 `special:` 名称。
+ * 桌面入口的图标目标标识。
+ *
+ * 应用入口优先使用组件目标（包名与 Activity 类名），缺少 Activity 信息时退回包名；
+ * 特殊入口为 `special:` 名称。包级旧键因此仍命中历史图标覆盖。
  */
 val LauncherEntry.iconTargetId: String
-    get() = special?.let(IconTargets::specialKey) ?: (packageName ?: key.removePrefix("app:"))
+    get() =
+        special?.let(IconTargets::specialKey)
+            ?: run {
+                val packageName = packageName ?: key.removePrefix("app:").substringBefore('/')
+                activityName
+                    ?.takeIf { it.isNotBlank() && packageName.isNotBlank() }
+                    ?.let { IconTargets.componentTarget(packageName, it) }
+                    ?: packageName
+            }

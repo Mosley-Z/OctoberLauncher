@@ -127,8 +127,8 @@ class WereadStore(
      */
     fun writeCurrentBook(book: WereadShelfBook?): Boolean {
         if (book == null) {
-            fileOf(FILE_BOOK).delete()
-            return true
+            val target = fileOf(FILE_BOOK)
+            return !target.exists() || target.delete()
         }
         val document =
             buildJsonObject {
@@ -257,10 +257,7 @@ class WereadStore(
     fun writeNotes(
         indexJson: String,
         notes: List<WereadNoteFile>,
-    ): Boolean {
-        val indexSaved = writeText(FILE_NOTE_INDEX, indexJson)
-        return writeNoteFiles(notes) && indexSaved
-    }
+    ): Boolean = writeNoteFiles(notes) && writeText(FILE_NOTE_INDEX, indexJson)
 
     /** 只写成功取回的笔记正文，不提前覆盖完整索引。 */
     fun writeNoteFiles(notes: List<WereadNoteFile>): Boolean {
@@ -452,13 +449,12 @@ class WereadStore(
         val temp = File(root, "$name.${System.nanoTime()}.tmp")
         return runCatching {
             temp.writeText(text)
-            if (!temp.renameTo(target)) {
-                target.delete()
-                if (!temp.renameTo(target)) {
-                    temp.copyTo(target, overwrite = true)
-                    temp.delete()
-                }
-            }
+            java.nio.file.Files.move(
+                temp.toPath(),
+                target.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+            )
             true
         }.getOrElse { error ->
             InkLog.w(TAG, "写入 $name 失败：${error.message}")

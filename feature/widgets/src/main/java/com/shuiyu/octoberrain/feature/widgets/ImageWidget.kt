@@ -5,9 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.LauncherConfig
+import com.shuiyu.octoberrain.core.common.WidgetImageSelection
 import com.shuiyu.octoberrain.core.common.effectiveImageCarouselMinutes
 import com.shuiyu.octoberrain.core.common.effectiveImageSwipeDirection
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -15,11 +18,13 @@ import com.shuiyu.octoberrain.core.render.ImageDecoder
 import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
 import com.shuiyu.octoberrain.core.render.loadOrDecode
 import com.shuiyu.octoberrain.core.widget.WidgetTouchAction
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.roundToInt
 
 /**
- * 图片组件：展示桌面配置中的自定义图片，图片目录内存在多张时按轮播间隔依次切换。
+ * 图片组件：展示桌面配置中的自定义图片，私有导入仅显示选中图片，历史外部目录保留轮播。
  *
  * 图片写入应用私有目录后记录绝对路径；绘制时等比铺满可用区域并居中裁剪。
  * 单击在图片多于一张时切到下一张，单张时打开系统图片选择器，长按沿用组件基类行为。
@@ -32,12 +37,14 @@ class ImageWidget(
     private var bitmap: Bitmap? = null
     private var decodedPath: String? = null
     private var decodedEdge: Int = 0
+    private var decodedMtime: Long = 0L
 
     /** 当前可轮播的图片，按文件名顺序排列。 */
     private var images: List<File> = emptyList()
 
     /** 当前展示的图片在 [images] 中的序号。 */
     private var index: Int = 0
+    private var selectedPath: String? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private var ticking = false
@@ -53,43 +60,304 @@ class ImageWidget(
     private val tick =
         object : Runnable {
             override fun run() {
-                if (!hostVisible || !ticking) return
+                if (!loadVersions.mayRunResources() || !ticking) return
                 advance()
                 scheduleTick()
             }
         }
 
-    override suspend fun loadData(force: Boolean): Boolean {
-        val candidates = resolveImages()
-        images = candidates
-        if (candidates.isEmpty()) {
-            releaseBitmap()
-            decodedPath = null
-            stopTicker()
-            return true
+    private var observer: FileObserver? = null
+    private var observerKey: ImageDirectoryCache.Key? = null
+
+    @Volatile
+    private var observerWorking = false
+    private val directoryCache =
+        ImageDirectoryCache(
+            probe = { key ->
+                val dir = File(key.canonicalParent)
+                directoryStamp(dir)
+            },
+            scan = { key ->
+                WidgetImageFiles.resolveSelection(
+                    emptyList(),
+                    key.legacyPath,
+                    key.legacySource,
+                    context.filesDir,
+                ) { WidgetImageSource.missing(context, it) }
+            },
+        )
+
+    private fun directoryStamp(directory: File): Long? =
+        when {
+            !observerWorking -> null
+            !directory.isDirectory || !directory.canRead() -> null
+            else -> directory.lastModified().takeIf { it > 0L }
         }
-        index = index.coerceIn(0, candidates.lastIndex)
-        val path = candidates[index].absolutePath
-        val edge = maxOf(1, widthPx, heightPx)
-        if (path == decodedPath && bitmap != null && decodedEdge >= edge) {
-            startTicker()
-            return true
-        }
-        val loaded = decode(path, edge, edge)
-        releaseBitmap()
-        bitmap = loaded
-        decodedPath = path
-        decodedEdge = edge
-        startTicker()
-        return true
+
+    private fun clearDirectory() {
+        observer?.stopWatching()
+        observer = null
+        observerKey = null
+        observerWorking = false
+        directoryCache.clear()
     }
+
+    private fun observe(key: ImageDirectoryCache.Key) {
+        if (!loadVersions.mayRunResources() || observerKey == key) return
+        clearDirectory()
+        observerKey = key
+        val bound = directoryCache.request(key)
+        try {
+            observer =
+                object : FileObserver(key.canonicalParent, ImageLoadPolicy.EVENT_MASK) {
+                    override fun onEvent(
+                        event: Int,
+                        path: String?,
+                    ) {
+                        if (ImageLoadPolicy.isMutation(event)) directoryCache.onEvent(bound)
+                    }
+                }
+            observer?.startWatching()
+            observerWorking = true
+        } catch (_: Exception) {
+            observer?.stopWatching()
+            observer = null
+            observerWorking = false
+        }
+    }
+
+    private val loadVersions = ImageLoadVersions()
+    private var source: Source? = null
+    private var loadWidth = 0
+    private var loadHeight = 0
+
+    private data class Source(
+        val page: Int,
+        val selections: List<WidgetImageSelection>,
+        val path: String?,
+        val uri: String?,
+    )
+
+    private data class LoadRequest(
+        val source: Source,
+        val index: Int,
+        val selectedPath: String?,
+        val width: Int,
+        val height: Int,
+        val bitmap: Bitmap?,
+        val decodedPath: String?,
+        val decodedEdge: Int,
+        val decodedMtime: Long,
+        val token: ImageLoadVersions.Token,
+    )
+
+    private fun synchronizeSource(): Source {
+        val desktop = config.desktop
+        val current =
+            Source(pageIndex, desktop.widgetImages.toList(), desktop.widgetImagePath, desktop.widgetImageSourceUri)
+        if (source != current) {
+            clearDirectory()
+            source = current
+            loadVersions.sourceChanged()
+        }
+        return current
+    }
+
+    override fun onWidgetConfig(config: LauncherConfig) {
+        super.onWidgetConfig(config)
+        synchronizeSource()
+    }
+
+    private suspend fun captureRequest(): LoadRequest =
+        withContext(Dispatchers.Main.immediate) {
+            LoadRequest(
+                synchronizeSource(),
+                index,
+                selectedPath,
+                widthPx,
+                heightPx,
+                bitmap,
+                decodedPath,
+                decodedEdge,
+                decodedMtime,
+                loadVersions.capture(),
+            )
+        }
+
+    private fun eligibleLegacySource(source: Source): Boolean =
+        source.selections.isEmpty() && !WidgetImageSource.missing(context, source.uri)
+
+    private fun readableFile(file: File): Boolean = file.isFile && file.canRead()
+
+    private fun validExternalFile(file: File): Boolean =
+        readableFile(file) && !WidgetImageFiles.isManaged(file, context.filesDir)
+
+    private fun readableTarget(path: String?): Boolean {
+        if (path == null) return false
+        return readableFile(File(path))
+    }
+
+    private fun directoryKey(request: LoadRequest): ImageDirectoryCache.Key? {
+        val legacy = request.source.path?.let(::File)
+        return when {
+            !eligibleLegacySource(request.source) -> null
+            legacy == null -> null
+            !validExternalFile(legacy) -> null
+            else ->
+                ImageDirectoryCache.Key(
+                    request.source.page,
+                    legacy.canonicalFile.parent.orEmpty(),
+                    request.source.path,
+                    request.source.uri,
+                )
+        }
+    }
+
+    override suspend fun loadData(force: Boolean): Boolean {
+        val request = captureRequest()
+        val key = directoryKey(request)
+        val result = resolveLoad(request, key, force) ?: return false
+        return publishLoad(request, result)
+    }
+
+    private data class LoadResult(
+        val candidates: List<File>,
+        val nextIndex: Int,
+        val path: String?,
+        val edge: Int,
+        val mtime: Long,
+        val loaded: Bitmap?,
+        val cacheRequest: ImageDirectoryCache.Request?,
+        val selectionChanged: Boolean,
+    )
+
+    private suspend fun prepareDirectory(
+        request: LoadRequest,
+        key: ImageDirectoryCache.Key?,
+    ): ImageDirectoryCache.Request? =
+        withContext(Dispatchers.Main.immediate) {
+            if (key != null && loadVersions.canPublish(request.token)) {
+                observe(key)
+                directoryCache.request(key)
+            } else {
+                null
+            }
+        }
+
+    // Discard guards keep superseded loads from acquiring or publishing a replacement cache request.
+    @Suppress("ReturnCount")
+    private suspend fun resolveLoad(
+        request: LoadRequest,
+        key: ImageDirectoryCache.Key?,
+        force: Boolean,
+    ): LoadResult? {
+        var cacheRequest = prepareDirectory(request, key)
+        var candidates =
+            if (key != null) {
+                directoryCache.load(cacheRequest ?: return null, force)?.files ?: return null
+            } else {
+                WidgetImageFiles.resolveSelection(
+                    request.source.selections,
+                    request.source.path,
+                    request.source.uri,
+                    context.filesDir,
+                ) { WidgetImageSource.missing(context, it) }
+            }
+        val selectionChanged = request.source.path != request.selectedPath
+        val targetIndex =
+            if (selectionChanged) {
+                candidates.indexOfFirst { it.absolutePath == request.source.path }.coerceAtLeast(0)
+            } else {
+                request.index
+            }
+        var nextIndex = if (candidates.isEmpty()) 0 else targetIndex.coerceIn(0, candidates.lastIndex)
+        var path = candidates.getOrNull(nextIndex)?.absolutePath
+        if (key != null && needsTargetRetry(path)) {
+            val retry =
+                withContext(Dispatchers.Main.immediate) {
+                    if (!loadVersions.canPublish(request.token)) return@withContext null
+                    directoryCache.invalidate()
+                    directoryCache.request(key)
+                } ?: return null
+            cacheRequest = retry
+            candidates = directoryCache.load(retry, force = true)?.files ?: return null
+            nextIndex = if (candidates.isEmpty()) 0 else targetIndex.coerceIn(0, candidates.lastIndex)
+            path = candidates.getOrNull(nextIndex)?.absolutePath
+        }
+        val edge = maxOf(1, request.width, request.height)
+        val mtime = path?.let { File(it).lastModified() } ?: 0L
+        val loaded = loadBitmap(request, path, edge, mtime, force)
+        return LoadResult(candidates, nextIndex, path, edge, mtime, loaded, cacheRequest, selectionChanged)
+    }
+
+    private fun needsTargetRetry(path: String?): Boolean = path != null && !readableTarget(path)
+
+    private fun reusableBitmap(
+        request: LoadRequest,
+        path: String,
+        edge: Int,
+        mtime: Long,
+    ): Boolean =
+        when {
+            request.bitmap == null -> false
+            path != request.decodedPath -> false
+            request.decodedEdge < edge -> false
+            else -> ImageLoadPolicy.sameContent(request.decodedMtime, mtime)
+        }
+
+    private fun loadBitmap(
+        request: LoadRequest,
+        path: String?,
+        edge: Int,
+        mtime: Long,
+        force: Boolean,
+    ): Bitmap? =
+        when {
+            path == null -> null
+            !force && reusableBitmap(request, path, edge, mtime) -> request.bitmap
+            !readableTarget(path) -> null
+            else -> decode(path, edge, edge)
+        }
+
+    private suspend fun publishLoad(
+        request: LoadRequest,
+        result: LoadResult,
+    ): Boolean =
+        withContext(Dispatchers.Main.immediate) {
+            if (!loadVersions.canPublish(request.token) ||
+                result.cacheRequest?.let { !directoryCache.isCurrent(it) } == true
+            ) {
+                false
+            } else {
+                if (result.selectionChanged) stopTicker()
+                images = result.candidates
+                index = result.nextIndex
+                selectedPath = request.source.path
+                bitmap = result.loaded
+                decodedMtime = result.mtime
+                decodedPath = result.path
+                decodedEdge =
+                    if (result.loaded != null && result.loaded === request.bitmap) {
+                        request.decodedEdge
+                    } else {
+                        result.edge
+                    }
+                if (result.candidates.isEmpty()) stopTicker() else startTicker()
+                true
+            }
+        }
 
     override fun onWidgetSizeChanged(
         width: Int,
         height: Int,
     ) {
+        if (loadWidth != width || loadHeight != height) {
+            loadWidth = width
+            loadHeight = height
+            loadVersions.dimensionsChanged()
+        }
         super.onWidgetSizeChanged(width, height)
-        reload(force = true)
+        reload(force = false)
     }
 
     override fun drawWidget(
@@ -125,36 +393,21 @@ class ImageWidget(
     ) {
         InkDraw.dashedRect(canvas, area, tokens.radius.toFloat(), strokePaint(InkColors.INK_3))
         val paint = textPaint(tokens.textCaption, InkColors.INK_2)
-        val message = if (config.desktop.widgetImagePath.isNullOrBlank()) "轻触选择图片" else "图片无法读取"
+        val message =
+            if (config.desktop.widgetImages.isEmpty() && config.desktop.widgetImagePath.isNullOrBlank()) {
+                "轻触选择图片"
+            } else {
+                "图片无法读取"
+            }
         InkDraw.textCenter(canvas, message, area.centerX(), area.centerY() - InkDraw.lineHeight(paint) / 2f, paint)
-    }
-
-    /**
-     * 解析可轮播的图片列表。
-     *
-     * 以配置中的图片路径所在目录为图片来源，目录内的图片文件按文件名升序排列；
-     * 配置路径对应文件不在目录内时，仅使用配置路径本身。
-     *
-     * @return 图片文件列表，未选择图片时为空列表
-     */
-    private fun resolveImages(): List<File> {
-        val path = config.desktop.widgetImagePath?.takeIf { it.isNotBlank() }
-        val current = path?.let { File(it) }?.takeIf { it.isFile }
-        val directory = current?.parentFile?.takeIf { it.isDirectory }
-        val siblings =
-            directory
-                ?.listFiles()
-                ?.filter { it.isFile }
-                ?.sortedBy { it.name }
-                .orEmpty()
-        return siblings.ifEmpty { current?.let { listOf(it) }.orEmpty() }
     }
 
     /** 切到下一张图片并重新解码，仅在图片多于一张时生效。 */
     private fun advance() {
         if (images.size <= 1) return
+        loadVersions.selectionChanged()
         index = ImageSwipe.wrap(index, images.size, ImageSwipe.STEP_NEXT)
-        reload(force = true)
+        reload(force = false)
     }
 
     /**
@@ -179,8 +432,9 @@ class ImageWidget(
                 handleSwipe(x - pressX, y - pressY)
                 if (swipeStep != ImageSwipe.STEP_NONE) {
                     stopTicker()
+                    loadVersions.selectionChanged()
                     index = ImageSwipe.wrap(index, images.size, swipeStep)
-                    reload(force = true)
+                    reload(force = false)
                 }
                 swipeStep = ImageSwipe.STEP_NONE
             }
@@ -218,14 +472,14 @@ class ImageWidget(
 
     /** 启动轮播定时，图片少于两张或已在运行时直接返回。 */
     private fun startTicker() {
-        if (!hostVisible || ticking || images.size <= 1) return
+        if (!loadVersions.mayRunResources() || ticking || images.size <= 1) return
         ticking = true
         handler.postDelayed(tick, intervalMillis())
     }
 
     /** 重新排程下一次轮播。 */
     private fun scheduleTick() {
-        if (!hostVisible || !ticking || images.size <= 1) {
+        if (!loadVersions.mayRunResources() || !ticking || images.size <= 1) {
             ticking = false
             return
         }
@@ -233,14 +487,19 @@ class ImageWidget(
     }
 
     override fun onHostVisible(visible: Boolean) {
+        val hiding = ImageLoadPolicy.isHiding(hostVisible, visible)
+        if (hostVisible != visible) clearDirectory()
+        loadVersions.setVisible(visible)
         super.onHostVisible(visible)
         if (visible) {
             reload()
             startTicker()
         } else {
             stopTicker()
-            releaseBitmap()
-            decodedPath = null
+            if (hiding) {
+                releaseBitmap()
+                decodedPath = null
+            }
         }
     }
 
@@ -272,6 +531,7 @@ class ImageWidget(
     private fun chooseImage() {
         ImageWidgetSettings.choose(context, scope, pageIndex = pageIndex) {
             refreshConfigSnapshot()
+            synchronizeSource()
             reload(force = true)
         }
     }
@@ -298,6 +558,7 @@ class ImageWidget(
     /** 释放对位图的引用；位图由缩略图缓存持有，不在此回收。 */
     private fun releaseBitmap() {
         bitmap = null
+        decodedMtime = 0L
     }
 
     override fun onClick(
@@ -313,6 +574,8 @@ class ImageWidget(
     }
 
     override fun onWidgetDestroy() {
+        loadVersions.release()
+        clearDirectory()
         stopTicker()
         releaseBitmap()
     }

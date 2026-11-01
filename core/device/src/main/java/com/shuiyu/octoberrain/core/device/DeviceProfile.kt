@@ -80,10 +80,13 @@ data class DeviceProfile(
      *
      * 参数 minCellDp 为单元格最小宽度，默认 88dp。
      */
-    fun gridColumns(minCellDp: Int = 88): Int {
-        val byWidth = (widthDp / minCellDp).coerceIn(2, 8)
+    fun gridColumns(
+        minCellDp: Int = 88,
+        availableWidthDp: Int = widthDp,
+    ): Int {
+        val byWidth = (availableWidthDp / minCellDp).coerceIn(2, 8)
         val cap =
-            when (sizeClass) {
+            when (SizeClass.fromWidth(availableWidthDp)) {
                 SizeClass.Compact -> 4
                 SizeClass.Medium -> 6
                 SizeClass.Expanded -> 8
@@ -105,7 +108,7 @@ object DeviceRuntime {
 
     /** 计算并保存设备画像。 */
     fun install(context: Context) {
-        profile = DeviceProfileDetector.detect(context.applicationContext)
+        profile = DeviceProfileDetector.detect(context)
     }
 
     /** 重新计算设备画像，用于横竖屏切换与分辨率变化。 */

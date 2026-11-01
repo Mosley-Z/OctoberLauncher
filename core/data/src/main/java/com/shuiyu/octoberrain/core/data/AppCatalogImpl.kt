@@ -1,5 +1,6 @@
 package com.shuiyu.octoberrain.core.data
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -37,6 +38,7 @@ import java.util.Locale
  */
 class AppCatalogImpl(
     private val context: Context,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) : AppCatalog {
     private val packageManager: PackageManager = context.packageManager
 
@@ -46,12 +48,59 @@ class AppCatalogImpl(
 
     private val memoryCache = LruCache<String, Bitmap>(48)
 
+    /** 应用级名称缓存，供自动成组取文件夹名使用。 */
+    private val applicationLabels = HashMap<String, String>()
+
     private val iconDir = File(context.filesDir, "icons").apply { mkdirs() }
 
     private val collator = Collator.getInstance(Locale.CHINA)
 
+    /** 上一轮目录快照的入口键集合，用于判定快照是否已稳定。 */
+    private var lastSnapshotKeys: Set<String>? = null
+
+    /** 首次目录刷新时刻，用于判定快照是否已越过稳定等待窗口。 */
+    private var firstRefreshAtMillis: Long? = null
+
+    /** 旧入口键解析是否已完成，完成后不再重复执行。 */
+    private var legacyKeysMigrated: Boolean = false
+
     override suspend fun refresh() {
-        _apps.value = withContext(Dispatchers.IO) { queryLaunchable() }
+        val snapshot = withContext(Dispatchers.IO) { queryLaunchable() }
+        _apps.value = snapshot
+        // 首轮查询可能因包管理器冷启动返回不完整结果，前几轮彼此一致仍可能同属不完整阶段；
+        // 因此除连续两轮一致外，还要求本轮距首次刷新已越过稳定等待窗口
+        val now = nowMillis()
+        val first = firstRefreshAtMillis ?: now.also { firstRefreshAtMillis = it }
+        val keys = catalogKeys(snapshot)
+        val migrate =
+            !legacyKeysMigrated &&
+                shouldMigrateLegacyKeys(
+                    previous = lastSnapshotKeys,
+                    current = keys,
+                    hasConfig = AppServices.hasConfig(),
+                    elapsedSinceFirstRefreshMs = now - first,
+                )
+        lastSnapshotKeys = keys
+        // 判据满足后解析旧包级入口键；未装配配置、已完成或写入失败时为空操作
+        if (migrate) {
+            legacyKeysMigrated =
+                runCatching { ComponentKeyResolver.runOnce(AppServices.config, snapshot) }
+                    .getOrDefault(false)
+        }
+    }
+
+    override fun applicationLabel(packageName: String): String? {
+        // 名称查询走 PackageManager，命中缓存后不再重复读取
+        applicationLabels[packageName]?.let { return it }
+        // 包可能已卸载或包管理器拒绝查询，异常按无名称处理，调用方回退组件名称
+        return runCatching {
+            val info = packageManager.getApplicationInfo(packageName, 0)
+            packageManager
+                .getApplicationLabel(info)
+                .toString()
+                .trim()
+                .takeIf { it.isNotEmpty() }
+        }.getOrNull()?.also { applicationLabels[packageName] = it }
     }
 
     override suspend fun loadIcon(
@@ -113,6 +162,64 @@ class AppCatalogImpl(
         }
     }
 
+    override suspend fun loadActivityIcon(
+        activityName: String,
+        packageName: String,
+        sizePx: Int,
+    ): Bitmap? {
+        // 覆盖图与内存缓存都不区分组件图标来源，命中即返回
+        val key = "activity:$packageName/$activityName@$sizePx"
+        val cached = componentOverride(activityName, packageName, sizePx) ?: memoryCache.get(key)
+        if (cached != null) return cached
+        // 组件图标随应用更新变化，只留内存缓存，不与包级磁盘缓存串用；失败回退包级图标
+        return withContext(Dispatchers.IO) {
+            val loaded = runCatching { drawActivityIcon(packageName, activityName, sizePx) }.getOrNull()
+            if (loaded != null) {
+                memoryCache.put(key, loaded)
+                loaded
+            } else {
+                loadIcon(packageName, sizePx)
+            }
+        }
+    }
+
+    /**
+     * 读取组件级或包级的图标覆盖。
+     *
+     * 参数 activityName 为启动 Activity 类名，packageName 为包名，sizePx 为目标边长。
+     * 未启用覆盖存储时返回空，调用方继续走图标缓存。
+     */
+    private suspend fun componentOverride(
+        activityName: String,
+        packageName: String,
+        sizePx: Int,
+    ): Bitmap? =
+        if (!AppServices.hasIconOverrides()) {
+            null
+        } else {
+            AppServices.iconOverrides
+                .loadOverride(IconTargets.componentTarget(packageName, activityName), sizePx)
+                ?: AppServices.iconOverrides.loadOverride(packageName, sizePx)
+        }
+
+    /**
+     * 把指定组件的启动图标绘制为位图。
+     *
+     * 参数 packageName 为包名，activityName 为 Activity 类名，sizePx 为目标边长。
+     * 组件不存在时由 PackageManager 抛异常，调用方按图标不可用处理。
+     */
+    private fun drawActivityIcon(
+        packageName: String,
+        activityName: String,
+        sizePx: Int,
+    ): Bitmap {
+        val drawable = packageManager.getActivityIcon(ComponentName(packageName, activityName))
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, sizePx, sizePx)
+        drawable.draw(Canvas(bitmap))
+        return bitmap
+    }
+
     override suspend fun loadSpecialIcon(
         entry: SpecialEntry,
         sizePx: Int,
@@ -160,8 +267,14 @@ class AppCatalogImpl(
         }
     }
 
-    override fun launch(app: InstalledApp) {
-        if (launchVendorSettings(app)) return
+    /**
+     * 启动应用。
+     *
+     * 参数 app 为目标应用条目。返回是否真正发起了启动：目标 Activity 不存在或系统拒绝时返回假，
+     * 由界面提示用户；失败时不改用同包其他入口，避免启动目标与点击目标不一致。
+     */
+    override fun launch(app: InstalledApp): Boolean {
+        if (launchVendorSettings(app)) return true
         val intent =
             app.activityName?.let { activity ->
                 Intent.makeMainActivity(android.content.ComponentName(app.packageName, activity))
@@ -172,7 +285,10 @@ class AppCatalogImpl(
                 setPackage(app.packageName)
             }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-        runCatching { context.startActivity(intent) }
+        return runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
     }
 
     /** S4真正的设置页由原生桌面承载；保留独立图标和原名，只适配启动目标。 */
@@ -324,3 +440,40 @@ class AppCatalogImpl(
         const val BUILTIN_ICON_PACK_ID = "builtin"
     }
 }
+
+/** 把目录快照映射为「包名/Activity」键集合，供快照稳定性比较。 */
+internal fun catalogKeys(snapshot: List<InstalledApp>): Set<String> =
+    snapshot.mapTo(LinkedHashSet()) { "${it.packageName}/${it.activityName.orEmpty()}" }
+
+/**
+ * 判断目录快照是否已稳定。
+ *
+ * 参数 previous 为上一轮入口键集合，首次刷新时为 null；current 为本轮集合。
+ * 本轮集合非空且与上一轮完全一致时返回 true，表示可以据此判定入口键归属。
+ */
+internal fun isStableCatalog(
+    previous: Set<String>?,
+    current: Set<String>,
+): Boolean = current.isNotEmpty() && current == previous
+
+/** 旧入口键解析要求的最短等待窗口，单位为毫秒。 */
+internal const val LEGACY_MIGRATION_SETTLE_MS = 2500L
+
+/**
+ * 判定本轮是否应当执行旧包级入口键解析。
+ *
+ * 参数 previous 为上一轮入口键集合；current 为本轮集合；hasConfig 表示配置仓库已装配；
+ * elapsedSinceFirstRefreshMs 为本轮距首次刷新的时长，默认按最短等待窗口比较。
+ * 配置已装配、连续两轮一致且已越过等待窗口时才返回 true：前几轮可能同属不完整阶段，
+ * 只有等待窗口内的稳定快照才足以判定入口键归属。
+ */
+internal fun shouldMigrateLegacyKeys(
+    previous: Set<String>?,
+    current: Set<String>,
+    hasConfig: Boolean,
+    elapsedSinceFirstRefreshMs: Long,
+    settleMs: Long = LEGACY_MIGRATION_SETTLE_MS,
+): Boolean =
+    hasConfig &&
+        isStableCatalog(previous, current) &&
+        elapsedSinceFirstRefreshMs >= settleMs

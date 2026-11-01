@@ -181,7 +181,7 @@ class ContentSourceImpl(
     }
 
     /** 仅取已落盘的索引，不触发联网，供书架展示和升级承接。 */
-    internal fun storedWereadShelf(): List<WereadShelfItem> = kernelWeread.shelf(SHELF_CACHE_LIMIT)
+    internal fun storedWereadShelf(): List<WereadShelfItem> = kernelWeread.shelf(0)
 
     /** 本地用户书架刷新不吞掉目录/权限错误，不把旧列表当作扫描成功。 */
     internal suspend fun refreshLocalDisplayShelf(): List<BookItem> {

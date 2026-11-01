@@ -185,6 +185,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
     private var refreshingHost: (() -> Boolean)? = null
     private var landscapeFrame: Boolean = false
     private var portraitRefreshArea = RectF()
+    private var contentFrame = MonthContentFrame(0)
 
     /** 最近一次渲染的形态编号，用于按形态选择滚动目标。 */
     private var lastForm: Int = FORM_NONE
@@ -261,7 +262,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
         override fun hitTest(
             x: Float,
             y: Float,
-        ): Int = state?.hitTest(x, y) ?: HIT_NONE
+        ): Int = contentHitTest(x, y)
 
         /** 转交内核动作处理。 */
         override fun onAction(action: Int) {
@@ -336,8 +337,9 @@ internal class KernelWereadBoard : WereadBoardKernel {
         val cardState = state ?: return
         val form = formOf(formId)
         landscapeFrame = landscapeHost?.invoke() == true && form != CardKernel.FORM_BOOK
+        contentFrame = MonthContentFrame(width, !landscapeFrame && form == CardKernel.FORM_MONTH)
         surface.target = canvas
-        surface.frameWidth = width
+        surface.frameWidth = contentFrame.width
         surface.frameHeight = height
         val appearance = filler?.appearance() ?: WereadAppearance()
         rendering = true
@@ -354,11 +356,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
                     refreshingHost?.invoke() == true,
                 )
             } else {
-                portraitRefreshArea = portraitRefreshBounds(width, height, cardState.titleText())
-                val saved = canvas.save()
-                if (form == CardKernel.FORM_TODO) canvas.clipOutRect(portraitRefreshArea)
-                cardKernel.render(cardState, form)
-                canvas.restoreToCount(saved)
+                renderPortrait(canvas, height, cardState, cardKernel, form)
             }
         } finally {
             rendering = false
@@ -368,6 +366,27 @@ internal class KernelWereadBoard : WereadBoardKernel {
         noteScrollMaxCache = cardState.noteScrollMax()
         noteViewHCache = cardState.noteViewH()
         monthScrollMaxCache = cardState.monthScrollMax()
+    }
+
+    private fun renderPortrait(
+        canvas: Canvas,
+        height: Int,
+        cardState: CardState,
+        cardKernel: CardKernel,
+        form: Int,
+    ) {
+        portraitRefreshArea = portraitRefreshBounds(contentFrame.width, height, cardState.titleText())
+        val saved = canvas.save()
+        try {
+            if (contentFrame.offsetX != 0f) {
+                canvas.translate(contentFrame.offsetX, 0f)
+                canvas.clipRect(0f, 0f, contentFrame.width.toFloat(), height.toFloat())
+            }
+            if (form == CardKernel.FORM_TODO) canvas.clipOutRect(portraitRefreshArea)
+            cardKernel.render(cardState, form)
+        } finally {
+            canvas.restoreToCount(saved)
+        }
     }
 
     /**
@@ -390,8 +409,16 @@ internal class KernelWereadBoard : WereadBoardKernel {
         x: Float,
         y: Float,
     ): Int {
-        val cardState = state ?: return HIT_NONE
-        return if (landscapeFrame) landscapeLayout.hitTest(x, y) else cardState.hitTest(x, y)
+        if (state == null) return HIT_NONE
+        return if (landscapeFrame) landscapeLayout.hitTest(x, y) else contentHitTest(x, y)
+    }
+
+    private fun contentHitTest(
+        x: Float,
+        y: Float,
+    ): Int {
+        val localX = contentFrame.localX(x) ?: return HIT_NONE
+        return state?.hitTest(localX, y) ?: HIT_NONE
     }
 
     /**
@@ -493,7 +520,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
 
             else -> Unit
         }
-        return zones
+        return if (contentFrame.offsetX == 0f) zones else zones.map { it.copy(x = it.x + contentFrame.offsetX) }
     }
 
     /**

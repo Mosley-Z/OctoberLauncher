@@ -16,17 +16,17 @@ import org.junit.Test
  */
 class KernelShelfSortTest {
     @Test
-    fun carouselUsesOnlyTenMostRecentBooksWithoutTruncatingShelf() {
+    fun carouselUsesOnlyFiveMostRecentBooksWithoutTruncatingShelf() {
         val ids = (1..15).map { "book-$it" }
         val shelf = snapshot(*ids.toTypedArray())
         val recent = recentCarouselBooks(shelf, ids.mapIndexed { i, id -> id to (i + 1L) }.toMap())
-        assertEquals(ids.reversed().take(10), recent.map { it.bookId })
+        assertEquals(ids.reversed().take(5), recent.map { it.bookId })
         assertEquals(15, shelf.books.size)
         assertEquals(ids, shelf.books.map { it.bookId })
     }
 
     @Test
-    fun carouselKeepsActualCountWhenFewerThanTenBooksExist() {
+    fun carouselKeepsActualCountWhenFewerThanFiveBooksExist() {
         assertTrue(recentCarouselBooks(snapshot(), emptyMap()).isEmpty())
         assertEquals(1, recentCarouselBooks(snapshot("one"), emptyMap()).size)
         assertEquals(2, recentCarouselBooks(snapshot("one", "two"), emptyMap()).size)

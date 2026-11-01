@@ -30,6 +30,8 @@ internal class DeskTouchDispatcher(
 ) {
     /** UI 只读取最近完成帧的轻量状态，内核命中和动作由宿主串行排队。 */
     internal interface Host {
+        fun padAllowsParentScroll(): Boolean = false
+
         fun padIsOpen(): Boolean
 
         fun sectionCanScroll(): Boolean
@@ -97,9 +99,9 @@ internal class DeskTouchDispatcher(
         downY = event.y
         lastY = event.y
         if (host.padIsOpen()) {
-            // 键盘打开期间不启动长按计时，全部事件交给键盘处理
+            // 完整展开的墨单允许外层滚动；轻点仍交键盘。
             state = State.KEYPAD
-            disallowIntercept(true)
+            disallowIntercept(!host.padAllowsParentScroll())
         } else {
             handler.postDelayed(longPressRunnable, LONG_PRESS_MS)
             state = State.PRESSED
@@ -114,7 +116,16 @@ internal class DeskTouchDispatcher(
         return when (state) {
             State.PRESSED -> beginDrag(event, delta)
             State.SCROLLING -> scrollContent(delta)
-            State.KEYPAD, State.LONG_CONSUMED -> true
+            State.KEYPAD -> {
+                if (host.padAllowsParentScroll() && abs(event.y - downY) > touchSlop) {
+                    state = State.IDLE
+                    disallowIntercept(false)
+                    false
+                } else {
+                    true
+                }
+            }
+            State.LONG_CONSUMED -> true
             State.IDLE -> false
         }
     }

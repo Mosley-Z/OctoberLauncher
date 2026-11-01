@@ -90,6 +90,8 @@ $tmpRoot = Join-Path $root '_ui-out\tmp'
 New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
 $env:TMP = $tmpRoot
 $env:TEMP = $tmpRoot
+# 内嵌 JVM 不一定沿用 TEMP；同时固定图像缓存目录与中文标准输出编码。
+$env:_JAVA_OPTIONS = ($env:_JAVA_OPTIONS + ' -Djava.io.tmpdir="' + $tmpRoot + '" -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8').Trim()
 
 # 输出目录：默认按时间戳在工作区 _ui-out 下新建，避免覆盖上一轮证据
 if (-not $OutDir) {
@@ -165,11 +167,12 @@ function Get-Layout {
     $arguments = 'layout --device=' + (Quote-Arg $script:DeviceSerial)
     if ($Full) { $arguments += ' --full' }
     if ($NoIdle) { $arguments += ' --no-idle' }
-    $arguments += ' -o ' + (Quote-Arg $jsonFile)
-    Invoke-Cli $arguments | Out-Null
-    if (-not (Test-Path -LiteralPath $jsonFile)) { throw "layout 未写出 JSON：$jsonFile" }
-    $raw = Get-Content -LiteralPath $jsonFile -Raw -Encoding UTF8
-    return $raw | ConvertFrom-Json
+    # CLI 返回标准输出，由宿主保存，避免 CLI 子进程无法写输出目录。
+    $raw = Invoke-Cli $arguments
+    if ([string]::IsNullOrWhiteSpace($raw)) { throw "layout 未返回 JSON" }
+    $layout = $raw | ConvertFrom-Json
+    Set-Content -LiteralPath $jsonFile -Value $raw -Encoding UTF8
+    return $layout
 }
 
 # 递归展开节点：默认模式子节点键为 content，--full 模式为 children

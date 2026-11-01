@@ -87,7 +87,7 @@ class WereadSectionsTest {
     /** 进度超出 0 到 1 时夹取后显示百分比。 */
     @Test
     fun `进度文案夹取`() {
-        assertEquals("已读 0%", WereadSectionLogic.progressText(-0.2f))
+        assertEquals("进度未知", WereadSectionLogic.progressText(-0.2f))
         assertEquals("已读 45%", WereadSectionLogic.progressText(0.456f))
         assertEquals("已读 100%", WereadSectionLogic.progressText(1.6f))
     }

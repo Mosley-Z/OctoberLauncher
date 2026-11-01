@@ -8,6 +8,7 @@ import java.util.List;
 
 /** Runs against real Android org.json via app_process; uses synthetic notes only. */
 public final class KernelNotesCacheProbe {
+    public static android.graphics.Picture lastBillPicture;
     private static final class HiddenHost implements DeskHost {
         private final String hidden;
         HiddenHost(String hidden) { this.hidden = hidden; }
@@ -98,9 +99,70 @@ public final class KernelNotesCacheProbe {
         page.padPress(com.inkread.weekread.kernel.desk.PricePad.PK_CANCEL);
         page.render(canvas, 480, 800, 0);
         check(!page.padOpen(), "price pad cancellation");
+        verifyFullBillPicture(page, section, bill, pad, top);
         bitmap.recycle();
         page.release();
         System.out.println("PASS desk interaction render regression: 8 assertions");
+    }
+
+    private static void verifyFullBillPicture(
+            com.inkread.weekread.kernel.desk.DeskPage page, Object section,
+            com.inkread.weekread.kernel.model.BillSheet bill,
+            com.inkread.weekread.kernel.desk.PricePad pad, float top) throws Exception {
+        bill.items.clear();
+        for (int i = 0; i < 500; i++) {
+            com.inkread.weekread.kernel.BillItem row = new com.inkread.weekread.kernel.BillItem();
+            row.bookId = "picture-" + i; row.title = "Synthetic row " + i; row.author = "Test";
+            row.readTimeSec = 3600; row.marketPriceFen = 1000;
+            bill.items.add(row);
+        }
+        set(section, "view", com.inkread.weekread.kernel.desk.DeskPrefs.VIEW_READING);
+        java.lang.reflect.Method invalidate = section.getClass().getDeclaredMethod("invalidateRows");
+        invalidate.setAccessible(true);
+        invalidate.invoke(section);
+        int total = page.height(480);
+        int body = (int) Math.ceil(total - top);
+        check(body > 8192, "long bill exceeds old bitmap limit");
+        android.graphics.Picture picture = new android.graphics.Picture();
+        android.graphics.Canvas recording = picture.beginRecording(480, body);
+        try {
+            recording.translate(0, -top);
+            page.render(recording, 480, total, 0);
+        } finally { picture.endRecording(); }
+        lastBillPicture = picture;
+        check(picture.getHeight() == body, "picture retains full bill height");
+        android.graphics.Bitmap tail = android.graphics.Bitmap.createBitmap(480, 800, android.graphics.Bitmap.Config.ARGB_8888);
+        tail.eraseColor(android.graphics.Color.WHITE);
+        android.graphics.Canvas tailCanvas = new android.graphics.Canvas(tail);
+        tailCanvas.translate(0, -(body - 800));
+        tailCanvas.drawPicture(picture);
+        int ink = 0;
+        for (int y = 0; y < 800; y++) for (int x = 0; x < 480; x++) {
+            if (tail.getPixel(x, y) != android.graphics.Color.WHITE) ink++;
+        }
+        check(ink > 100, "picture plays bill beyond 8192px");
+        tail.recycle();
+        pad.open("picture-0", "Synthetic", 1000);
+        int padTotal = page.height(480);
+        android.graphics.RectF bounds = pad.panel(480f, padTotal, 1.2f);
+        android.graphics.Picture withPad = new android.graphics.Picture();
+        android.graphics.Canvas padCanvas = withPad.beginRecording(480, (int) Math.ceil(padTotal - top));
+        try {
+            padCanvas.translate(0, -top);
+            page.render(padCanvas, 480, padTotal, 0);
+        } finally { withPad.endRecording(); }
+        check(page.padOpen(), "picture preserves open pad");
+        check(Math.abs(bounds.height() - pad.panelHeight(1.2f)) < 1f, "actual panel geometry");
+        boolean cancelFound = false;
+        for (int y = (int) bounds.top; y <= (int) bounds.bottom; y += 2) {
+            for (int x = (int) bounds.left; x <= (int) bounds.right; x += 2) {
+                if (page.hitPad(x, y) == com.inkread.weekread.kernel.desk.PricePad.PK_CANCEL) cancelFound = true;
+            }
+        }
+        check(cancelFound, "full-height pad cancellation hit");
+        page.padPress(com.inkread.weekread.kernel.desk.PricePad.PK_CANCEL);
+        check(!page.padOpen(), "long bill pad cancels");
+        System.out.println("PASS full-height Picture and pad geometry: height=" + body + " tailInk=" + ink);
     }
 
     public static void main(String[] args) throws Exception {

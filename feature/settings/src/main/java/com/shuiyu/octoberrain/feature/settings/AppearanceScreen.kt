@@ -78,7 +78,7 @@ class AppearanceScreen : SettingsBaseScreen("外观与个性化") {
     /** 更换壁纸：调用系统文件选择器，选中后写入外观配置。 */
     private fun pickWallpaper() {
         val context = contextOrNull() ?: return
-        SettingsUi.pickFile(context, "选择壁纸", IMAGE_MIME_TYPES, IMAGE_EXTENSIONS) { uri ->
+        SettingsUi.pickFile(context, "选择壁纸", IMAGE_MIME_TYPES, IMAGE_EXTENSIONS, forImport = true) { uri ->
             applyWallpaper(uri)
         }
     }

@@ -1,0 +1,9 @@
+gradle.beforeProject { project ->
+    if (project.path == ':feature:widgets') {
+        project.plugins.withId('com.android.library') {
+            def android = project.extensions.getByName('android')
+            android.defaultConfig.testApplicationId = 'com.shuiyu.octoberrain.perf005.test'
+            android.defaultConfig.testInstrumentationRunner = 'com.shuiyu.octoberrain.feature.widgets.Perf005Runner'
+        }
+    }
+}

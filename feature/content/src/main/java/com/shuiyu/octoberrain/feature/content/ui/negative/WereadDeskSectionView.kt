@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Picture
+import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +20,7 @@ import com.inkread.weekread.kernel.desk.DeskData
 import com.inkread.weekread.kernel.desk.DeskPage
 import com.inkread.weekread.kernel.desk.DeskRenderer
 import com.inkread.weekread.kernel.desk.DeskStyle
+import com.inkread.weekread.kernel.desk.PricePad
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.Destination
 import com.shuiyu.octoberrain.core.common.NegativeHost
@@ -32,7 +35,7 @@ import java.util.concurrent.Executors
 import kotlin.math.ceil
 
 /**
- * 墨台分区视图。每个分区用一个串行工作队列拥有内核页面，UI 只展示已完成的位图与状态快照。
+ * 墨台分区视图。每个分区用一个串行工作队列拥有内核页面，UI 只展示已完成的绘制帧与状态快照。
  * 构造、命中、编辑、排版与绘制不接触主线程；重载和销毁以代次隔离旧任务结果。
  */
 @Suppress("TooManyFunctions")
@@ -248,7 +251,7 @@ internal class WereadDeskSectionView(
                 mainHandler.post {
                     if (!valid(state, token) || rendered?.width != requestedWidth) {
                         rendered?.bitmap?.recycle()
-                    } else if (rendered != null) {
+                    } else {
                         val previous = frame?.bitmap
                         applyFrame(rendered)
                         runCatching {
@@ -270,13 +273,20 @@ internal class WereadDeskSectionView(
         page: DeskPage,
         width: Int,
         state: WorkerState,
-    ): SectionFrame? {
-        if (width <= 0) return null
+    ): SectionFrame? = if (width <= 0) null else renderSizedFrame(page, width, state)
+
+    private fun renderSizedFrame(
+        page: DeskPage,
+        width: Int,
+        state: WorkerState,
+    ): SectionFrame {
         val unit = deskHost.host.scale()
         val header = contentOffset(unit)
         val total = page.height(width).toFloat()
         val blank = (moduleId != MODULE_BILL && isEmptyData(page.data())) || total <= header
-        // 指纹交给外层滚动；墨单使用宿主位移，资产使用内核滚动。
+        // 墨单记录绘制指令并完整展开，避免为长列表分配整张位图。
+        if (moduleId == MODULE_BILL && !blank) return renderBillFrame(page, width, total, header, unit, state)
+        // 指纹交给外层滚动；完整阅读资产使用内核滚动。
         val cap =
             if (moduleId == MODULE_FP) {
                 MAX_CACHE_HEIGHT_PX.toFloat()
@@ -284,8 +294,6 @@ internal class WereadDeskSectionView(
                 MAX_SECTION_HEIGHT_DP * resources.displayMetrics.density
             }
         val height = if (blank) MIN_SECTION_HEIGHT_DP * unit else (total - header).coerceIn(1f, cap)
-        state.billScrollMax = if (moduleId == MODULE_BILL) (total - header - height).coerceAtLeast(0f) else 0f
-        state.billScroll = state.billScroll.coerceIn(0f, state.billScrollMax)
         val pixels = ceil(height).toInt().coerceIn(1, MAX_CACHE_HEIGHT_PX)
         val spare = state.spare?.takeUnless { it.isRecycled }
         state.spare = null
@@ -303,22 +311,63 @@ internal class WereadDeskSectionView(
             if (bitmap != null) {
                 val canvas = Canvas(bitmap)
                 canvas.translate(0f, -header)
-                page.render(canvas, width, ceil(height + header).toInt().coerceAtLeast(1), state.billScroll.toInt())
+                page.render(canvas, width, ceil(height + header).toInt().coerceAtLeast(1), 0)
             }
             SectionFrame(
                 bitmap,
+                null,
                 width,
                 height,
                 header,
                 blank,
                 page.padOpen(),
-                page.canScroll() || state.billScrollMax > 0f,
+                moduleId == MODULE_RANK && page.canScroll(),
                 state.assetNotice,
             )
         }.onFailure { bitmap?.recycle() }.getOrThrow()
     }
 
+    private fun renderBillFrame(
+        page: DeskPage,
+        width: Int,
+        total: Float,
+        header: Float,
+        unit: Float,
+        state: WorkerState,
+    ): SectionFrame {
+        val height = (total - header).coerceAtLeast(1f)
+        val picture = Picture()
+        val canvas = picture.beginRecording(width, ceil(height).toInt().coerceAtLeast(1))
+        try {
+            canvas.translate(0f, -header)
+            page.render(canvas, width, ceil(total).toInt().coerceAtLeast(1), 0)
+        } finally {
+            picture.endRecording()
+        }
+        val padBounds =
+            if (page.padOpen()) {
+                val panel = PricePad().panel(width.toFloat(), total, unit)
+                panel.offset(0f, -header)
+                Rect().also(panel::roundOut)
+            } else {
+                null
+            }
+        return SectionFrame(
+            null,
+            picture,
+            width,
+            height,
+            header,
+            false,
+            page.padOpen(),
+            false,
+            state.assetNotice,
+            padBounds,
+        )
+    }
+
     private fun applyFrame(next: SectionFrame) {
+        val newlyOpened = next.padOpen && frame?.padOpen != true
         frame = next
         assetControls?.notice?.apply {
             text = next.assetNotice.orEmpty()
@@ -332,6 +381,13 @@ internal class WereadDeskSectionView(
         canvasView.requestLayout()
         requestLayout()
         canvasView.invalidate()
+        if (newlyOpened) {
+            canvasView.post {
+                if (frame === next && next.padOpen) {
+                    next.padBounds?.let { canvasView.requestRectangleOnScreen(it, true) }
+                }
+            }
+        }
     }
 
     private fun isEmptyData(data: DeskData): Boolean =
@@ -341,6 +397,8 @@ internal class WereadDeskSectionView(
             MODULE_FP -> data.fpBooks().isEmpty()
             else -> false
         }
+
+    override fun padAllowsParentScroll(): Boolean = moduleId == MODULE_BILL
 
     override fun padIsOpen(): Boolean = frame?.padOpen == true
 
@@ -417,7 +475,7 @@ internal class WereadDeskSectionView(
 
     /** 合并拖动位移，避免快速滑动把工作队列塞满。 */
     override fun scrollBy(delta: Float) {
-        if (released) return
+        if (released || moduleId != MODULE_RANK) return
         val state = worker
         synchronized(state) {
             state.scrollDelta += delta
@@ -432,11 +490,7 @@ internal class WereadDeskSectionView(
                         queuedState.scrollQueued = false
                     }
                 }
-            if (moduleId == MODULE_BILL) {
-                queuedState.billScroll = (queuedState.billScroll + amount).coerceIn(0f, queuedState.billScrollMax)
-            } else {
-                page.scrollBy(amount)
-            }
+            page.scrollBy(amount)
             requestFrame(queuedState, token)
         }
     }
@@ -576,7 +630,7 @@ internal class WereadDeskSectionView(
         canvasView.invalidate()
     }
 
-    /** UI 帧只画已完成位图，键盘和拖动时也不调用内核。 */
+    /** UI 只播放已完成帧，键盘和拖动时也不调用内核。 */
     private inner class SectionCanvas(
         context: Context,
     ) : View(context) {
@@ -597,6 +651,7 @@ internal class WereadDeskSectionView(
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
+            frame?.picture?.let { canvas.drawPicture(it) }
             frame?.bitmap?.takeUnless { it.isRecycled }?.let { canvas.drawBitmap(it, 0f, 0f, null) }
             drawTip(canvas)
         }
@@ -606,8 +661,6 @@ internal class WereadDeskSectionView(
     }
 
     private class WorkerState {
-        var billScroll = 0f
-        var billScrollMax = 0f
         var assetNotice: String? = null
         val executor: ExecutorService =
             Executors.newSingleThreadExecutor { runnable ->
@@ -622,6 +675,7 @@ internal class WereadDeskSectionView(
 
     private data class SectionFrame(
         val bitmap: Bitmap?,
+        val picture: Picture?,
         val width: Int,
         val height: Float,
         val header: Float,
@@ -629,6 +683,7 @@ internal class WereadDeskSectionView(
         val padOpen: Boolean,
         val canScroll: Boolean,
         val assetNotice: String?,
+        val padBounds: Rect? = null,
     )
 
     /**
@@ -702,7 +757,7 @@ internal class WereadDeskSectionView(
         /** 分区最小高度，单位为 dp。 */
         const val MIN_SECTION_HEIGHT_DP: Float = 48f
 
-        /** 分区最大可视高度，超出部分在分区内滚动，单位为 dp。 */
+        /** 阅读资产最大可视高度，超出部分在分区内滚动，单位为 dp。 */
         const val MAX_SECTION_HEIGHT_DP: Float = 320f
 
         /** 原版指纹纸张尺寸，避免非等比拉伸指纹字形。 */
@@ -735,7 +790,7 @@ internal class WereadDeskSectionView(
         /** 后台加载墨台页面使用的线程名。 */
         const val LOAD_THREAD_NAME: String = "weread-desk-section"
 
-        /** 分区位图缓存的最高像素高度，超出时退化为占用前先渲染的路径以控制内存。 */
+        /** 位图分区缓存的最高像素高度；完整墨单使用 Picture，不受此限。 */
         const val MAX_CACHE_HEIGHT_PX: Int = 8192
 
         /** 长按提示条的停留时长，单位为毫秒。 */

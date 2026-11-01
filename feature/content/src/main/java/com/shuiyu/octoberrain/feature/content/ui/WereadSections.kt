@@ -102,6 +102,7 @@ internal object WereadSectionLogic {
      * @param progress 进度，取值 0 到 1，超出范围时夹取
      */
     fun progressText(progress: Float): String {
+        if (progress < 0f) return "进度未知"
         val percent = (progress.coerceIn(0f, 1f) * 100f).toInt()
         return "已读 $percent%"
     }

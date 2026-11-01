@@ -7,6 +7,37 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DesktopPageConfigTest {
+    @Test fun imageCollectionsRoundTripAndStayOnTheirPage() {
+        val homeImages = listOf(WidgetImageSelection("home", "source-home"))
+        val pageImages = listOf(WidgetImageSelection("second", "source-2"), WidgetImageSelection("third"))
+        val config =
+            DesktopConfig(widgetId = "image", widgetImages = homeImages)
+                .editWidgetPage(1) { it.copy(widgetImages = pageImages) }
+        val restored = Json.decodeFromString<DesktopConfig>(Json.encodeToString(config))
+        assertEquals(homeImages, restored.widgetImages)
+        assertEquals(pageImages, restored.forWidgetPage(1).widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), restored.forWidgetPage(2).widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), Json.decodeFromString<DesktopConfig>("{}").widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), Json.decodeFromString<PageWidgetConfig>("{}").widgetImages)
+        val cleared = restored.editWidgetPage(1) { it.copy(widgetImages = emptyList()) }
+        assertEquals(homeImages, cleared.widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), cleared.forWidgetPage(1).widgetImages)
+    }
+
+    @Test fun imageSourceIsPairedPerPageAndLegacyIsUnknown() {
+        val home =
+            DesktopConfig(widgetId = "image", widgetImagePath = "home", widgetImageSourceUri = "file:///DCIM/home.jpg")
+        val edited =
+            home.editWidgetPage(1) {
+                it.copy(widgetImagePath = "page", widgetImageSourceUri = "content://images/2")
+            }
+        val restored = Json.decodeFromString<DesktopConfig>(Json.encodeToString(edited))
+        assertEquals("file:///DCIM/home.jpg", restored.widgetImageSourceUri)
+        assertEquals("content://images/2", restored.forWidgetPage(1).widgetImageSourceUri)
+        assertNull(Json.decodeFromString<DesktopConfig>("{}").widgetImageSourceUri)
+        assertNull(Json.decodeFromString<PageWidgetConfig>("{}").widgetImageSourceUri)
+    }
+
     @Test fun `device defaults and per direction overrides preserve legacy manual values`() {
         val automatic = DesktopConfig()
         assertEquals(1, automatic.firstGridRows(false, "P4"))

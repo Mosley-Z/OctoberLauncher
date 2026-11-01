@@ -83,7 +83,14 @@ internal fun BeautifyScreen.loadEntryIcon(
                     .getOrNull()
                     ?: runCatching {
                         if (entry.isApp) {
-                            entry.packageName?.let { AppServices.catalog.loadIcon(it, sizePx) }
+                            // 组件入口按 Activity 取图标，组件级图标缺失时由目录回退到包级图标。
+                            val packageName = entry.packageName
+                            val activityName = entry.activityName
+                            if (packageName != null && activityName != null) {
+                                AppServices.catalog.loadActivityIcon(activityName, packageName, sizePx)
+                            } else {
+                                packageName?.let { AppServices.catalog.loadIcon(it, sizePx) }
+                            }
                         } else {
                             entry.special?.let { AppServices.catalog.loadSpecialIcon(it, sizePx) }
                         }

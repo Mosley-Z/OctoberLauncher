@@ -34,7 +34,8 @@ class WereadBoardContentTest {
     /** 进度百分数截断到 0 到 100。 */
     @Test
     fun progressClampsRange() {
-        assertEquals("已读 0%", readingProgressText(-1))
+        assertEquals("进度未知", readingProgressText(-1))
+        assertEquals("已读 0%", readingProgressText(0))
         assertEquals("已读 100%", readingProgressText(101))
         assertEquals("已读 1%", readingProgressText(1))
     }

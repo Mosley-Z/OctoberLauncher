@@ -23,6 +23,12 @@ object HostFilePicker : FilePicker {
     /** 选择目录的请求码。 */
     const val REQUEST_TREE = 0x0F03
 
+    /** 即刻导入文件的请求码。 */
+    const val REQUEST_IMPORT = 0x0F04
+    const val REQUEST_IMPORT_MULTIPLE = 0x0F05
+
+    private var pendingMultiple: ((List<Uri>) -> Unit)? = null
+
     /** 当前挂接的宿主 Activity，弱引用避免占用界面生命周期。 */
     private var activityRef: WeakReference<Activity>? = null
 
@@ -38,6 +44,7 @@ object HostFilePicker : FilePicker {
     fun detach() {
         activityRef = null
         pending = null
+        pendingMultiple = null
     }
 
     /**
@@ -61,8 +68,41 @@ object HostFilePicker : FilePicker {
         return launch(REQUEST_PICK, intent, onPicked)
     }
 
+    /** 使用临时读取授权，选中后由调用方立即复制到私有目录。 */
+    override fun pickForImport(
+        mimeTypes: Array<String>,
+        onPicked: (Uri?) -> Unit,
+    ): Boolean {
+        val intent =
+            Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mimeTypes.firstOrNull() ?: "*/*"
+                if (mimeTypes.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        return launch(REQUEST_IMPORT, intent, onPicked)
+    }
+
+    override fun pickMultipleForImport(
+        mimeTypes: Array<String>,
+        onPicked: (List<Uri>) -> Unit,
+    ): Boolean {
+        val intent =
+            Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mimeTypes.firstOrNull() ?: "*/*"
+                if (mimeTypes.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        pendingMultiple = onPicked
+        val opened = launch(REQUEST_IMPORT_MULTIPLE, intent) { }
+        if (!opened) pendingMultiple = null
+        return opened
+    }
+
     /**
-     * 启动保存位置选择。
+     * 启动保存位置选择.
      *
      * @param fileName 建议文件名。
      * @param mimeType 保存类型。
@@ -105,19 +145,63 @@ object HostFilePicker : FilePicker {
         resultCode: Int,
         data: Intent?,
     ): Boolean {
-        if (requestCode != REQUEST_PICK && requestCode != REQUEST_SAVE && requestCode != REQUEST_TREE) {
+        if (requestCode == REQUEST_IMPORT_MULTIPLE) {
+            val callback = pendingMultiple
+            pendingMultiple = null
+            pending = null
+            val clips = data?.clipData
+            val uris =
+                if (resultCode == Activity.RESULT_OK) {
+                    orderedImportSelection(
+                        (0 until (clips?.itemCount ?: 0)).mapNotNull { clips?.getItemAt(it)?.uri },
+                        data?.data,
+                    )
+                } else {
+                    emptyList()
+                }
+            callback?.invoke(uris)
+        } else {
+            return handleSingleResult(requestCode, resultCode, data)
+        }
+        return true
+    }
+
+    private fun handleSingleResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ): Boolean {
+        if (requestCode !in intArrayOf(REQUEST_PICK, REQUEST_SAVE, REQUEST_TREE, REQUEST_IMPORT)) {
             return false
         }
-        val uri = if (resultCode == Activity.RESULT_OK) data?.data else null
-        if (requestCode == REQUEST_PICK && uri != null && data != null) {
+        val uri =
+            if (resultCode == Activity.RESULT_OK) {
+                data?.data ?: data
+                    ?.clipData
+                    ?.takeIf { it.itemCount == 1 }
+                    ?.getItemAt(0)
+                    ?.uri
+            } else {
+                null
+            }
+        val persistableRequest = requestCode == REQUEST_PICK || requestCode == REQUEST_TREE
+        if (persistableRequest && uri != null && data != null) {
             val flags = data.flags
             val persistent = flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0
-            val readable = flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
-            if (persistent && readable) {
+            val allowed = flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            val takeFlags =
+                if (requestCode ==
+                    REQUEST_PICK
+                ) {
+                    allowed and Intent.FLAG_GRANT_READ_URI_PERMISSION
+                } else {
+                    allowed
+                }
+            if (persistent && takeFlags != 0) {
                 runCatching {
                     activityRef?.get()?.contentResolver?.takePersistableUriPermission(
                         uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        takeFlags,
                     )
                 }
             }

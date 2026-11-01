@@ -36,8 +36,10 @@ internal class HomeScreen :
     private var minuteTicker: MinuteTicker? = null
     private var resumed = false
     private var pendingData = true
+    private val notificationRefresh = HomeNotificationRefresh()
     private val widgetResumeRefresh = HomeResumeRefresh()
     private var pausedForVendorSettings = false
+    private var catalogRefresh: HomeCatalogRefresh? = null
 
     /** 创建桌面视图并建立数据订阅。 */
     override fun createView(context: Context): View {
@@ -49,6 +51,12 @@ internal class HomeScreen :
         }
         val job = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         scope = job
+        catalogRefresh =
+            HomeCatalogRefresh(
+                scope = job,
+                migrated = { legacyKeysMigrated() },
+                refresh = { AppServices.catalog.refresh() },
+            )
         // 整分事件交给组件声明决定刷新范围，仅声明按分钟刷新的组件重新取数与重绘。
         minuteTicker = MinuteTicker { home.refreshWidgetByMinute() }
         // 配置与应用目录任一变化都重新组装入口；两者均为 StateFlow，首次订阅即拿到当前值。
@@ -68,7 +76,9 @@ internal class HomeScreen :
         }
         // 通知变化时重绘桌面，使应用角标与未读计数保持同步。
         job.launch {
-            AppServices.notifications.items.collect { home.refreshNow() }
+            AppServices.notifications.items.collect {
+                notificationRefresh.changed(resumed) { home.refreshNow() }
+            }
         }
         // 图标覆盖设置或清除后清空桌面图标内存缓存并局部重绘。
         // StateFlow 本身只在值变化时发射，因此首帧用 drop(1) 跳过订阅时的当前值。
@@ -92,7 +102,7 @@ internal class HomeScreen :
 
     /** 从系统设置返回复用未变化的内容；其他页面返回仍按原策略重读本地内容。 */
     override fun onResume() {
-        val job = scope ?: return
+        if (scope == null) return
         resumed = true
         minuteTicker?.start(immediate = false)
         val home = view
@@ -101,15 +111,21 @@ internal class HomeScreen :
             pendingData = false
         }
         home?.setHostVisible(true)
+        if (home != null) notificationRefresh.resume { home.refreshNow() }
         home?.refreshCurrentWidget(widgetResumeRefresh.resume(pausedForVendorSettings))
         pausedForVendorSettings = false
-        job.launch { runCatching { AppServices.catalog.refresh() } }
+        catalogRefresh?.resume()
     }
+
+    /** 旧入口键解析是否已完成；读取配置失败按未完成处理，由下一轮继续尝试。 */
+    private fun legacyKeysMigrated(): Boolean =
+        runCatching { AppServices.config.state.value.desktop.componentKeyMigrated }.getOrDefault(false)
 
     /** 不可见时延后配置加载，并暂停组件轮播。 */
     override fun onPause() {
         pausedForVendorSettings = VendorSettingsSession.active
         resumed = false
+        catalogRefresh?.pause()
         minuteTicker?.stop()
         view?.setHostVisible(false)
     }
@@ -127,6 +143,10 @@ internal class HomeScreen :
 
     /** 释放订阅、广播、计时器与组件资源。 */
     override fun onDestroy() {
+        notificationRefresh.clear()
+        resumed = false
+        catalogRefresh?.pause()
+        catalogRefresh = null
         minuteTicker?.stop()
         minuteTicker = null
         val context = appContext

@@ -22,17 +22,21 @@ internal object HomeDesktopLayoutProvider : DesktopLayoutProvider {
 
     /** 读取快照：优先返回桌面视图写入的最新结果，缺失时即时推算。 */
     private var cachedConfig: com.shuiyu.octoberrain.core.common.LauncherConfig? = null
+    private var cachedProfile: com.shuiyu.octoberrain.core.device.DeviceProfile? = null
     private var viewportWidth = 0
     private var viewportHeight = 0
 
     override fun snapshot(): DesktopLayoutSnapshot =
-        cached?.takeIf { cachedConfig == AppServices.config.state.value } ?: fallback()
+        cached?.takeIf {
+            cachedConfig == AppServices.config.state.value && cachedProfile == DeviceRuntime.profile
+        } ?: fallback()
 
     override fun preview(config: com.shuiyu.octoberrain.core.common.LauncherConfig): DesktopLayoutSnapshot {
         val tokens = DesignRuntime.tokens
-        val width = viewportWidth.takeIf { it > 0 } ?: DeviceRuntime.profile.widthPx
+        val width =
+            viewportWidth.takeIf { it > 0 && cachedProfile == DeviceRuntime.profile } ?: DeviceRuntime.profile.widthPx
         val height =
-            viewportHeight.takeIf { it > 0 }
+            viewportHeight.takeIf { it > 0 && cachedProfile == DeviceRuntime.profile }
                 ?: (DeviceRuntime.profile.heightPx - tokens.statusBarHeight)
         val entries = DesktopEntries.build(AppServices.catalog.apps.value, config.desktop)
         return build(DesktopMetrics.compute(width, height, config), entries)
@@ -50,6 +54,7 @@ internal object HomeDesktopLayoutProvider : DesktopLayoutProvider {
     ) {
         cached = build(metrics, entries)
         cachedConfig = AppServices.config.state.value
+        cachedProfile = DeviceRuntime.profile
         viewportWidth = metrics.viewportWidth.takeIf { it > 0 } ?: (metrics.left + metrics.right)
         viewportHeight = metrics.viewportHeight.takeIf { it > 0 }
             ?: (

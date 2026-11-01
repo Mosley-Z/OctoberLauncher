@@ -2,6 +2,7 @@ package com.shuiyu.octoberrain.core.data
 
 import com.shuiyu.octoberrain.core.common.DEFAULT_HIDDEN_PACKAGES
 import com.shuiyu.octoberrain.core.common.DEFAULT_NEGATIVE_MODULES
+import com.shuiyu.octoberrain.core.common.FolderRules
 import com.shuiyu.octoberrain.core.common.IntegrationsConfig
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.NEGATIVE_MODULE_ID_ALIASES
@@ -128,6 +129,7 @@ object ConfigMigration {
         }
         migrated = DesktopLayoutMigration.migrate(migrated, desktopLayoutFields)
         migrated = FilesEntryMigration.migrate(migrated)
+        migrated = migrated.copy(desktop = FolderRules.normalize(migrated.desktop))
         migrated = RetiredIntegrations.sanitize(migrated).copy(version = LauncherConfig.CURRENT_VERSION)
         return if (migrated == config) config else migrated
     }

@@ -158,8 +158,8 @@ internal class DeskOverlayView(
      * @return 进度文案。
      */
     private fun progressText(progress: Float): String {
-        if (progress <= 0f) return PROGRESS_NONE
-        return PROGRESS_PREFIX + (progress * 100).toInt() + "%"
+        if (progress < 0f) return "进度未知"
+        return if (progress == 0f) PROGRESS_NONE else PROGRESS_PREFIX + (progress * 100).toInt() + "%"
     }
 
     private companion object {

@@ -98,6 +98,7 @@ internal data class WereadBoardFrame(
     val infoSize: Float,
     /** 沉浸外层封面继续向外展开，普通组件保持原有收拢几何。 */
     val expandedCoverRings: Boolean = false,
+    val sideCoverWeight: Float = 0f,
 ) {
     companion object {
         /** 书封的默认高宽比，实际绘制按位图比例在给定框内适配。 */
@@ -377,10 +378,14 @@ internal fun coverBoundsOf(
     frame: WereadBoardFrame,
     slot: WereadCoverSlot,
 ): BoardBounds {
-    val scale = WereadBoardCarousel.scaleAt(slot.position)
+    val ring = abs(slot.position)
+    val sideRing = ring.coerceAtMost(2f)
+    val weight = frame.sideCoverWeight
+    val scale =
+        WereadBoardCarousel.scaleAt(slot.position) -
+            weight * (min(sideRing, 1f) * .035f + max(sideRing - 1f, 0f) * .015f)
     val width = frame.coverWidth * scale
     val height = frame.coverHeight * scale
-    val ring = abs(slot.position)
     val offset =
         if (frame.expandedCoverRings) {
             min(ring, 1f) * .40f + max(ring - 1f, 0f) * .32f
@@ -389,11 +394,24 @@ internal fun coverBoundsOf(
         }
     val shift = offset * frame.coverWidth * slot.position.sign
     val centerX = frame.coverCenterX + shift
+    val centerY = frame.coverCenterY + frame.coverHeight * .02f * sideRing * weight
     return BoardBounds(
         left = centerX - width / 2f,
-        top = frame.coverCenterY - height / 2f,
+        top =
+            if (frame.expandedCoverRings) {
+                max(frame.coverArea.top, centerY - height / 2f)
+            } else {
+                centerY -
+                    height / 2f
+            },
         right = centerX + width / 2f,
-        bottom = frame.coverCenterY + height / 2f,
+        bottom =
+            if (frame.expandedCoverRings) {
+                min(frame.coverArea.bottom, centerY + height / 2f)
+            } else {
+                centerY +
+                    height / 2f
+            },
     )
 }
 

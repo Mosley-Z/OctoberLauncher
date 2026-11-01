@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.core.wereadsync
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -28,8 +29,13 @@ class WereadBookSync(
     private var cacheBatchSize = 1
     private var pendingProgress = 0
     private var networkFailed = false
+    private var cacheWriteFailed = false
     val warnings: List<String>
-        get() = if (failures.isEmpty()) emptyList() else listOf("${failures.size} 本书进度暂未取得，已保留缓存或未知状态")
+        get() =
+            buildList {
+                if (failures.isNotEmpty()) add("${failures.size} 本书进度暂未取得，已保留缓存或未知状态")
+                if (cacheWriteFailed) add("阅读进度缓存写入失败")
+            }
 
     private var shelfSnapshot: List<WereadShelfBook>? = null
 
@@ -39,13 +45,19 @@ class WereadBookSync(
         cache.clear()
         cache.putAll(readCache())
         failures.clear()
+        cacheWriteFailed = false
         networkFailed = false
         shelfSnapshot = null
         val response = request.request("/shelf/sync", JsonObject(emptyMap()))
         val books = response?.get("books") as? JsonArray ?: return null
         val parsed = books.mapNotNull { (it as? JsonObject)?.let(::shelfBook) }
-        val current = parsed.filter { it.readUpdateTime > 0 }.maxByOrNull { it.readUpdateTime }
-        if (refreshCurrent) current?.let { fetch(it, force = true) }
+        if (refreshCurrent) {
+            parsed
+                .filter { it.readUpdateTime > 0 }
+                .sortedByDescending { it.readUpdateTime }
+                .take(10)
+                .forEachIndexed { index, book -> fetch(book, force = index == 0) }
+        }
         shelfSnapshot = parsed.map(::enrich)
         return shelfSnapshot
     }
@@ -107,6 +119,7 @@ class WereadBookSync(
                 val previous = cache[book.bookId]
                 val unchanged =
                     previous != null &&
+                        previous["timeKnown"]?.jsonPrimitive?.booleanOrNull != false &&
                         previous.long("at") > 0 &&
                         book.readUpdateTime > 0 &&
                         previous.long("readUpdateTime") == book.readUpdateTime &&
@@ -240,6 +253,7 @@ class WereadBookSync(
         val previous = cache[book.bookId]
         val fresh =
             previous != null &&
+                previous["timeKnown"]?.jsonPrimitive?.booleanOrNull != false &&
                 previous.long("at") > 0 &&
                 clock() - previous.long("at") in 0..CACHE_TTL &&
                 previous.long("readUpdateTime") == book.readUpdateTime
@@ -250,17 +264,38 @@ class WereadBookSync(
         book: WereadShelfBook,
         payload: JsonObject,
     ) {
-        val seconds = payload.int("readingTime").takeIf { it > 0 } ?: payload.int("recordReadingTime")
+        val previous = cache[book.bookId]
+        val timeKnown = cumulativeTimeKnown(payload)
+        val seconds =
+            if (timeKnown) {
+                payload.int("readingTime").takeIf { it > 0 } ?: payload.int("recordReadingTime")
+            } else {
+                previous?.int("sec") ?: 0
+            }
         val finish = timestampMillis(payload.long("finishTime"))
-        val progress = payload.int("progress", -1).takeIf { it in 0..100 } ?: -1
+        val progress = payload.int("progress", -1).takeIf { it in 0..100 } ?: previous?.int("pct", -1) ?: -1
         val record =
             buildJsonObject {
                 put("title", book.title)
                 put("author", book.author)
                 put("sec", seconds.coerceAtLeast(0))
                 put("pct", progress)
-                put("fin", if (book.finished || progress == 100) maxOf(finish, book.finishTimeMillis, 1L) else finish)
-                put("at", clock())
+                put(
+                    "fin",
+                    maxOf(
+                        previous?.long("fin") ?: 0L,
+                        finish,
+                        if (book.finished ||
+                            progress == 100
+                        ) {
+                            maxOf(book.finishTimeMillis, 1L)
+                        } else {
+                            0L
+                        },
+                    ),
+                )
+                put("at", if (timeKnown) clock() else previous?.long("at") ?: 0L)
+                put("timeKnown", timeKnown)
                 put("readUpdateTime", book.readUpdateTime)
             }
         cache[book.bookId] = record
@@ -349,16 +384,19 @@ class WereadBookSync(
         runCatching { Json.parseToJsonElement(File(root, name).readText()) as? JsonObject }.getOrNull()
 
     private fun saveCache() {
-        // 独立缓存不含密钥；临时文件替换避免中断损坏上一轮进度。
+        val temporary = File(root, "$CACHE_FILE.${System.nanoTime()}.tmp")
         runCatching {
-            root.mkdirs()
-            val target = File(root, CACHE_FILE)
-            val temporary = File(root, "$CACHE_FILE.tmp")
+            if (!root.exists() && !root.mkdirs()) error("缓存目录创建失败")
             temporary.writeText(JsonObject(cache).toString())
-            if (!temporary.renameTo(target)) {
-                temporary.copyTo(target, overwrite = true)
-                temporary.delete()
-            }
+            java.nio.file.Files.move(
+                temporary.toPath(),
+                File(root, CACHE_FILE).toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+            )
+        }.onFailure {
+            temporary.delete()
+            cacheWriteFailed = true
         }
     }
 

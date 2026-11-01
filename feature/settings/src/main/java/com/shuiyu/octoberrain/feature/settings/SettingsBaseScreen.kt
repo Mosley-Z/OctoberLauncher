@@ -6,6 +6,8 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.design.InkPage
+import com.shuiyu.octoberrain.core.device.DeviceProfile
+import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +35,7 @@ abstract class SettingsBaseScreen(
         private set
 
     private var lastConfig: LauncherConfig? = null
+    private var lastProfile: DeviceProfile? = null
 
     final override fun createView(context: Context): View {
         val view =
@@ -49,22 +52,29 @@ abstract class SettingsBaseScreen(
             }
         }
         page = view
+        view.onDimensionsChanged = {
+            beforeDimensionsRebuild()
+            rebuildLater()
+        }
         val config = AppServices.config.state.value
         build(view, config)
         lastConfig = config
+        lastProfile = DeviceRuntime.profile
         return view
     }
 
     final override fun onResume() {
         val current = page ?: return
         val config = AppServices.config.state.value
-        if (config != lastConfig || needsRebuild()) {
+        if (config != lastConfig || lastProfile != DeviceRuntime.profile || needsRebuild()) {
             rebuild(current, config)
         }
         onResumed()
     }
 
     protected open fun onResumed() = Unit
+
+    protected open fun beforeDimensionsRebuild() = Unit
 
     /** 子类在配置未变化但界面需要重建时返回 true，例如权限状态变化。 */
     protected open fun needsRebuild(): Boolean = false
@@ -91,9 +101,13 @@ abstract class SettingsBaseScreen(
         target: InkPage,
         config: LauncherConfig,
     ) {
+        val oldScroll = target.scrollPosition()
         target.content.removeAllViews()
+        target.refreshDimensions()
         build(target, config)
         lastConfig = config
+        lastProfile = DeviceRuntime.profile
+        target.post { if (page === target) target.restoreScroll(oldScroll) }
         AppServices.refresh.requestPartial()
     }
 
@@ -138,6 +152,7 @@ abstract class SettingsBaseScreen(
 
     override fun onDestroy() {
         scope.cancel()
+        page?.onDimensionsChanged = null
         page = null
     }
 

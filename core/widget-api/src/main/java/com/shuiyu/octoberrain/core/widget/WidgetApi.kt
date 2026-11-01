@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import com.shuiyu.octoberrain.core.common.Capability
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeGeometry
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -195,6 +196,8 @@ interface WidgetDisplayBehavior : WidgetHitRegionSource {
     fun setImmersiveBookMode(enabled: Boolean) {}
 
     fun setImmersiveLandscape(landscape: Boolean) {}
+
+    fun setImmersiveLandscapeGeometry(geometry: ImmersiveLandscapeGeometry?) {}
 }
 
 /** 宿主协议：组件通过它请求重绘与页面跳转。 */
