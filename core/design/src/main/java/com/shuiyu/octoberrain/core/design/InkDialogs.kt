@@ -6,6 +6,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -56,7 +57,14 @@ object InkDialogs {
         sizeDialog(dialog)
     }
 
-    /** 显示文本输入框，用于 PIN 与名称输入。 */
+    /**
+     * 显示文本输入框，用于 PIN 与名称输入。
+     *
+     * 参数 requestIme 为 true 时，窗口显示后主动申请焦点并请求软键盘，
+     * 供重命名一类需要立即输入的中文场景使用；默认关闭以保持安全输入与命名输入的原有行为。
+     * 参数 submit 用于需要写入结果的场景：它接收输入文本并返回是否接受，只有接受时才关闭
+     * 对话框并回调 onDone；返回假则保留对话框与当前输入，由调用方提示后重试。
+     */
     fun input(
         context: Context,
         title: CharSequence,
@@ -64,7 +72,9 @@ object InkDialogs {
         initial: String = "",
         numeric: Boolean = false,
         password: Boolean = false,
-        onDone: (String) -> Unit,
+        requestIme: Boolean = false,
+        submit: ((String) -> Boolean)? = null,
+        onDone: ((String) -> Unit)? = null,
     ) {
         val dialog = baseDialog(context, title, "")
         val body = dialog.findViewById<LinearLayout>(BODY_ID)
@@ -98,15 +108,27 @@ object InkDialogs {
         )
         buttons.addView(
             InkWidgets.button(context, "确定", filled = true) {
-                val text = input.text.toString().trim()
-                dialog.dismiss()
-                onDone(text)
+                // 由 submit 决定是否接受本次输入；被拒绝时保留对话框与文本供重试。
+                submitInput(input.text.toString().trim(), submit, onDone) { dialog.dismiss() }
             },
         )
         body.addView(buttons)
         dialog.show()
         sizeDialog(dialog)
-        input.requestFocus()
+        if (requestIme) {
+            // 窗口已附着后再请求键盘；ADJUST_RESIZE 让内容随键盘上移，避免输入框被遮挡。
+            dialog.window?.setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE,
+            )
+            input.post {
+                input.requestFocus()
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+            }
+        } else {
+            input.requestFocus()
+        }
     }
 
     /** 显示可滚动选择列表。 */
@@ -212,4 +234,23 @@ object InkDialogs {
         window.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
         window.setGravity(Gravity.CENTER)
     }
+}
+
+/**
+ * 处理一次输入提交：先由 [submit] 判定是否接受，接受后才关闭对话框并回调 [onDone]。
+ *
+ * 参数 text 为去除两端空白后的输入；submit 为空表示沿用一次点击即关闭的原有行为。
+ * 返回真表示已关闭对话框，返回假表示提交被拒绝、对话框与输入内容保留供调用方重试。
+ */
+internal fun submitInput(
+    text: String,
+    submit: ((String) -> Boolean)?,
+    onDone: ((String) -> Unit)?,
+    dismiss: () -> Unit,
+): Boolean {
+    val accepted = submit?.invoke(text) ?: true
+    if (!accepted) return false
+    dismiss()
+    onDone?.invoke(text)
+    return true
 }

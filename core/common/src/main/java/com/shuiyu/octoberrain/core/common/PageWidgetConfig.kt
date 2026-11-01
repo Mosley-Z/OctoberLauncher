@@ -4,6 +4,12 @@ package com.shuiyu.octoberrain.core.common
 
 import kotlinx.serialization.Serializable
 
+@Serializable
+data class WidgetImageSelection(
+    val path: String,
+    val sourceUri: String? = null,
+)
+
 /** Persistent page slots are stable while applications flow between them. Page zero uses legacy home settings. */
 @Serializable
 data class PageWidgetConfig(
@@ -16,6 +22,7 @@ data class PageWidgetConfig(
     val wereadBoardPoolMask: Int = WEREAD_BOARD_POOL_DEFAULT,
     val boardForm: Int? = null,
     val widgetImageSourceUri: String? = null,
+    val widgetImages: List<WidgetImageSelection> = emptyList(),
 )
 
 fun DesktopConfig.forWidgetPage(page: Int): DesktopConfig {
@@ -25,6 +32,7 @@ fun DesktopConfig.forWidgetPage(page: Int): DesktopConfig {
         widgetId = slot.widgetId,
         widgetImagePath = slot.widgetImagePath,
         widgetImageSourceUri = slot.widgetImageSourceUri,
+        widgetImages = slot.widgetImages,
         imageCarouselMinutes = slot.imageCarouselMinutes,
         imageSwipeDirection = slot.imageSwipeDirection,
         todoWeekStartDay = slot.todoWeekStartDay,
@@ -57,6 +65,7 @@ fun DesktopConfig.editWidgetPage(
             edited.wereadBoardPoolMask,
             edited.negativePage.forms[WEREAD_BOARD_WIDGET_ID],
             edited.widgetImageSourceUri,
+            edited.widgetImages,
         )
     return copy(pageWidgets = if (slot.widgetId.isBlank()) pageWidgets - page else pageWidgets + (page to slot))
 }

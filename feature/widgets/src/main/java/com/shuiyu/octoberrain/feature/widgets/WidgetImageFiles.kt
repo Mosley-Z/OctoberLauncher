@@ -1,8 +1,10 @@
 package com.shuiyu.octoberrain.feature.widgets
 
+import com.shuiyu.octoberrain.core.common.DesktopConfig
+import com.shuiyu.octoberrain.core.common.WidgetImageSelection
 import java.io.File
 
-/** 私有导入是单图；历史外部目录仍作为轮播来源。 */
+/** 显式图片集合优先；无集合时保留历史单图、私有副本及外部同目录轮播行为。 */
 internal object WidgetImageFiles {
     private val extensions = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif")
 
@@ -33,6 +35,27 @@ internal object WidgetImageFiles {
                 ?.ifEmpty { listOf(current) } ?: listOf(current)
         }
     }
+
+    fun resolveSelection(
+        selections: List<WidgetImageSelection>,
+        legacyPath: String?,
+        legacySource: String?,
+        filesDir: File,
+        missing: (String?) -> Boolean,
+    ): List<File> =
+        if (selections.isNotEmpty()) {
+            selections.filterNot { missing(it.sourceUri) }.map { File(it.path) }.filter { it.isFile }
+        } else if (missing(legacySource)) {
+            emptyList()
+        } else {
+            resolve(legacyPath, filesDir)
+        }
+
+    fun references(desktop: DesktopConfig): List<String> =
+        listOfNotNull(desktop.widgetImagePath) + desktop.widgetImages.map { it.path } +
+            desktop.pageWidgets.values.flatMap { page ->
+                listOfNotNull(page.widgetImagePath) + page.widgetImages.map { it.path }
+            }
 
     fun unusedManaged(
         path: String?,

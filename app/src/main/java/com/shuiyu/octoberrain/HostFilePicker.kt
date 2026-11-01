@@ -25,6 +25,9 @@ object HostFilePicker : FilePicker {
 
     /** 即刻导入文件的请求码。 */
     const val REQUEST_IMPORT = 0x0F04
+    const val REQUEST_IMPORT_MULTIPLE = 0x0F05
+
+    private var pendingMultiple: ((List<Uri>) -> Unit)? = null
 
     /** 当前挂接的宿主 Activity，弱引用避免占用界面生命周期。 */
     private var activityRef: WeakReference<Activity>? = null
@@ -41,6 +44,7 @@ object HostFilePicker : FilePicker {
     fun detach() {
         activityRef = null
         pending = null
+        pendingMultiple = null
     }
 
     /**
@@ -77,6 +81,24 @@ object HostFilePicker : FilePicker {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         return launch(REQUEST_IMPORT, intent, onPicked)
+    }
+
+    override fun pickMultipleForImport(
+        mimeTypes: Array<String>,
+        onPicked: (List<Uri>) -> Unit,
+    ): Boolean {
+        val intent =
+            Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mimeTypes.firstOrNull() ?: "*/*"
+                if (mimeTypes.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        pendingMultiple = onPicked
+        val opened = launch(REQUEST_IMPORT_MULTIPLE, intent) { }
+        if (!opened) pendingMultiple = null
+        return opened
     }
 
     /**
@@ -119,6 +141,32 @@ object HostFilePicker : FilePicker {
 
     /** 转发宿主 Activity 的 onActivityResult，返回 true 表示本对象已消费。 */
     fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ): Boolean {
+        if (requestCode == REQUEST_IMPORT_MULTIPLE) {
+            val callback = pendingMultiple
+            pendingMultiple = null
+            pending = null
+            val clips = data?.clipData
+            val uris =
+                if (resultCode == Activity.RESULT_OK) {
+                    orderedImportSelection(
+                        (0 until (clips?.itemCount ?: 0)).mapNotNull { clips?.getItemAt(it)?.uri },
+                        data?.data,
+                    )
+                } else {
+                    emptyList()
+                }
+            callback?.invoke(uris)
+        } else {
+            return handleSingleResult(requestCode, resultCode, data)
+        }
+        return true
+    }
+
+    private fun handleSingleResult(
         requestCode: Int,
         resultCode: Int,
         data: Intent?,

@@ -1,5 +1,7 @@
 package com.shuiyu.octoberrain.feature.widgets
 
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeBounds
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeGeometry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,6 +13,150 @@ import org.junit.Test
  * 覆盖多种组件尺寸下的分带顺序、字号相对关系、封面适配与点击区域换算。
  */
 class WereadBoardFrameTest {
+    @Test
+    fun enhancedSideCoversPreserveMainAndInterpolateOriginalGeometry() {
+        val original =
+            WereadBoardFrame.of(1680f, 1264f, 0f).copy(
+                coverArea = BoardBounds(400f, 476f, 1410f, 1163f),
+                coverCenterX = 907.5f,
+                coverCenterY = 784f,
+                coverWidth = 425f,
+                coverHeight = 616f,
+                expandedCoverRings = true,
+            )
+        val enhanced = original.copy(sideCoverWeight = 1f)
+        assertEquals(coverBoundsOf(original, WereadCoverSlot(0, 0f)), coverBoundsOf(enhanced, WereadCoverSlot(0, 0f)))
+        listOf(-2f, -1f, 1f, 2f).forEach { position ->
+            val slot = WereadCoverSlot(0, position)
+            val old = coverBoundsOf(original, slot)
+            val target = coverBoundsOf(enhanced, slot)
+            val inner = kotlin.math.abs(position) == 1f
+            assertEquals(425f * if (inner) .845f else .75f, target.width, .001f)
+            assertEquals(if (inner) 536.06f else 577.64f, target.top, .01f)
+            assertEquals(old.centerX, target.centerX, .001f)
+            val half = coverBoundsOf(original.copy(sideCoverWeight = .5f), slot)
+            assertEquals((old.top + target.top) / 2f, half.top, .001f)
+            assertEquals((old.width + target.width) / 2f, half.width, .001f)
+            assertEquals(old, coverBoundsOf(original.copy(sideCoverWeight = 0f), slot))
+        }
+        val slots = listOf(-2f, 2f, -1f, 1f, 0f).mapIndexed { index, position -> WereadCoverSlot(index, position) }
+        val pointX = 1080f
+        val pointY = 700f
+        val frontmost = slots.asReversed().first { coverBoundsOf(enhanced, it).contains(pointX, pointY) }
+        assertEquals(0f, frontmost.position, 0f)
+        val sidePoint = coverBoundsOf(enhanced, slots[3])
+        assertEquals(
+            1f,
+            slots
+                .asReversed()
+                .first {
+                    coverBoundsOf(enhanced, it).contains(sidePoint.right - 1f, sidePoint.centerY)
+                }.position,
+            0f,
+        )
+    }
+
+    @Test
+    fun animatedOuterCoversRetainOriginalHorizontalMovement() {
+        val frames =
+            listOf(720f to 1200f, 1680f to 1264f).flatMap { (width, height) ->
+                val original = WereadBoardFrame.of(width, height, INSET)
+                listOf(false, true).flatMap { expanded ->
+                    listOf(0f, .5f, 1f).map { weight ->
+                        original.copy(expandedCoverRings = expanded, sideCoverWeight = weight)
+                    }
+                }
+            }
+        frames.forEach { frame ->
+            listOf(-3f, -2.5f, 2.5f, 3f).forEach { position ->
+                val ring = kotlin.math.abs(position)
+                val offset =
+                    if (frame.expandedCoverRings) {
+                        minOf(ring, 1f) * .40f + maxOf(ring - 1f, 0f) * .32f
+                    } else {
+                        WereadBoardCarousel.offsetAt(position)
+                    }
+                val center = frame.coverCenterX + offset * frame.coverWidth * kotlin.math.sign(position)
+                val sideRing = ring.coerceAtMost(2f)
+                val scale =
+                    WereadBoardCarousel.scaleAt(position) -
+                        frame.sideCoverWeight * (minOf(sideRing, 1f) * .035f + maxOf(sideRing - 1f, 0f) * .015f)
+                val halfWidth = frame.coverWidth * scale / 2f
+                val bounds = coverBoundsOf(frame, WereadCoverSlot(0, position))
+                assertEquals(center - halfWidth, bounds.left, 0f)
+                assertEquals(center + halfWidth, bounds.right, 0f)
+            }
+        }
+    }
+
+    @Test
+    fun landscapeCoverRingsUseTheSameBoundsForDrawingAndSelection() {
+        listOf(900f to 650f, 1680f to 1264f, 2400f to 900f).forEach { (width, height) ->
+            val geometry =
+                ImmersiveLandscapeGeometry.create(
+                    ImmersiveLandscapeBounds(0f, 0f, width, height),
+                    0f,
+                    24f,
+                    width,
+                    height - 24f,
+                    ImmersiveLandscapeBounds(24f, 24f, width - 120f, height - 48f),
+                    1f,
+                )
+            val cover = geometry.readingBudget(height * .12f, height * .07f, height * .075f, 8f).cover
+            val area = geometry.coverArea
+            val frame =
+                WereadBoardFrame.of(geometry.book.width, geometry.book.height, 0f).copy(
+                    coverArea = BoardBounds(area.left, cover.top, area.right, area.bottom),
+                    coverCenterX = cover.centerX,
+                    coverCenterY = cover.centerY,
+                    coverWidth = cover.width,
+                    coverHeight = cover.height,
+                    expandedCoverRings = true,
+                )
+            (-2..2).forEach { ring ->
+                val bounds = coverBoundsOf(frame, WereadCoverSlot(ring + 2, ring.toFloat()))
+                assertTrue(bounds.left >= frame.coverArea.left)
+                assertTrue(bounds.right <= frame.coverArea.right)
+                assertTrue(bounds.top >= frame.coverArea.top)
+                assertTrue(bounds.bottom <= frame.coverArea.bottom)
+                assertTrue(frame.coverArea.contains(bounds.centerX, bounds.centerY))
+                assertEquals(1.45f, bounds.height / bounds.width, .0001f)
+            }
+        }
+    }
+
+    @Test
+    fun oceanDefaultFiveBookContourStaysBetweenStatsAndRail() {
+        val geometry =
+            ImmersiveLandscapeGeometry.create(
+                ImmersiveLandscapeBounds(0f, 0f, 1680f, 1264f),
+                0f,
+                24f,
+                1680f,
+                1240f,
+                ImmersiveLandscapeBounds(100f, 20f, 1450f, 1200f),
+                2f,
+            )
+        val cover = geometry.readingBudget(84f, 42f, 47f, 8f, 1).cover
+        val frame =
+            WereadBoardFrame.of(geometry.book.width, geometry.book.height, 0f).copy(
+                coverCenterX = cover.centerX,
+                coverCenterY = cover.centerY,
+                coverWidth = cover.width,
+                coverHeight = cover.height,
+                expandedCoverRings = true,
+            )
+        (-2..2).forEach { ring ->
+            val bounds = coverBoundsOf(frame, WereadCoverSlot(ring + 2, ring.toFloat()))
+            assertTrue(bounds.left >= geometry.coverArea.left)
+            assertTrue(bounds.right <= geometry.coverArea.right)
+            assertTrue(bounds.left > geometry.statsRight)
+            assertTrue(bounds.right + geometry.book.left < geometry.railCenter)
+            assertTrue(bounds.top >= geometry.coverArea.top)
+            assertTrue(bounds.bottom <= geometry.coverArea.bottom)
+        }
+    }
+
     /** 时间位于左上，日期在其下方，两者都在封面区之上。 */
     @Test
     fun headerStaysAboveCoverArea() {

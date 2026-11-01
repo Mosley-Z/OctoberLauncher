@@ -212,6 +212,14 @@ enum class SortMode {
     MANUAL,
 }
 
+/** 桌面文件夹。id 稳定且不复用；memberKeys 为有序的 app:<packageName> 列表。 */
+@Serializable
+data class DesktopFolder(
+    val id: String,
+    val name: String,
+    val memberKeys: List<String> = emptyList(),
+)
+
 /**
  * 桌面配置。
  *
@@ -252,6 +260,8 @@ data class DesktopConfig(
     val sortMode: SortMode = SortMode.INSTALL_TIME,
     val hiddenPackages: Set<String> = DEFAULT_HIDDEN_PACKAGES,
     val order: List<String> = emptyList(),
+    /** 桌面文件夹，按创建顺序保存；成员显隐由隐藏应用配置决定。 */
+    val folders: List<DesktopFolder> = emptyList(),
     val pageLimit: Int = 15,
     val columns: Int = 0,
     val rows: Int = 0,
@@ -315,6 +325,29 @@ data class DesktopConfig(
     val hiddenSpecials: Set<String> = DEFAULT_HIDDEN_SPECIALS,
     /** 首次启用桌面时是否已按安装时间固定过一次顺序。 */
     val installOrderInitialized: Boolean = false,
+    val widgetImages: List<WidgetImageSelection> = emptyList(),
+    /**
+     * 旧包级入口键是否已完成组件键解析。
+     *
+     * 迁移阶段无法依赖应用目录，包级键 `app:<包名>` 保留到目录就绪后由
+     * 数据层的组件键解析器解析；解析并保存成功后置为真，避免重复改写。
+     */
+    val componentKeyMigrated: Boolean = false,
+    /**
+     * 组件键解析时无法确定的旧键记录。
+     *
+     * 键为旧包级入口键，值为解析结论；当前仅记录 `pending` 表示该包名下存在多个
+     * 可启动 Activity，仍需保留原键，等用户或后续版本处理。
+     */
+    val legacyComponentDecisions: Map<String, String> = emptyMap(),
+    /**
+     * 同包多入口的一次自动成组状态。
+     *
+     * 键为包名，值为 [FolderAutoGroup.GROUPED]、[FolderAutoGroup.KEPT] 或
+     * [FolderAutoGroup.DECLINED]；缺少记录表示该包尚未判定。判定结果与文件夹、
+     * 桌面顺序在同一事务内写入，重启、刷新、升级与备份恢复后保持既有安排。
+     */
+    val folderAutoGroup: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -950,7 +983,7 @@ data class LauncherConfig(
 ) {
     companion object {
         /** 当前配置结构版本，读取旧配置时据此执行迁移。 */
-        const val CURRENT_VERSION = 17
+        const val CURRENT_VERSION = 18
     }
 }
 
@@ -986,6 +1019,9 @@ data class InstalledApp(
 enum class EntryType {
     APP,
     SPECIAL,
+
+    /** 本地桌面文件夹入口。 */
+    FOLDER,
 }
 
 /** 内置特殊入口。 */
@@ -1000,7 +1036,7 @@ enum class SpecialEntry {
 /**
  * 桌面上的一个入口。
  *
- * 参数 key 为持久化键，应用使用 `app:<包名>`，特殊入口使用 `special:<名称>`；
+ * 参数 key 为持久化键，应用使用 `app:<包名>/<Activity>`，特殊入口使用 `special:<名称>`；
  * iconKey 用于图标缓存；special 仅在 EntryType.SPECIAL 时有效。
  */
 data class LauncherEntry(
@@ -1009,9 +1045,16 @@ data class LauncherEntry(
     val label: String,
     val packageName: String? = null,
     val special: SpecialEntry? = null,
+    /** 文件夹入口的完整成员配置，仅在 FOLDER 类型时有效。 */
+    val folder: DesktopFolder? = null,
+    /** 应用入口的启动 Activity 完整类名，仅在 APP 类型时有效。 */
+    val activityName: String? = null,
 ) {
     /** 条目是否为应用入口。 */
     val isApp: Boolean get() = type == EntryType.APP
+
+    /** 条目是否为文件夹入口。 */
+    val isFolder: Boolean get() = type == EntryType.FOLDER
 }
 
 /** 能力标识，用于组件与设置的权限提示。 */

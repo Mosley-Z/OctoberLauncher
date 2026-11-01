@@ -126,10 +126,16 @@ class BackupServiceImpl(
                     lock = merged.lock.copy(pinHash = local.lock.pinHash, salt = local.lock.salt),
                 )
             AppServices.config.edit {
+                // 备份可能来自旧版本或另一台设备，桌面入口键需在本机目录快照上重新解析
                 RetiredIntegrations.sanitize(
-                    merged.copy(version = LauncherConfig.CURRENT_VERSION),
+                    merged.copy(
+                        version = LauncherConfig.CURRENT_VERSION,
+                        desktop = merged.desktop.copy(componentKeyMigrated = false),
+                    ),
                 )
             }
+            // 目录已就绪时立即解析；尚未枚举完成则由下一次目录刷新补做
+            runCatching { ComponentKeyResolver.runOnce(AppServices.config, AppServices.catalog.apps.value) }
             BackupResult(
                 ok = true,
                 message = manifestWarning(entries[ENTRY_MANIFEST]) ?: "备份已恢复",

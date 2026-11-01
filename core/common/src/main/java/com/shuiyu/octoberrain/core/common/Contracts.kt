@@ -36,14 +36,40 @@ interface AppCatalog {
         sizePx: Int,
     ): android.graphics.Bitmap?
 
+    /**
+     * 按组件加载图标。
+     *
+     * 参数 activityName 为启动 Activity 完整类名；参数 packageName 为包名；
+     * 参数 sizePx 为目标边长。先取组件级图标覆盖，再取包级覆盖与组件图标，
+     * 组件图标不可用时回退按包名加载，失败返回 null。
+     */
+    suspend fun loadActivityIcon(
+        activityName: String,
+        packageName: String,
+        sizePx: Int,
+    ): android.graphics.Bitmap?
+
     /** 加载内置特殊入口图标。 */
     suspend fun loadSpecialIcon(
         entry: SpecialEntry,
         sizePx: Int,
     ): android.graphics.Bitmap?
 
-    /** 启动应用。 */
-    fun launch(app: InstalledApp)
+    /**
+     * 读取应用级名称。
+     *
+     * 参数 packageName 为包名。返回该包的应用名称；读取失败或实现不提供名称时返回空，
+     * 调用方按组件名称与包名逐级回退。默认实现返回空，兼容不查询 PackageManager 的测试替身。
+     */
+    fun applicationLabel(packageName: String): String? = null
+
+    /**
+     * 启动应用。
+     *
+     * 参数 app 为目标应用条目。返回是否已发出启动请求：目标 Activity 不存在或系统拒绝时返回假，
+     * 调用方据此提示用户；实现不得在失败时改用同包其他入口。
+     */
+    fun launch(app: InstalledApp): Boolean
 
     /** 启动或打开内置入口。 */
     fun launchSpecial(entry: SpecialEntry)
@@ -875,6 +901,9 @@ object AppServices {
     /** 路由是否已装配，模块安装早期可能尚未就绪。 */
     fun hasRouter(): Boolean = this::router.isInitialized
 
+    /** 配置仓库是否已装配，组件键解析据此判断能否读取与写回配置。 */
+    fun hasConfig(): Boolean = this::config.isInitialized
+
     /** 文件选择器是否已装配。 */
     fun hasPicker(): Boolean = this::picker.isInitialized
 
@@ -1014,6 +1043,12 @@ interface FilePicker {
         mimeTypes: Array<String>,
         onPicked: (android.net.Uri?) -> Unit,
     ): Boolean = pick(mimeTypes, onPicked)
+
+    /** Import multiple sources; older hosts adapt their existing single picker. */
+    fun pickMultipleForImport(
+        mimeTypes: Array<String>,
+        onPicked: (List<android.net.Uri>) -> Unit,
+    ): Boolean = pickForImport(mimeTypes) { onPicked(listOfNotNull(it)) }
 
     /** 选择保存位置，用于导出主题与字体，返回是否成功发起请求。 */
     fun save(

@@ -10,6 +10,8 @@ import android.os.Looper
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.DesktopMode
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeAdmission
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeGeometry
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.WEREAD_BOARD_WIDGET_ID
 import com.shuiyu.octoberrain.core.common.WereadAppearance
@@ -47,18 +49,32 @@ import kotlin.math.roundToInt
 class WereadBoardWidget(
     context: Context,
 ) : WereadCardWidget(context),
-    WidgetNoteOverlaySource {
+    WidgetNoteOverlaySource,
+    ImmersiveLandscapeAdmission {
     private var immersiveBookMode = false
     private var immersiveLandscape = false
     private var remoteRefreshing = false
 
+    override fun admitsLandscapeGeometry(geometry: ImmersiveLandscapeGeometry): Boolean =
+        immersivePainter.statisticsFit(geometry, currentImmersiveStats())
+
+    override fun setImmersiveLandscapeGeometry(geometry: ImmersiveLandscapeGeometry?) {
+        immersivePainter.geometry = geometry
+        immersivePainter.readingTitle = currentBook()?.title.orEmpty()
+        if (immersiveBookMode && widthPx > 0 && heightPx > 0) {
+            frame = immersivePainter.layout(widthPx, heightPx, immersiveLandscape)
+        }
+    }
+
     override fun setImmersiveLandscape(landscape: Boolean) {
         immersiveLandscape = landscape
+        if (!landscape) setImmersiveLandscapeGeometry(null)
     }
 
     override fun setImmersiveBookMode(enabled: Boolean) {
         if (immersiveBookMode == enabled) return
         immersiveBookMode = enabled
+        if (!enabled) setImmersiveLandscapeGeometry(null)
         onWidgetConfig(config)
     }
 
@@ -97,13 +113,7 @@ class WereadBoardWidget(
         val active = kernel
         val scale = boardScaleOf(widthPx)
         if (active == null || scale <= 0f) return false
-        val saved = canvas.save()
-        return try {
-            canvas.scale(scale, scale)
-            active.renderExpandedNote(canvas, (width / scale).roundToInt(), (height / scale).roundToInt())
-        } finally {
-            canvas.restoreToCount(saved)
-        }
+        return renderExpandedNote(canvas, active, width, height, scale)
     }
 
     /** 当前形态，初值为本周，随桌面配置变化。 */
@@ -401,6 +411,7 @@ class WereadBoardWidget(
                 WereadBoardFrame.spanFor(books.size),
                 if (noteText.isBlank()) 0 else WereadBoardFrame.AUTO_NOTE_LINES,
             )
+        immersivePainter.readingTitle = currentBook()?.title.orEmpty()
         val readingLayout =
             if (immersiveBookMode) {
                 immersivePainter.layout(
@@ -570,14 +581,7 @@ class WereadBoardWidget(
     private fun regionOf(
         bounds: BoardBounds,
         action: String,
-    ): WidgetHitRegion? {
-        val left = floor(bounds.left).toInt().coerceIn(0, widthPx)
-        val top = floor(bounds.top).toInt().coerceIn(0, heightPx)
-        val right = ceil(bounds.right).toInt().coerceIn(left, widthPx)
-        val bottom = ceil(bounds.bottom).toInt().coerceIn(top, heightPx)
-        if (right <= left || bottom <= top) return null
-        return WidgetHitRegion(left, top, right - left, bottom - top, action)
-    }
+    ): WidgetHitRegion? = BoardHitRegions.region(bounds, action, widthPx, heightPx)
 
     /**
      * 构造内核命中区域并换算为组件内像素，本周与本月形态补正文区。
@@ -585,21 +589,7 @@ class WereadBoardWidget(
      * @param scale 画布缩放系数
      * @return 命中区域列表
      */
-    private fun kernelRegions(scale: Float): List<WidgetHitRegion> {
-        if (scale <= 0f) return emptyList()
-        val regions = mutableListOf<WidgetHitRegion>()
-        kernel?.zones().orEmpty().forEach { zone ->
-            regions +=
-                WidgetHitRegion(
-                    (zone.x * scale).roundToInt(),
-                    (zone.y * scale).roundToInt(),
-                    (zone.width * scale).roundToInt().coerceAtLeast(1),
-                    (zone.height * scale).roundToInt().coerceAtLeast(1),
-                    zone.action,
-                )
-        }
-        return regions
-    }
+    private fun kernelRegions(scale: Float): List<WidgetHitRegion> = BoardHitRegions.kernel(kernel, scale)
 
     /**
      * 处理组件内触摸动作。
@@ -1063,5 +1053,56 @@ class WereadBoardWidget(
 
         /** 笔记读取线程名称。 */
         const val NOTE_THREAD_NAME: String = "weread-board-note"
+    }
+}
+
+private object BoardHitRegions {
+    fun region(
+        bounds: BoardBounds,
+        action: String,
+        widthPx: Int,
+        heightPx: Int,
+    ): WidgetHitRegion? {
+        val left = floor(bounds.left).toInt().coerceIn(0, widthPx)
+        val top = floor(bounds.top).toInt().coerceIn(0, heightPx)
+        val right = ceil(bounds.right).toInt().coerceIn(left, widthPx)
+        val bottom = ceil(bounds.bottom).toInt().coerceIn(top, heightPx)
+        if (right <= left || bottom <= top) return null
+        return WidgetHitRegion(left, top, right - left, bottom - top, action)
+    }
+
+    fun kernel(
+        kernel: WereadBoardKernel?,
+        scale: Float,
+    ): List<WidgetHitRegion> {
+        if (scale <= 0f) return emptyList()
+        val regions = mutableListOf<WidgetHitRegion>()
+        kernel?.zones().orEmpty().forEach { zone ->
+            regions +=
+                WidgetHitRegion(
+                    (zone.x * scale).roundToInt(),
+                    (zone.y * scale).roundToInt(),
+                    (zone.width * scale).roundToInt().coerceAtLeast(1),
+                    (zone.height * scale).roundToInt().coerceAtLeast(1),
+                    zone.action,
+                )
+        }
+        return regions
+    }
+}
+
+private fun renderExpandedNote(
+    canvas: Canvas,
+    active: WereadBoardKernel,
+    width: Int,
+    height: Int,
+    scale: Float,
+): Boolean {
+    val saved = canvas.save()
+    return try {
+        canvas.scale(scale, scale)
+        active.renderExpandedNote(canvas, (width / scale).roundToInt(), (height / scale).roundToInt())
+    } finally {
+        canvas.restoreToCount(saved)
     }
 }

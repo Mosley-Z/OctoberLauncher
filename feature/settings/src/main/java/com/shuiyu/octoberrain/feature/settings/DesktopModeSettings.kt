@@ -5,6 +5,7 @@ import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.DesktopConfig
 import com.shuiyu.octoberrain.core.common.DesktopMode
 import com.shuiyu.octoberrain.core.common.DesktopOrientation
+import com.shuiyu.octoberrain.core.common.EntryKeys
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.design.InkPage
 
@@ -63,8 +64,9 @@ internal object DesktopModeSettings {
         val apps =
             AppServices.catalog.apps.value
                 .filter { it.packageName !in desktop.hiddenPackages }
-                .sortedBy { it.label }
-                .map { "app:${it.packageName}" to it.label }
+                .sortedWith(compareBy({ it.label }, { it.packageName }, { it.activityName.orEmpty() }))
+                // 收藏键与应用入口键同源，使用组件键区分同一包名的多个启动入口。
+                .map { EntryKeys.appEntryKey(it) to it.label }
         val specials =
             listOf(
                 "special:weread" to "微信读书",

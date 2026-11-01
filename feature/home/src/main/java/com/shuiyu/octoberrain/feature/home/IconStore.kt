@@ -69,7 +69,14 @@ internal class IconStore(
             val bitmap =
                 runCatching {
                     if (entry.isApp) {
-                        entry.packageName?.let { AppServices.catalog.loadIcon(it, sizePx) }
+                        val packageName = entry.packageName
+                        val activityName = entry.activityName
+                        if (packageName != null && activityName != null) {
+                            // 组件图标：不同启动入口可各自显示系统图标
+                            AppServices.catalog.loadActivityIcon(activityName, packageName, sizePx)
+                        } else {
+                            packageName?.let { AppServices.catalog.loadIcon(it, sizePx) }
+                        }
                     } else {
                         entry.special?.let { AppServices.catalog.loadSpecialIcon(it, sizePx) }
                     }

@@ -1,16 +1,28 @@
 package com.shuiyu.octoberrain.feature.widgets
 
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Environment
+import android.util.TypedValue
+import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.widget.BaseAdapter
+import android.widget.CheckedTextView
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.IMAGE_CAROUSEL_OPTIONS
+import com.shuiyu.octoberrain.core.common.WidgetImageSelection
 import com.shuiyu.octoberrain.core.common.editWidgetPage
 import com.shuiyu.octoberrain.core.common.effectiveImageCarouselMinutes
 import com.shuiyu.octoberrain.core.common.effectiveImageSwipeDirection
 import com.shuiyu.octoberrain.core.common.forWidgetPage
+import com.shuiyu.octoberrain.core.design.DesignRuntime
+import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
+import com.shuiyu.octoberrain.core.design.InkWidgets
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 import com.shuiyu.octoberrain.core.render.ThumbCacheRegistry
 import kotlinx.coroutines.CoroutineScope
@@ -78,43 +90,72 @@ internal object ImageWidgetSettings {
         pageIndex: Int = 0,
         onChanged: () -> Unit = {},
     ) {
-        pick(context, scope) { uri ->
+        pick(context, scope) { uris ->
+            if (uris.isEmpty()) return@pick
             scope.launch {
-                val target =
+                val imported =
                     withContext(Dispatchers.IO) {
-                        copyImage(context, uri, pageIndex)
+                        importImageBatch(
+                            uris,
+                            copy = { uri ->
+                                val target = copyImage(context, uri, pageIndex)
+                                target?.let {
+                                    WidgetImageSource.retainAccess(context, uri)
+                                    WidgetImageSelection(it.absolutePath, uri.toString())
+                                }
+                            },
+                            discard = { deleteUnusedCopy(context, it.path) },
+                        )
                     }
-                if (target == null) {
-                    AppServices.router.toast("图片读取失败")
+                if (imported == null) {
+                    AppServices.router.toast("图片读取失败，已保留原图片集合")
                     return@launch
                 }
-                WidgetImageSource.retainAccess(context, uri)
                 val previous =
                     AppServices.config.state.value.desktop
                         .forWidgetPage(pageIndex)
-                        .widgetImagePath
-                AppServices.config.edit { config ->
-                    config.copy(
-                        desktop =
-                            config.desktop.editWidgetPage(
-                                pageIndex,
-                            ) { it.copy(widgetImagePath = target.absolutePath, widgetImageSourceUri = uri.toString()) },
-                    )
-                }
-                val saved =
-                    AppServices.config.state.value.desktop
-                        .forWidgetPage(pageIndex)
-                if (saved.widgetImagePath != target.absolutePath || saved.widgetImageSourceUri != uri.toString()) {
-                    target.delete()
+                if (!saveImageSelection(pageIndex, imported)) {
+                    // Some stores may publish state before throwing; preserve referenced copies.
+                    imported.forEach { deleteUnusedCopy(context, it.path) }
                     AppServices.router.toast("图片设置未保存，请重试")
                     return@launch
                 }
-                deleteUnusedCopy(context, previous)
+                (previous.widgetImages.map { it.path } + listOfNotNull(previous.widgetImagePath))
+                    .forEach { deleteUnusedCopy(context, it) }
                 changed()
                 onChanged()
                 AppServices.router.toast("已更新图片组件")
             }
         }
+    }
+
+    private fun saveImageSelection(
+        pageIndex: Int,
+        imported: List<WidgetImageSelection>,
+    ): Boolean {
+        val savedEdit =
+            runCatching {
+                AppServices.config.edit { config ->
+                    config.copy(
+                        desktop =
+                            config.desktop.editWidgetPage(pageIndex) {
+                                it.copy(
+                                    widgetImages = imported,
+                                    widgetImagePath = imported.first().path,
+                                    widgetImageSourceUri = imported.first().sourceUri,
+                                )
+                            },
+                    )
+                }
+            }
+        val saved =
+            AppServices.config.state.value.desktop
+                .forWidgetPage(pageIndex)
+        val selectionSaved =
+            saved.widgetImages == imported &&
+                saved.widgetImagePath == imported.first().path &&
+                saved.widgetImageSourceUri == imported.first().sourceUri
+        return savedEdit.isSuccess && selectionSaved
     }
 
     /** 将来源复制到当前页私有目录并校验图片；失败时清理本轮临时副本。 */
@@ -134,7 +175,7 @@ internal object ImageWidgetSettings {
                     "widget-image/page-$pageIndex"
                 },
             ).apply { mkdirs() }
-        val candidate = File.createTempFile("widget-", ".img", directory)
+        val candidate = runCatching { File.createTempFile("widget-", ".img", directory) }.getOrNull() ?: return null
         return runCatching {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 candidate.outputStream().use { output -> input.copyTo(output) }
@@ -153,13 +194,13 @@ internal object ImageWidgetSettings {
     private fun pick(
         context: Context,
         scope: CoroutineScope,
-        onPicked: (Uri) -> Unit,
+        onPicked: (List<Uri>) -> Unit,
     ) {
         if (AppServices.hasPicker()) {
             val opened =
                 runCatching {
-                    AppServices.picker.pickForImport(arrayOf("image/*")) { uri ->
-                        if (uri != null) onPicked(uri)
+                    AppServices.picker.pickMultipleForImport(arrayOf("image/*")) { uris ->
+                        if (uris.isNotEmpty()) onPicked(uris)
                     }
                 }.getOrDefault(false)
             if (opened) return
@@ -177,8 +218,91 @@ internal object ImageWidgetSettings {
                 return@launch
             }
             val base = Environment.getExternalStorageDirectory().absolutePath
-            InkDialogs.choose(context, "选择组件图片", files.map { it.absolutePath.removePrefix("$base/") }) { index ->
-                onPicked(Uri.fromFile(files[index]))
+            val checked = BooleanArray(files.size)
+            val tokens = DesignRuntime.tokens
+            val title =
+                InkWidgets.textView(context, "选择本地图片", tokens.textHeading, InkColors.INK).apply {
+                    setPadding(tokens.dialogPadding, tokens.dialogPadding, tokens.dialogPadding, tokens.gap)
+                }
+            val builder = AlertDialog.Builder(context)
+            builder.setCustomTitle(title)
+            builder.setMultiChoiceItems(
+                files
+                    .map { it.absolutePath.removePrefix("$base/") }
+                    .toTypedArray(),
+                checked,
+            ) { _, index, selected -> checked[index] = selected }
+            builder.setPositiveButton("确定") { _, _ ->
+                val selected = files.filterIndexed { index, _ -> checked[index] }.map { Uri.fromFile(it) }
+                if (selected.isNotEmpty()) onPicked(selected)
+            }
+            builder.setNegativeButton("取消", null)
+            val dialog = builder.show()
+            styleLocalImageDialog(context, dialog, title)
+        }
+    }
+
+    private fun styleLocalImageDialog(
+        context: Context,
+        dialog: AlertDialog,
+        title: View,
+    ) {
+        val tokens = DesignRuntime.tokens
+        val list = dialog.listView
+        val original = list.adapter
+        val adapter =
+            object : BaseAdapter() {
+                override fun getCount(): Int = original.count
+
+                override fun getItem(position: Int): Any = original.getItem(position)
+
+                override fun getItemId(position: Int): Long = original.getItemId(position)
+
+                override fun getView(
+                    position: Int,
+                    convertView: View?,
+                    parent: ViewGroup,
+                ): View {
+                    val view = original.getView(position, convertView, parent) as CheckedTextView
+                    view.setTextSize(TypedValue.COMPLEX_UNIT_PX, tokens.textBody)
+                    view.typeface = DesignRuntime.typeface()
+                    view.setTextColor(InkColors.INK)
+                    view.minimumHeight = tokens.listRowHeight
+                    return view
+                }
+            }
+        list.adapter = adapter
+        listOf(AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE).forEach { which ->
+            dialog.getButton(which).apply {
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, tokens.textBody)
+                typeface = DesignRuntime.typeface()
+                setTextColor(InkColors.INK)
+            }
+        }
+        dialog.window?.apply {
+            setBackgroundDrawable(
+                InkWidgets.background(tokens.radius, InkColors.PAPER, tokens.stroke, InkColors.INK),
+            )
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            val metrics = context.resources.displayMetrics
+            setLayout(
+                minOf((metrics.widthPixels * 0.86f).toInt(), tokens.dp(380f)),
+                WindowManager.LayoutParams.WRAP_CONTENT,
+            )
+            decorView.post {
+                val available = Rect()
+                decorView.getWindowVisibleDisplayFrame(available)
+                val availableHeight = available.height().takeIf { it > 0 } ?: metrics.heightPixels
+                val chromeHeight =
+                    maxOf(
+                        decorView.height - list.height,
+                        title.height + dialog.getButton(AlertDialog.BUTTON_POSITIVE).height +
+                            tokens.dialogPadding * 2,
+                    )
+                val maxListHeight = (availableHeight - chromeHeight).coerceAtLeast(0)
+                if (list.height > maxListHeight) {
+                    list.layoutParams = list.layoutParams.apply { height = maxListHeight }
+                }
             }
         }
     }
@@ -209,26 +333,31 @@ internal object ImageWidgetSettings {
         context: Context,
         pageIndex: Int,
     ) {
-        val path =
+        val previous =
             AppServices.config.state.value.desktop
                 .forWidgetPage(pageIndex)
-                .widgetImagePath
-        AppServices.config.edit { config ->
-            config.copy(
-                desktop =
-                    config.desktop.editWidgetPage(pageIndex) {
-                        it.copy(widgetImagePath = null, widgetImageSourceUri = null)
-                    },
-            )
-        }
+        val savedEdit =
+            runCatching {
+                AppServices.config.edit { config ->
+                    config.copy(
+                        desktop =
+                            config.desktop.editWidgetPage(pageIndex) {
+                                it.copy(widgetImages = emptyList(), widgetImagePath = null, widgetImageSourceUri = null)
+                            },
+                    )
+                }
+            }
         val saved =
             AppServices.config.state.value.desktop
                 .forWidgetPage(pageIndex)
-        if (saved.widgetImagePath != null || saved.widgetImageSourceUri != null) {
+        val selectionCleared =
+            saved.widgetImages.isEmpty() && saved.widgetImagePath == null && saved.widgetImageSourceUri == null
+        if (savedEdit.isFailure || !selectionCleared) {
             AppServices.router.toast("图片设置未保存，请重试")
             return
         }
-        deleteUnusedCopy(context, path)
+        (previous.widgetImages.map { it.path } + listOfNotNull(previous.widgetImagePath))
+            .forEach { deleteUnusedCopy(context, it) }
         changed()
         AppServices.router.toast("组件图片已清除")
     }
@@ -240,7 +369,7 @@ internal object ImageWidgetSettings {
     ) {
         val desktop = AppServices.config.state.value.desktop
         val references =
-            listOfNotNull(desktop.widgetImagePath) + desktop.pageWidgets.values.mapNotNull { it.widgetImagePath }
+            WidgetImageFiles.references(desktop)
         WidgetImageFiles.unusedManaged(path, context.filesDir, references)?.let { file ->
             ThumbCacheRegistry.invalidate(context, file)
             file.delete()

@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.EntryKeys
 import com.shuiyu.octoberrain.core.common.IconTargets
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.Screen
@@ -453,9 +454,11 @@ class PreviewScreen : Screen {
                 gravity = Gravity.CENTER_HORIZONTAL
             }
         val entryKey = IconTargets.entryKeyOf(key)
+        // 应用入口键现为组件键，按包名判断条目是否仍在应用库中。
+        val entryPackage = EntryKeys.packageOf(entryKey)
         val knownEntry =
             IconTargets.specialEntryOf(key) != null ||
-                (entryKey.startsWith("app:") && entryKey.removePrefix("app:") in appPackages)
+                (entryPackage != null && entryPackage in appPackages)
         if (knownEntry) {
             val icon =
                 ImageView(context).apply {
@@ -554,10 +557,16 @@ class PreviewScreen : Screen {
                     AppServices.iconOverrides.loadOverride(targetId, sizePx)
                         ?: runCatching {
                             val special = IconTargets.specialEntryOf(targetId)
-                            if (special != null) {
-                                AppServices.catalog.loadSpecialIcon(special, sizePx)
-                            } else {
-                                AppServices.catalog.loadIcon(targetId, sizePx)
+                            val component = IconTargets.parseComponentTarget(targetId)
+                            when {
+                                special != null -> AppServices.catalog.loadSpecialIcon(special, sizePx)
+                                component != null ->
+                                    AppServices.catalog.loadActivityIcon(
+                                        component.activityName,
+                                        component.packageName,
+                                        sizePx,
+                                    )
+                                else -> AppServices.catalog.loadIcon(targetId, sizePx)
                             }
                         }.getOrNull()
                 }

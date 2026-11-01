@@ -7,6 +7,23 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DesktopPageConfigTest {
+    @Test fun imageCollectionsRoundTripAndStayOnTheirPage() {
+        val homeImages = listOf(WidgetImageSelection("home", "source-home"))
+        val pageImages = listOf(WidgetImageSelection("second", "source-2"), WidgetImageSelection("third"))
+        val config =
+            DesktopConfig(widgetId = "image", widgetImages = homeImages)
+                .editWidgetPage(1) { it.copy(widgetImages = pageImages) }
+        val restored = Json.decodeFromString<DesktopConfig>(Json.encodeToString(config))
+        assertEquals(homeImages, restored.widgetImages)
+        assertEquals(pageImages, restored.forWidgetPage(1).widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), restored.forWidgetPage(2).widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), Json.decodeFromString<DesktopConfig>("{}").widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), Json.decodeFromString<PageWidgetConfig>("{}").widgetImages)
+        val cleared = restored.editWidgetPage(1) { it.copy(widgetImages = emptyList()) }
+        assertEquals(homeImages, cleared.widgetImages)
+        assertEquals(emptyList<WidgetImageSelection>(), cleared.forWidgetPage(1).widgetImages)
+    }
+
     @Test fun imageSourceIsPairedPerPageAndLegacyIsUnknown() {
         val home =
             DesktopConfig(widgetId = "image", widgetImagePath = "home", widgetImageSourceUri = "file:///DCIM/home.jpg")

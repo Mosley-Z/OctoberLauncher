@@ -1,18 +1,33 @@
 package com.shuiyu.octoberrain.feature.home
 
+import android.app.Dialog
+import android.content.ComponentName
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.Window
+import android.view.WindowManager
 import com.shuiyu.octoberrain.core.common.AppServices
+import com.shuiyu.octoberrain.core.common.DesktopConfig
 import com.shuiyu.octoberrain.core.common.DesktopMode
 import com.shuiyu.octoberrain.core.common.Destination
+import com.shuiyu.octoberrain.core.common.EntryKeys
+import com.shuiyu.octoberrain.core.common.EntryType
+import com.shuiyu.octoberrain.core.common.FolderAutoGroup
+import com.shuiyu.octoberrain.core.common.FolderFailure
+import com.shuiyu.octoberrain.core.common.FolderResult
+import com.shuiyu.octoberrain.core.common.FolderRules
 import com.shuiyu.octoberrain.core.common.IconTargets
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeAdmission
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeBounds
+import com.shuiyu.octoberrain.core.common.ImmersiveLandscapeGeometry
 import com.shuiyu.octoberrain.core.common.InstalledApp
 import com.shuiyu.octoberrain.core.common.LauncherConfig
 import com.shuiyu.octoberrain.core.common.LauncherEntry
@@ -63,6 +78,16 @@ internal class HomeView(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val iconStore = IconStore(scope)
+    private val iconRedraw =
+        HomeIconRedraw(
+            post = { postOnAnimation(it) },
+            cancel = { removeCallbacks(it) },
+            redraw = {
+                invalidate()
+                folderOverlay?.invalidateIcons()
+                appPicker?.invalidateIcons()
+            },
+        )
     private val handler = Handler(Looper.getMainLooper())
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
@@ -75,13 +100,32 @@ internal class HomeView(
 
     // 数据快照
     private var config: LauncherConfig? = null
+    private var apps: List<InstalledApp> = emptyList()
+
+    // 包级索引：隐藏、卸载与应用信息按包名查询
     private var appsByPackage: Map<String, InstalledApp> = emptyMap()
+
+    // 组件键索引：启动、图标与文件夹成员按组件键查询
+    private var appsByKey: Map<String, InstalledApp> = emptyMap()
     private var entries: List<LauncherEntry> = emptyList()
     private var metrics: DesktopMetrics? = null
+    private var previewMembers: Map<String, List<LauncherEntry>> = emptyMap()
+    private var editableMembers: Map<String, List<LauncherEntry>> = emptyMap()
+    private var openFolderId: String? = null
+    private var folderDialog: Dialog? = null
+    private var folderOverlay: FolderOverlay? = null
+    private var appPicker: AppPickerOverlay? = null
+    private var folderPickerDialog: Dialog? = null
+
+    // 自动成组状态：目录快照就绪后只执行一次，浮层打开期间不重复触发
+    private var autoGroupInFlight = false
+    private var legacyConfirmOpen = false
 
     // 分页与组件
     private var currentPage = 0
     private val immersiveHome = ImmersiveHome()
+    private var landscapeGeometry: ImmersiveLandscapeGeometry? = null
+
     private val noteOverlay =
         DesktopNoteOverlay {
             invalidate()
@@ -102,6 +146,10 @@ internal class HomeView(
 
     /** 预览模式：由美化模式创建，只绘制指定页、不响应触摸且不写回布局快照。 */
     var previewMode = false
+        set(value) {
+            field = value
+            iconRedraw.setPreviewMode(value)
+        }
 
     /** 预览目标页码，由 [setPreviewPage] 设置。 */
     private var previewPage = 0
@@ -180,10 +228,38 @@ internal class HomeView(
     ) {
         val oldConfig = this.config
         val iconsChanged = oldConfig?.appearance != config.appearance
-        if (apps == appsByPackage.values.toList() && !homeConfigChanged(oldConfig, config) && !iconsChanged) return
+        if (apps == this.apps && !homeConfigChanged(oldConfig, config) && !iconsChanged) return
         // 图标覆盖变化时清空位图缓存，使新图片与恢复默认都能立即生效。
         if (iconsChanged) iconStore.clear()
         val previousKey = entries.getOrNull(dragIndex)?.key
+        val effective = initializeInstallOrder(apps, config)
+        closeForModeChange(oldConfig, effective)
+        this.apps = apps
+        this.appsByPackage = apps.associateBy { it.packageName }
+        this.appsByKey = apps.associateBy { EntryKeys.appEntryKey(it) }
+        this.config = effective
+        this.entries = DesktopEntries.build(apps, effective.desktop)
+        rebuildFolderMembers(effective)
+        if (typographyChanged(oldConfig, effective)) closeFolder()
+        val previousWidget = widget
+        ensureWidget(effective)
+        if (previousWidget !== widget ||
+            homeConfigChanged(oldConfig, effective)
+        ) {
+            widget?.onConfigChanged(widgetConfig(effective))
+        }
+        recomputeMetrics(closeOpenFolder = false)
+        clampPage()
+        restoreEditingTarget(previousKey)
+        bindOpenFolder()
+        invalidate()
+        maybeProcessAutoGroup()
+    }
+
+    private fun initializeInstallOrder(
+        apps: List<InstalledApp>,
+        config: LauncherConfig,
+    ): LauncherConfig {
         // 首次启用桌面时把入口顺序固定为安装时间升序；预览模式只读，不写入配置。
         var effective = config
         if (!previewMode && apps.isNotEmpty() && !config.desktop.installOrderInitialized) {
@@ -215,22 +291,32 @@ internal class HomeView(
                         ),
                 )
         }
-        closeForModeChange(oldConfig, effective)
-        this.appsByPackage = apps.associateBy { it.packageName }
-        this.config = effective
-        this.entries = DesktopEntries.build(apps, effective.desktop)
-        val previousWidget = widget
-        ensureWidget(effective)
-        if (previousWidget !== widget ||
-            homeConfigChanged(oldConfig, effective)
-        ) {
-            widget?.onConfigChanged(widgetConfig(effective))
-        }
-        recomputeMetrics()
-        clampPage()
-        restoreEditingTarget(previousKey)
-        invalidate()
+        return effective
     }
+
+    private fun rebuildFolderMembers(config: LauncherConfig) {
+        val hidden = config.desktop.hiddenPackages
+        previewMembers =
+            config.desktop.folders.associate { folder ->
+                folder.id to previewFolderMembers(folder, appsByKey, hidden)
+            }
+        editableMembers =
+            config.desktop.folders.associate { folder ->
+                folder.id to editableFolderMembers(folder, appsByKey, hidden)
+            }
+    }
+
+    private fun typographyChanged(
+        old: LauncherConfig?,
+        next: LauncherConfig,
+    ): Boolean =
+        when {
+            old?.appearance?.textScale != next.appearance.textScale -> true
+            old?.appearance?.labelFontPath != next.appearance.labelFontPath -> true
+            old?.appearance?.themeTokensJson != next.appearance.themeTokensJson -> true
+            old?.desktop?.labelTextSp != next.desktop.labelTextSp -> true
+            else -> false
+        }
 
     private fun restoreEditingTarget(previousKey: String?) {
         if (editing) {
@@ -248,6 +334,7 @@ internal class HomeView(
         next: LauncherConfig,
     ) {
         if (previous?.desktop?.mode != next.desktop.mode) {
+            closeFolder()
             noteOverlay.close()
             immersiveHome.closeDrawer()
         }
@@ -270,12 +357,13 @@ internal class HomeView(
                 .sortedWith(
                     compareBy<InstalledApp> { it.firstInstallTime }
                         .thenBy { it.label }
-                        .thenBy { it.packageName },
-                ).map { "app:${it.packageName}" }
+                        .thenBy { it.packageName }
+                        .thenBy { it.activityName.orEmpty() },
+                ).map { EntryKeys.appEntryKey(it) }
         val specialKeys =
             DesktopEntries
                 .build(apps, config.desktop)
-                .filter { !it.isApp }
+                .filter { it.type == EntryType.SPECIAL }
                 .map { it.key }
         return appKeys + specialKeys
     }
@@ -311,16 +399,19 @@ internal class HomeView(
      * 其他按分钟刷新的组件保持原有策略。
      */
     fun refreshWidgetByMinute() {
+        if (folderDialog != null) return
         val today = java.time.LocalDate.now()
         val dayChanged = today != minuteRefreshDay
         minuteRefreshDay = today
-        if (immersive) {
-            if (!immersiveHome.drawerOpen) invalidate()
-            return
+        when {
+            immersive -> if (!immersiveHome.drawerOpen) invalidate()
+            metrics?.widgetRect(currentPage)?.isEmpty != false -> Unit
+            !widgetPolicy.triggersOnMinute() -> Unit
+            else -> {
+                val id = config?.desktop?.forWidgetPage(currentPage)?.widgetId
+                if (dayChanged || (id != "calendar" && id != "todo_week")) refreshCurrentWidget(true)
+            }
         }
-        if (metrics?.widgetRect(currentPage)?.isEmpty != false || !widgetPolicy.triggersOnMinute()) return
-        val id = config?.desktop?.forWidgetPage(currentPage)?.widgetId
-        if (dayChanged || (id != "calendar" && id != "todo_week")) refreshCurrentWidget(true)
     }
 
     /**
@@ -331,6 +422,7 @@ internal class HomeView(
      * 已处于首尾页时同样消费按键，避免系统调整音量。返回值恒为 true。
      */
     fun turnPageByVolume(up: Boolean): Boolean {
+        if (folderDialog != null) return true
         noteOverlay.close()
         if (immersive) return true
         if (editing) return true
@@ -348,6 +440,13 @@ internal class HomeView(
      */
     fun handleBack(): Boolean =
         when {
+            appPicker?.cancel() == true -> true
+            folderPickerDialog?.isShowing == true -> {
+                folderPickerDialog?.cancel()
+                folderPickerDialog = null
+                true
+            }
+            closeFolder() -> true
             noteOverlay.close() -> true
             immersiveHome.closeDrawer() -> {
                 updateWidgetVisibility()
@@ -364,6 +463,7 @@ internal class HomeView(
     /** 桌面可见性传给自绘组件，暂停后台轮播。 */
     fun setHostVisible(visible: Boolean) {
         hostVisible = visible
+        iconRedraw.setVisible(visible)
         if (!visible) noteOverlay.close()
         updateWidgetVisibility()
     }
@@ -375,14 +475,22 @@ internal class HomeView(
             if (previous !== widget) widget?.onConfigChanged(widgetConfig(cfg))
         }
         val pageVisible = immersive || metrics?.widgetRect(currentPage)?.isEmpty == false
-        widget?.onHostVisible(hostVisible && pageVisible && !immersiveHome.drawerOpen)
+        widget?.onHostVisible(hostVisible && pageVisible && !immersiveHome.drawerOpen && folderDialog == null)
     }
 
     /** 页面销毁时释放组件、计时器与协程。 */
     fun release() {
+        iconRedraw.release()
+        closeFolderPickers()
+        closeFolder()
         noteOverlay.close()
         handler.removeCallbacksAndMessages(null)
-        widgetCache.values.forEach { it.onDestroy() }
+        landscapeGeometry = null
+        immersiveHome.landscapeGeometry = null
+        widgetCache.values.forEach {
+            it.setImmersiveLandscapeGeometry(null)
+            it.onDestroy()
+        }
         widgetCache.clear()
         widget = null
         widgetId = null
@@ -413,19 +521,36 @@ internal class HomeView(
         invalidate()
     }
 
+    override fun onDetachedFromWindow() {
+        iconRedraw.setAttached(false)
+        closeFolderPickers()
+        closeFolder()
+        landscapeGeometry = null
+        immersiveHome.landscapeGeometry = null
+        widgetCache.values.forEach { it.setImmersiveLandscapeGeometry(null) }
+        super.onDetachedFromWindow()
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        iconRedraw.setAttached(true)
         recomputeMetrics()
         clampPage()
         invalidate()
     }
 
     /** 依据当前画布尺寸与配置重算版面。 */
-    private fun recomputeMetrics() {
+    private fun recomputeMetrics(closeOpenFolder: Boolean = true) {
+        if (closeOpenFolder) closeFolder()
+        if (config == null || width <= 0 || height <= 0) {
+            updateLandscapeGeometry()
+            return
+        }
         val cfg = config ?: return
-        if (width <= 0 || height <= 0) return
         val m = DesktopMetrics.compute(width, height, cfg)
+        if (m != metrics) closeFolder()
         metrics = m
+        updateLandscapeGeometry()
         // 预览视图与真实桌面共用绘制代码，但不得覆盖美化模式读取的全局快照。
         if (!previewMode) publishLayout(m)
     }
@@ -478,6 +603,7 @@ internal class HomeView(
     fun invalidateIcons() {
         iconStore.clear()
         invalidate()
+        folderOverlay?.invalidateIcons()
         requestPartial()
     }
 
@@ -511,7 +637,12 @@ internal class HomeView(
         widgetCache.keys
             .filter { it !in keep }
             .toList()
-            .forEach { key -> widgetCache.remove(key)?.onDestroy() }
+            .forEach { key ->
+                widgetCache.remove(key)?.let {
+                    it.setImmersiveLandscapeGeometry(null)
+                    it.onDestroy()
+                }
+            }
         if (key == widgetId) {
             widget?.setImmersiveBookMode(immersive)
             widget?.setImmersiveLandscape(width > height)
@@ -519,6 +650,7 @@ internal class HomeView(
         }
         noteOverlay.close()
         widget?.onHostVisible(false)
+        widget?.setImmersiveLandscapeGeometry(null)
         widget = null
         widgetWidth = 0
         widgetHeight = 0
@@ -547,8 +679,59 @@ internal class HomeView(
         }
     }
 
-    private fun widgetBounds(m: DesktopMetrics): RectF =
-        if (immersive) immersiveHome.bookBounds(width, height) else m.widgetRect(currentPage)
+    private fun updateLandscapeGeometry() {
+        val hasWindow = rootView.width > 0 && rootView.height > 0
+        val hasLandscapeContent = immersive && width > height && height > 0
+        landscapeGeometry =
+            if (hasLandscapeContent && hasWindow) {
+                val original = immersiveHome.bookBounds(width, height)
+                val origin = IntArray(2)
+                val rootOrigin = IntArray(2)
+                getLocationInWindow(origin)
+                rootView.getLocationInWindow(rootOrigin)
+                ImmersiveLandscapeGeometry
+                    .create(
+                        ImmersiveLandscapeBounds(
+                            rootOrigin[0].toFloat(),
+                            rootOrigin[1].toFloat(),
+                            (rootOrigin[0] + rootView.width).toFloat(),
+                            (rootOrigin[1] + rootView.height).toFloat(),
+                        ),
+                        origin[0].toFloat(),
+                        origin[1].toFloat(),
+                        width.toFloat(),
+                        height.toFloat(),
+                        ImmersiveLandscapeBounds(
+                            original.left,
+                            original.top,
+                            original.right,
+                            original.bottom,
+                        ),
+                        tokens.density,
+                    ).let { candidate ->
+                        candidate.admitted(
+                            immersiveHome.admitsLandscapeGeometry(candidate, width),
+                            (widget as? ImmersiveLandscapeAdmission)?.admitsLandscapeGeometry(candidate) == true,
+                        )
+                    }
+            } else {
+                null
+            }
+        immersiveHome.landscapeGeometry = landscapeGeometry
+        widgetCache.values.forEach { cached ->
+            cached.setImmersiveLandscapeGeometry(if (cached === widget) landscapeGeometry else null)
+        }
+    }
+
+    private fun immersiveBookBounds(): RectF {
+        val book = landscapeGeometry?.book ?: return immersiveHome.bookBounds(width, height)
+        return RectF(book.left, book.top, book.right, book.bottom)
+    }
+
+    private fun widgetBounds(m: DesktopMetrics): RectF {
+        updateLandscapeGeometry()
+        return if (immersive) immersiveBookBounds() else m.widgetRect(currentPage)
+    }
 
     private fun noteBounds(m: DesktopMetrics): RectF {
         val rect = widgetBounds(m)
@@ -613,7 +796,8 @@ internal class HomeView(
     }
 
     private fun isTransparent(entry: LauncherEntry): Boolean =
-        IconTargets.normalizeStoredKey(entry.key) in config?.appearance?.transparentIconTargets.orEmpty()
+        entry.isFolder ||
+            IconTargets.normalizeStoredKey(entry.key) in config?.appearance?.transparentIconTargets.orEmpty()
 
     private fun drawImmersiveIcon(
         canvas: Canvas,
@@ -622,16 +806,20 @@ internal class HomeView(
         forceDefault: Boolean,
     ) {
         // 抽屉的应用使用原生图标，但十雨设置是特殊入口，必须走品牌图标加载器。
-        if (!forceDefault || entry.special == SpecialEntry.SETTINGS) {
+        if (entry.isFolder || !forceDefault || entry.special == SpecialEntry.SETTINGS) {
             drawIconFrame(canvas, rect, entry)
             return
         }
         val drawable =
-            entry.packageName?.let {
+            entry.packageName?.let { packageName ->
                 runCatching {
-                    context.packageManager.getApplicationIcon(
-                        it,
-                    )
+                    // 抽屉按组件显示原生图标：多入口应用各自的启动 Activity 图标不同。
+                    val activityName = entry.activityName
+                    if (activityName != null) {
+                        context.packageManager.getActivityIcon(ComponentName(packageName, activityName))
+                    } else {
+                        context.packageManager.getApplicationIcon(packageName)
+                    }
                 }.getOrNull()
             }
         if (drawable != null) {
@@ -675,6 +863,7 @@ internal class HomeView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        updateLandscapeGeometry()
         val m = metrics ?: return
         val cfg = config ?: return
         // 壁纸由宿主全屏视图绘制，桌面保持透明，不再自行绘制底图。
@@ -688,9 +877,11 @@ internal class HomeView(
                     .coerceAtMost(railCapacity)
             val favorites =
                 cfg.desktop.favoriteEntryKeys
-                    .mapNotNull { key -> entries.firstOrNull { it.key == key } }
-                    .ifEmpty { entries.take(favoriteLimit) }
-                    .take(favoriteLimit)
+                    .mapNotNull { key ->
+                        FavoriteEntryResolver.resolve(key, entries)
+                    }.ifEmpty {
+                        if (cfg.desktop.favoriteEntryKeys.isEmpty()) entries.take(favoriteLimit) else emptyList()
+                    }.take(favoriteLimit)
             immersiveHome.draw(
                 canvas,
                 width,
@@ -939,17 +1130,26 @@ internal class HomeView(
         rect: RectF,
         entry: LauncherEntry,
     ) {
-        if (isTransparent(entry)) {
-            if (editing) drawSelectedCell(canvas, rect)
-            return
+        when {
+            entry.isFolder ->
+                FolderPreviewPainter.draw(canvas, rect, previewMembers[entry.folder?.id].orEmpty(), ::drawIconFrame)
+            isTransparent(entry) -> if (editing) drawSelectedCell(canvas, rect)
+            rect.width() <= 0f || rect.height() <= 0f -> Unit
+            else -> drawAppIconFrame(canvas, rect, entry)
         }
-        if (rect.width() <= 0f || rect.height() <= 0f) return
+    }
+
+    private fun drawAppIconFrame(
+        canvas: Canvas,
+        rect: RectF,
+        entry: LauncherEntry,
+    ) {
         val sizePx = rect.width().coerceAtMost(rect.height()).toInt()
         val bitmap = iconStore.get(entry.key, sizePx)
         if (bitmap != null) {
             canvas.drawBitmap(bitmap, null, rect, null)
         } else {
-            iconStore.request(entry, sizePx) { invalidate() }
+            iconStore.request(entry, sizePx, iconRedraw::changed)
             drawFallbackGlyph(canvas, rect, entry)
         }
     }
@@ -1139,6 +1339,7 @@ internal class HomeView(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // 预览视图只用于展示，不响应触摸、长按与手势。
         if (previewMode) return false
+        if (folderDialog != null) return true
         if (noteOverlay.visible) return noteOverlay.onTouchEvent(event)
         if (immersive) return handleImmersiveTouch(event, metrics ?: return false)
         val m = metrics ?: return false
@@ -1174,6 +1375,7 @@ internal class HomeView(
         event: MotionEvent,
         m: DesktopMetrics,
     ): Boolean {
+        updateLandscapeGeometry()
         if (immersiveHome.drawerOpen) return immersiveHome.onTouch(event)
         val rect = widgetBounds(m)
         val x = event.x - rect.left
@@ -1200,7 +1402,7 @@ internal class HomeView(
         widgetGestureMoved = false
         immersiveNavigationOwned = false
         // 书页区域内的横滑全部交给组件轮播，宿主只在书页之外的时钟与栏区接管导航。
-        val book = immersiveHome.bookBounds(width, height)
+        val book = immersiveBookBounds()
         immersiveRailTouch = !book.contains(event.x, event.y)
         immersiveNavigationCandidate = immersiveRailTouch
         if (immersiveRailTouch) {
@@ -1573,16 +1775,440 @@ internal class HomeView(
 
     // region 交互动作
 
-    /** 启动入口；应用入口交给应用目录，特殊入口交给内置处理。 */
-    private fun launchEntry(entry: LauncherEntry) {
-        runCatching {
-            if (entry.isApp) {
-                val app = entry.packageName?.let { appsByPackage[it] }
-                if (app != null) AppServices.catalog.launch(app)
-            } else {
-                entry.special?.let { AppServices.catalog.launchSpecial(it) }
+    /** 桌面与沉浸抽屉共用的文件夹窗口，不改变抽屉开关或页码。 */
+    private fun openFolder(folderId: String) {
+        if (previewMode || config?.desktop?.folders?.none { it.id == folderId } != false) return
+        closeFolder()
+        handler.removeCallbacks(enterEditRunnable)
+        handler.removeCallbacks(widgetLongPressRunnable)
+        noteOverlay.close()
+        val overlay = FolderOverlay(context)
+        val dialog = Dialog(context)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.setContentView(overlay)
+        openFolderId = folderId
+        folderOverlay = overlay
+        folderDialog = dialog
+        overlay.drawIcon = ::drawIconFrame
+        overlay.onDismissRequested = { closeFolder() }
+        overlay.onAddRequested = { id -> openAppPicker(id, emptyList()) }
+        overlay.onMemberLongPress = { member -> showFolderMemberMenu(folderId, member) }
+        overlay.onLaunch = { member ->
+            launchEntry(member)
+            closeFolder()
+        }
+        dialog.setOnDismissListener {
+            if (folderDialog === dialog) {
+                folderDialog = null
+                folderOverlay = null
+                openFolderId = null
+                updateWidgetVisibility()
+                invalidate()
+                requestPartial()
             }
         }
+        bindOpenFolder()
+        updateWidgetVisibility()
+        dialog.show()
+        dialog.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setDimAmount(0f)
+            setGravity(Gravity.CENTER)
+            setLayout(
+                minOf(resources.displayMetrics.widthPixels - tokens.dp(32f), tokens.dp(420f)).coerceAtLeast(1),
+                minOf(this@HomeView.height - tokens.dp(32f), tokens.dp(600f)).coerceAtLeast(1),
+            )
+        }
+        requestPartial()
+    }
+
+    private fun closeFolder(): Boolean {
+        val dialog = folderDialog ?: return false
+        folderDialog = null
+        folderOverlay = null
+        openFolderId = null
+        dialog.dismiss()
+        updateWidgetVisibility()
+        invalidate()
+        requestPartial()
+        return true
+    }
+
+    private fun bindOpenFolder() {
+        val id = openFolderId ?: return
+        val folder = config?.desktop?.folders?.firstOrNull { it.id == id }
+        folderOverlay?.bind(
+            folder,
+            editableMembers[id].orEmpty(),
+            onRename = { name -> renameFolder(id, name) },
+            onDissolve = { requestFolderDissolve(id) },
+            unavailableKeys =
+                editableMembers[id]
+                    .orEmpty()
+                    .filterNot { resolveEntryApp(it, apps) != null }
+                    .map { it.key }
+                    .toSet(),
+        )
+    }
+
+    private fun requestFolderRename(folderId: String) {
+        val folder =
+            AppServices.config.state.value.desktop.folders
+                .firstOrNull { it.id == folderId } ?: return
+        InkDialogs.input(
+            context,
+            "改名",
+            initial = folder.name,
+            requestIme = true,
+            submit = { name -> renameFolder(folderId, name) },
+        )
+    }
+
+    /**
+     * 提交文件夹改名。
+     *
+     * 名称为空或写入失败时返回假，输入框据此保留当前文本与对话框，供修正后重试；
+     * 写入失败同时给出提示，避免把草稿误认为已经保存。
+     */
+    private fun renameFolder(
+        folderId: String,
+        name: String,
+    ): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            InkDialogs.toast(context, "名称不能为空")
+            return false
+        }
+        return applyFolderOperation { source -> FolderRules.rename(source, folderId, trimmed) }
+    }
+
+    private fun requestFolderDissolve(folderId: String) {
+        InkDialogs.confirm(
+            context,
+            "解散文件夹",
+            "解散后，应用将回到桌面。",
+            confirmLabel = "解散",
+            onConfirm = {
+                applyFolderOperation { source -> FolderRules.dissolve(source, folderId) }
+            },
+        )
+    }
+
+    private fun applyFolderOperation(operation: (DesktopConfig) -> FolderResult?): Boolean {
+        val source = AppServices.config.state.value.desktop
+        val result = operation(source)
+        return when {
+            result == null -> false
+            FolderStore.apply(result, source) != null -> {
+                InkDialogs.toast(context, "保存失败，请重试")
+                false
+            }
+            else -> {
+                // 只在事务已发布后读取权威配置；失败不预先改标题、成员或本地入口。
+                applyData(AppServices.catalog.apps.value, AppServices.config.state.value)
+                requestPartial()
+                true
+            }
+        }
+    }
+
+    /**
+     * 在目录快照与旧键解析就绪后执行一次自动成组，并排队处理旧包级引用确认。
+     *
+     * 只处理真实刷新后的目录快照；预览模式、存在其他浮层或已有判定在途时直接返回。
+     * 写盘失败不记录处理状态，下一轮应用数据时重新判定。
+     */
+    private fun maybeProcessAutoGroup() {
+        if (!canProcessAutoGroup()) return
+        autoGroupInFlight = true
+        try {
+            processAutoGroupStep()
+        } finally {
+            autoGroupInFlight = false
+        }
+    }
+
+    /**
+     * 判定当前快照是否具备自动成组条件。
+     *
+     * 预览模式、已有判定在途、确认浮层打开、存在其他浮层或旧键尚未解析完成时都不执行，
+     * 避免在迁移窗口内按旧键建立错误的组。
+     */
+    private fun canProcessAutoGroup(): Boolean =
+        !previewMode && !autoGroupInFlight && !legacyConfirmOpen && catalogReady() && legacyKeysResolved()
+
+    /** 判定目录快照已就绪且没有浮层占用交互。 */
+    private fun catalogReady(): Boolean = apps.isNotEmpty() && overlaysClosed()
+
+    /**
+     * 判定旧包级入口键解析是否已完成。
+     *
+     * 解析完成前桌面顺序仍是旧键，归组会消费这些键并写入处理状态，
+     * 使旧引用确认浮层不再出现；解析由配置流发布后本方法才返回真。
+     */
+    private fun legacyKeysResolved(): Boolean =
+        runCatching { AppServices.config.state.value.desktop.componentKeyMigrated }.getOrDefault(false)
+
+    /** 判定当前没有文件夹浮层、应用选择浮层或文件夹选择浮层占用交互。 */
+    private fun overlaysClosed(): Boolean = folderDialog == null && appPicker == null && folderPickerDialog == null
+
+    /**
+     * 取当前实际呈现的入口顺序，供归组与旧引用替换定位。
+     *
+     * 入口列表已按排序模式与用户顺序组装，包含文件夹与特殊入口键；
+     * 归组据此把新文件夹放到成员原本的显示位置，其他条目相对顺序不变。
+     */
+    private fun visibleOrder(): List<String> = entries.map { it.key }
+
+    /**
+     * 执行一次自动成组或旧引用确认。
+     *
+     * 先按当前目录整理同包多入口，成功写入后由配置流触发下一轮应用数据；没有需要整理的包时
+     * 取出第一个待确认旧引用并显示确认浮层，一次只处理一个包。
+     */
+    private fun processAutoGroupStep() {
+        val desktop = AppServices.config.state.value.desktop
+        val labels = applicationLabels(apps)
+        val expected = FolderAutoGroup.run(desktop, apps, labels, visibleOrder = visibleOrder())
+        if (expected != null) {
+            FolderStore.applyAutoGroup(expected, desktop)
+        } else {
+            FolderAutoGroup.pendingLegacy(desktop, apps, labels).firstOrNull()?.let { pending ->
+                legacyConfirmOpen = true
+                showLegacyGroupConfirm(pending, labels)
+            }
+        }
+    }
+
+    /**
+     * 读取应用级名称，供文件夹命名使用。
+     *
+     * 参数 apps 为目录快照；包管理器读取失败的包不进入映射，由规则回退组件名称。
+     */
+    private fun applicationLabels(apps: List<InstalledApp>): Map<String, String> {
+        val labels = LinkedHashMap<String, String>()
+        for (packageName in apps.map { it.packageName }.distinct()) {
+            val label = runCatching { AppServices.catalog.applicationLabel(packageName) }.getOrNull()
+            if (!label.isNullOrBlank()) labels[packageName] = label
+        }
+        return labels
+    }
+
+    /**
+     * 显示旧包级引用的转换确认。
+     *
+     * 一次只处理一个包；确认与暂不转换都会写入一次决定，写盘失败时保留待确认状态供下一轮重试。
+     */
+    private fun showLegacyGroupConfirm(
+        pending: FolderAutoGroup.LegacyPending,
+        labels: Map<String, String>,
+    ) {
+        val message =
+            buildString {
+                append("旧配置中存在无法区分具体页面的应用入口，可整理为「")
+                append(pending.folderName)
+                append("」文件夹。\n\n")
+                append("确认后按当前安装的 ")
+                append(pending.entryCount)
+                append(" 个入口建立文件夹，位置保持在桌面当前顺序；")
+                if (pending.hostFolderId != null) {
+                    append("原入口位于「")
+                    append(pending.hostFolderName.orEmpty())
+                    append("」文件夹内时，将移出该文件夹并在其后新建顶层文件夹。\n\n")
+                } else {
+                    append("原入口原位替换为文件夹。\n\n")
+                }
+                append("旧记录无法还原原先选择的页面，暂不转换则保留原样，之后可在整理模式手动处理。")
+                append("整理后可随时改名、移出或解散，不会再次自动整理。")
+            }
+        InkDialogs.confirm(
+            context,
+            "整理旧应用入口",
+            message,
+            confirmLabel = "确认整理",
+            cancelLabel = "暂不转换",
+            onConfirm = { resolveLegacyGroup(pending, accepted = true, labels = labels) },
+            onCancel = { resolveLegacyGroup(pending, accepted = false, labels = labels) },
+        )
+    }
+
+    /**
+     * 写入一次旧包级引用的决定，并继续处理下一个待确认的包。
+     *
+     * 参数 accepted 为真表示转换为组件文件夹，为假表示记录暂不转换；写盘失败时提示并保留状态。
+     */
+    private fun resolveLegacyGroup(
+        pending: FolderAutoGroup.LegacyPending,
+        accepted: Boolean,
+        labels: Map<String, String>,
+    ) {
+        legacyConfirmOpen = false
+        val desktop = AppServices.config.state.value.desktop
+        val expected =
+            FolderAutoGroup.resolveLegacy(
+                desktop,
+                apps,
+                pending.packageName,
+                accepted,
+                labels,
+                visibleOrder = visibleOrder(),
+            )
+        if (expected == null) return
+        if (!FolderStore.applyAutoGroup(expected, desktop)) {
+            InkDialogs.toast(context, "保存失败，稍后重试")
+            return
+        }
+        maybeProcessAutoGroup()
+    }
+
+    /**
+     * 重新发起一次已拒绝的旧包级引用整理。
+     *
+     * 参数 packageName 为要重新处理的包名。先把该包决定从已拒绝恢复为待确认并写盘，
+     * 写入成功后复用确认浮层；取消确认时布局保持不变，状态仍可再次主动发起。
+     */
+    private fun reopenDeclinedLegacy(packageName: String) {
+        val desktop = AppServices.config.state.value.desktop
+        val reopened = FolderAutoGroup.reopenDeclined(desktop, packageName) ?: return
+        AppServices.config.edit { config -> config.copy(desktop = reopened) }
+        val labels = applicationLabels(apps)
+        val pending =
+            FolderAutoGroup
+                .pendingLegacy(AppServices.config.state.value.desktop, apps, labels)
+                .firstOrNull { it.packageName == packageName }
+        if (pending != null) {
+            legacyConfirmOpen = true
+            showLegacyGroupConfirm(pending, labels)
+        }
+    }
+
+    private fun openAppPicker(
+        targetFolderId: String?,
+        preselected: List<String>,
+    ) {
+        val desktop = AppServices.config.state.value.desktop
+        val target = desktop.folders.firstOrNull { it.id == targetFolderId }
+        if (targetFolderId != null && target == null) return
+        val apps = AppServices.catalog.apps.value
+        val picker = AppPickerOverlay(context)
+        picker.candidates = FolderAppSelection.candidates(apps, desktop.folders, desktop.hiddenPackages, targetFolderId)
+        picker.drawIcon = ::drawIconFrame
+        appPicker?.dismiss()
+        appPicker = picker
+        picker.open(
+            targetFolder = target,
+            newFolderName = "文件夹",
+            preselected = preselected,
+            existingFolders = desktop.folders,
+            apps =
+                apps.map {
+                    LauncherEntry(
+                        key = EntryKeys.appEntryKey(it),
+                        type = EntryType.APP,
+                        label = it.label,
+                        packageName = it.packageName,
+                        activityName = it.activityName,
+                    )
+                },
+            onCancel = { if (appPicker === picker) appPicker = null },
+            onSubmit = { keys, name ->
+                if (submitFolderMembers(targetFolderId, keys, name)) {
+                    picker.dismiss()
+                    if (appPicker === picker) appPicker = null
+                    closeFolder()
+                }
+            },
+        )
+    }
+
+    private fun closeFolderPickers() {
+        appPicker?.dismiss()
+        appPicker = null
+        folderPickerDialog?.dismiss()
+        folderPickerDialog = null
+    }
+
+    private fun requestMoveIntoFolder(entry: LauncherEntry) {
+        folderPickerDialog?.dismiss()
+        folderPickerDialog =
+            FolderPickerDialog(context).open(
+                AppServices.config.state.value.desktop.folders,
+            ) { folder ->
+                if (folder == null) {
+                    openAppPicker(null, listOf(entry.key))
+                    true
+                } else {
+                    submitFolderMembers(folder.id, listOf(entry.key), null)
+                }
+            }
+    }
+
+    private fun submitFolderMembers(
+        targetFolderId: String?,
+        keys: List<String>,
+        name: String?,
+    ): Boolean {
+        val apps = AppServices.catalog.apps.value
+        val (valid, invalidCount) = FolderAppSelection.revalidate(keys, apps.map { it.packageName }.toSet())
+        if (invalidCount > 0) InkDialogs.toast(context, "已跳过 $invalidCount 个失效应用")
+        if (valid.isEmpty()) {
+            InkDialogs.toast(context, "没有可添加的应用")
+            return false
+        }
+        // Captures the submission-time desktop and performs the sole Store.apply.
+        return applyFolderOperation { source ->
+            val snapshot = FolderAppSelection.candidates(apps, source.folders, source.hiddenPackages, targetFolderId)
+            val eligible = FolderAppSelection.selectedKeys(snapshot, valid.toSet(), targetFolderId).toSet()
+            // Keep the original picker order even if labels changed while it was open.
+            val ordered = valid.filter { it in eligible }
+            val plan = FolderAppSelection.plan(snapshot, valid.toSet(), targetFolderId)
+            if (ordered.isEmpty()) {
+                InkDialogs.toast(context, "没有可添加的应用")
+                return@applyFolderOperation null
+            }
+            InkDialogs.toast(
+                context,
+                listOfNotNull(
+                    if (plan.added > 0) "添加 ${plan.added} 个" else null,
+                    if (plan.moved > 0) "移动 ${plan.moved} 个" else null,
+                ).joinToString("，"),
+            )
+            if (targetFolderId == null) {
+                FolderRules.create(source, name.orEmpty().trim(), ordered, FolderRules.nextFolderId(source))
+            } else {
+                FolderRules.addMembers(source, targetFolderId, ordered)
+            }
+        }
+    }
+
+    /**
+     * 启动入口；应用入口交给应用目录，文件夹打开窗口，特殊入口交给内置处理。
+     *
+     * 应用入口按组件精确身份解析，失效入口给出失败提示，不改用同包其他入口；
+     * 启动结果由应用目录返回，失败时同样提示，便于用户区分点击无效与系统拒绝。
+     */
+    private fun launchEntry(entry: LauncherEntry) {
+        if (entry.isFolder) {
+            entry.folder?.id?.let(::openFolder)
+        } else if (!entry.isApp) {
+            entry.special?.let { AppServices.catalog.launchSpecial(it) }
+        } else {
+            launchAppEntry(entry)
+        }
+    }
+
+    /** 启动应用入口；失效或系统拒绝时提示，不改用同包其他入口。 */
+    private fun launchAppEntry(entry: LauncherEntry) {
+        val app = resolveEntryApp(entry, apps)
+        if (app == null) {
+            InkDialogs.toast(context, "启动失败，请重试")
+            return
+        }
+        // 启动结果为假说明系统拒绝或目标 Activity 已失效，只提示，不改用同包其他入口。
+        val launched = runCatching { AppServices.catalog.launch(app) }.getOrDefault(false)
+        if (!launched) InkDialogs.toast(context, "启动失败，请重试")
     }
 
     /** 进入整理模式，参数 index 为按下时命中的入口。 */
@@ -1671,10 +2297,113 @@ internal class HomeView(
     /** 弹出单条入口的长按菜单。 */
     private fun showEntryMenu(index: Int) {
         val entry = entries.getOrNull(index) ?: return
-        val app = entry.packageName?.let { appsByPackage[it] }
-        val targetId = IconTargets.normalizeStoredKey(entry.key)
+        when (entry.type) {
+            EntryType.FOLDER -> showFolderEntryMenu(entry)
+            EntryType.APP -> showAppEntryMenu(entry)
+            EntryType.SPECIAL -> showSpecialEntryMenu(entry)
+        }
+    }
+
+    private fun showFolderEntryMenu(entry: LauncherEntry) {
+        val id = entry.folder?.id ?: return
+        InkDialogs.choose(context, entry.label, listOf("改名", "解散")) { picked ->
+            exitEditMode()
+            when (picked) {
+                0 -> requestFolderRename(id)
+                1 -> requestFolderDissolve(id)
+            }
+        }
+    }
+
+    private fun showAppEntryMenu(entry: LauncherEntry) {
         val labels = ArrayList<CharSequence>()
         val actions = ArrayList<() -> Unit>()
+        if (AppServices.config.state.value.desktop.folders
+                .none { entry.key in it.memberKeys }
+        ) {
+            labels.add("移入文件夹")
+            actions.add { requestMoveIntoFolder(entry) }
+        }
+        collectEntryActions(entry, labels, actions)
+        showEntryActions(entry, labels, actions)
+    }
+
+    private fun showSpecialEntryMenu(entry: LauncherEntry) {
+        val labels = ArrayList<CharSequence>()
+        val actions = ArrayList<() -> Unit>()
+        collectEntryActions(entry, labels, actions)
+        showEntryActions(entry, labels, actions)
+    }
+
+    private fun showFolderMemberMenu(
+        folderId: String,
+        entry: LauncherEntry,
+    ) {
+        val labels = arrayListOf<CharSequence>("移出文件夹")
+        val actions = arrayListOf<() -> Unit>({ removeFolderMember(folderId, entry) })
+        if (entry.packageName in appsByPackage) {
+            collectEntryActions(entry, labels, actions, onPin = { pinFolderMember(folderId, entry) })
+        }
+        showEntryActions(entry, labels, actions)
+    }
+
+    /**
+     * 将文件夹成员移到组内首位。
+     *
+     * 参数 folderId 为目标文件夹标识，entry 为待置顶成员；其余成员保持原顺序。
+     * 文件夹不存在或不含该成员时返回失败；一次事务的结果仅更新成员顺序，保留桌面顺序与排序模式。
+     */
+    private fun pinFolderMember(
+        folderId: String,
+        entry: LauncherEntry,
+    ) {
+        applyFolderOperation { source ->
+            val target = source.folders.firstOrNull { it.id == folderId }
+            if (target == null || entry.key !in target.memberKeys) {
+                return@applyFolderOperation FolderResult.Failure(FolderFailure.FOLDER_NOT_FOUND)
+            }
+            val folders =
+                source.folders.map { folder ->
+                    if (folder.id == folderId) {
+                        folder.copy(memberKeys = listOf(entry.key) + folder.memberKeys.filter { it != entry.key })
+                    } else {
+                        folder
+                    }
+                }
+            FolderResult.Success(source.copy(folders = folders))
+        }
+    }
+
+    private fun removeFolderMember(
+        folderId: String,
+        entry: LauncherEntry,
+    ) {
+        applyFolderOperation { source ->
+            if (entry.packageName in appsByPackage) {
+                FolderRules.removeMember(source, folderId, entry.key)
+            } else {
+                // 已卸载成员只清理文件夹引用，不向桌面顺序追加失效键。
+                val folders =
+                    source.folders.map { folder ->
+                        if (folder.id == folderId) {
+                            folder.copy(memberKeys = folder.memberKeys - entry.key)
+                        } else {
+                            folder
+                        }
+                    }
+                FolderResult.Success(source.copy(folders = folders))
+            }
+        }
+    }
+
+    private fun collectEntryActions(
+        entry: LauncherEntry,
+        labels: ArrayList<CharSequence>,
+        actions: ArrayList<() -> Unit>,
+        onPin: (() -> Unit)? = null,
+    ) {
+        val app = entry.packageName?.let { appsByPackage[it] }
+        val targetId = IconTargets.normalizeStoredKey(entry.key)
         labels.add("更换图标")
         actions.add { pickEntryIcon(targetId) }
         // 仅在已设置自定义图标时提供恢复入口，避免出现无效选项。
@@ -1692,7 +2421,7 @@ internal class HomeView(
             actions.add { openDestination(Destination.PageWidgetPicker(targetPage)) }
         }
         labels.add("置顶")
-        actions.add { pinEntry(entry) }
+        actions.add(onPin ?: { pinEntry(entry) })
         if (app != null) {
             labels.add("隐藏")
             actions.add { hideEntry(app.packageName) }
@@ -1701,6 +2430,13 @@ internal class HomeView(
                 actions.add { requestUninstall(app.packageName) }
             }
         }
+    }
+
+    private fun showEntryActions(
+        entry: LauncherEntry,
+        labels: List<CharSequence>,
+        actions: List<() -> Unit>,
+    ) {
         if (labels.isEmpty()) return
         InkDialogs.choose(context, entry.label, labels) { picked ->
             exitEditMode()
@@ -1727,6 +2463,15 @@ internal class HomeView(
         }
         labels.add("进入整理模式")
         actions.add { enterEditMode(-1) }
+        val declined = config?.let { FolderAutoGroup.declinedPackages(it.desktop) }.orEmpty()
+        if (declined.isNotEmpty()) {
+            labels.add("整理旧应用入口")
+            actions.add {
+                InkDialogs.choose(context, "整理旧应用入口", declined) { picked ->
+                    declined.getOrNull(picked)?.let { reopenDeclinedLegacy(it) }
+                }
+            }
+        }
         labels.add("十雨设置")
         actions.add { runCatching { AppServices.router.navigate(Destination.Settings) } }
         val hidden =
