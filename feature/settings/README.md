@@ -8,7 +8,7 @@
 
 声明按页面拆分：`AppearanceSpecs.kt`、`TraySpecs.kt`、`LockSpecs.kt`、`SystemSpecs.kt`、`BookshelfSpecs.kt`。
 
-页面：`SettingsHomeScreen.kt` 首页卡片，`DesktopPrefsScreen.kt` 桌面偏好，`LauncherPrefsScreen.kt` 启动器设置，`AppearanceScreen.kt` 外观，`LockSettingsScreen.kt` 锁屏，`PermissionsScreen.kt` 权限，`SettingsSystemScreen.kt` 系统，`BookshelfSettingsScreen.kt` 书架，`AboutScreen.kt`、`UpdateScreen.kt`、`BackupScreen.kt` 与各类选择器。
+页面：`SettingsHomeScreen.kt` 首页卡片，`DesktopPrefsScreen.kt` 桌面偏好，`LauncherPrefsScreen.kt` 启动器设置，`AppearanceScreen.kt` 外观，`LockSettingsScreen.kt` 锁屏，`SettingsSystemScreen.kt` 系统，`BookshelfSettingsScreen.kt` 书架，`AboutScreen.kt`、`UpdateScreen.kt`、`BackupScreen.kt` 与各类选择器。
 
 美化模式：`BeautifyScreen.kt` 与四个面板 `BeautifyThemePanel.kt`、`BeautifyImagePanel.kt`、`BeautifyIconPanel.kt`、`BeautifyPreviewPanel.kt`，分页状态在 `BeautifyPreviewState.kt`，分页换算在 `DesktopPagination.kt`。
 

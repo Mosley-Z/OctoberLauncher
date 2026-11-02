@@ -24,7 +24,6 @@ class DestinationLabelsTest {
             Destination.DesktopPrefs,
             Destination.TrayPrefs,
             Destination.LockSettings,
-            Destination.Permissions,
             Destination.About,
             Destination.Update,
             Destination.WidgetPicker,

@@ -4,14 +4,18 @@ import android.app.ActivityManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.render.ImageDecoder
 import com.shuiyu.octoberrain.core.render.ImageSizing
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -29,14 +33,26 @@ private const val LOW_EDGE = 1600
 /** 常规设备的导出长边。 */
 private const val HIGH_EDGE = 2400
 
+/** 导出与覆盖写入共用的压缩质量；PNG 忽略该值，JPEG 与有损 WebP 按此质量编码。 */
+private const val EXPORT_QUALITY = 100
+
 /** 导出文件的 MIME 类型。 */
 private const val MIME_PNG = "image/png"
+
+/** JPEG 覆盖写入后向媒体库登记的 MIME 类型。 */
+private const val MIME_JPEG = "image/jpeg"
+
+/** WebP 覆盖写入后向媒体库登记的 MIME 类型。 */
+private const val MIME_WEBP = "image/webp"
 
 /** 文件名中的编辑标记。 */
 private const val EDIT_MARK = "-编-"
 
 /** 文件名时间戳格式。 */
 private const val STAMP_PATTERN = "yyyyMMdd-HHmmss"
+
+/** 覆盖写入时临时文件名的前缀，以点号开头避免被媒体扫描识别为图片。 */
+internal const val OVERWRITE_TEMP_PREFIX = ".overwrite-"
 
 /** 导出结果。 */
 sealed interface ExportResult {
@@ -145,21 +161,105 @@ object EditExport {
     ): ExportResult {
         val source = File(sourcePath)
         if (!source.isFile) return ExportResult.Failure("源图片不存在")
-        val bounds = ImageDecoder.size(sourcePath) ?: return ExportResult.Failure("无法读取图片尺寸")
-        if (!ImageSizing.withinLimit(bounds[0], bounds[1])) return ExportResult.Failure("图片尺寸超出处理上限")
+        val rendered = render(context, sourcePath, ops)
+        if (rendered is RenderResult.Failure) return ExportResult.Failure(rendered.message)
+        val edited = (rendered as RenderResult.Success).bitmap
+        return try {
+            val directory = StorageAccess(context).editOutputRoot()
+            val name = uniqueName(directory, source.nameWithoutExtension, timestamp)
+            val path = writeBitmap(context, directory, name, edited)
+            if (path == null) ExportResult.Failure("写入图片失败") else ExportResult.Success(name, path)
+        } finally {
+            edited.recycle()
+        }
+    }
+
+    /**
+     * 解码并重放编辑操作，用结果覆盖源文件。
+     *
+     * 参数 context 为任意上下文；sourcePath 为源图片路径；ops 为编辑操作。返回成功时
+     * displayName 为源文件名、path 为源文件绝对路径，失败时返回面向用户的中文说明。
+     * 编码格式由源文件扩展名决定，扩展名与文件名保持不变。写入先落到源文件同目录的隐藏
+     * 临时文件，再原子替换源文件；任何一步失败都会删除临时文件并保留源文件原内容，
+     * 调用方据此提示改用另存。方法同步执行，应在 IO 线程调用。
+     */
+    @Suppress("ReturnCount")
+    fun overwrite(
+        context: Context,
+        sourcePath: String,
+        ops: List<EditOp>,
+    ): ExportResult {
+        val source = File(sourcePath)
+        if (!source.isFile) return ExportResult.Failure("源图片不存在")
+        val plan =
+            planOverwrite(source)
+                ?: return ExportResult.Failure(overwriteBlockReason(source) ?: "源文件不可写")
+        val rendered = render(context, sourcePath, ops)
+        if (rendered is RenderResult.Failure) return ExportResult.Failure(rendered.message)
+        val edited = (rendered as RenderResult.Success).bitmap
+        return try {
+            when {
+                !writeBitmapToFile(edited, plan.temp, plan.encoding, plan.quality) -> {
+                    plan.temp.delete()
+                    ExportResult.Failure("写入图片失败")
+                }
+                !replaceAtomically(plan) -> ExportResult.Failure("替换源文件失败")
+                else -> {
+                    syncMediaStore(context, source, plan.encoding)
+                    ExportResult.Success(source.name, source.absolutePath)
+                }
+            }
+        } finally {
+            edited.recycle()
+        }
+    }
+
+    /**
+     * 解码源图并重放编辑操作。
+     *
+     * 参数 context 用于读取设备内存档位；sourcePath 为源图片路径；ops 为编辑操作。
+     * 返回成功时位图由调用方写入后回收，失败时返回带中文原因的结果。
+     */
+    @Suppress("ReturnCount")
+    private fun render(
+        context: Context,
+        sourcePath: String,
+        ops: List<EditOp>,
+    ): RenderResult {
+        val bounds = ImageDecoder.size(sourcePath) ?: return RenderResult.Failure("无法读取图片尺寸")
+        if (!ImageSizing.withinLimit(bounds[0], bounds[1])) {
+            return RenderResult.Failure("图片尺寸超出处理上限")
+        }
         val edge = targetEdge(memoryClassOf(context))
         val sample = ImageSizing.sampleFor(maxOf(bounds[0], bounds[1]), edge / 2)
-        val decoded = ImageDecoder.decodeWithSample(sourcePath, sample) ?: return ExportResult.Failure("图片解码失败")
+        val decoded =
+            ImageDecoder.decodeWithSample(sourcePath, sample)
+                ?: return RenderResult.Failure("图片解码失败")
         // 本机尺寸操作自带目标像素，预先按长边缩放没有收益，直接交给重放阶段处理
         val scaled = if (ops.any { it is EditOp.Frame }) decoded else scaleToEdge(decoded, edge)
         val edited = applyOps(scaled, ops)
-        val directory = StorageAccess(context).editOutputRoot()
-        val name = uniqueName(directory, source.nameWithoutExtension, timestamp)
-        val path = writeBitmap(context, directory, name, edited)
-        if (edited !== scaled) edited.recycle()
-        if (scaled !== decoded) scaled.recycle()
-        decoded.recycle()
-        return if (path == null) ExportResult.Failure("写入图片失败") else ExportResult.Success(name, path)
+        // 逐层回收中间位图，最终结果由调用方写入后回收
+        for (bitmap in listOf(decoded, scaled)) {
+            if (bitmap !== edited) bitmap.recycle()
+        }
+        return RenderResult.Success(edited)
+    }
+
+    /** 覆盖后通知媒体库重新读取源文件，使已登记的媒体条目返回新内容；MIME 类型随编码格式给出。 */
+    private fun syncMediaStore(
+        context: Context,
+        target: File,
+        encoding: OverwriteEncoding,
+    ) {
+        val mime =
+            when (encoding) {
+                OverwriteEncoding.PNG -> MIME_PNG
+                OverwriteEncoding.JPEG -> MIME_JPEG
+                OverwriteEncoding.WEBP -> MIME_WEBP
+            }
+        runCatching {
+            MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(mime), null)
+        }
     }
 
     /** 读取设备可用内存等级，读取失败按低内存处理，保证导出尺寸保守。 */
@@ -218,7 +318,9 @@ private fun writeViaMediaStore(
         }.getOrNull() ?: return null
     val written =
         runCatching {
-            resolver.openOutputStream(uri)?.use { stream -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream) }
+            resolver.openOutputStream(uri)?.use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, EXPORT_QUALITY, stream)
+            }
         }.getOrNull() == true
     return if (written) {
         runCatching {
@@ -242,11 +344,7 @@ private fun writeViaFile(
 ): String? {
     if (!ensureDirectory(directory)) return null
     val target = File(directory, name)
-    val written =
-        runCatching {
-            FileOutputStream(target).use { stream -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream) }
-        }.getOrDefault(false)
-    return if (written) {
+    return if (writeBitmapToFile(bitmap, target, OverwriteEncoding.PNG, EXPORT_QUALITY)) {
         runCatching { MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(MIME_PNG), null) }
         target.absolutePath
     } else {
@@ -255,5 +353,167 @@ private fun writeViaFile(
     }
 }
 
+/**
+ * 按指定编码把位图写入文件，成功返回真。
+ *
+ * 参数 bitmap 为待写入位图；target 为目标文件；encoding 为压缩格式，JPEG 无透明通道，
+ * 位图带透明度时先铺纸色底；quality 为压缩质量。写入失败返回假，由调用方清理残留文件。
+ */
+private fun writeBitmapToFile(
+    bitmap: Bitmap,
+    target: File,
+    encoding: OverwriteEncoding,
+    quality: Int,
+): Boolean =
+    runCatching {
+        // JPEG 无透明通道，带透明度的位图先铺纸色底，避免出现黑底
+        val source =
+            if (encoding == OverwriteEncoding.JPEG && bitmap.hasAlpha()) {
+                Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888).also { flattened ->
+                    Canvas(flattened).apply {
+                        drawColor(InkColors.PAPER)
+                        drawBitmap(bitmap, 0f, 0f, null)
+                    }
+                }
+            } else {
+                bitmap
+            }
+        try {
+            val format =
+                when (encoding) {
+                    OverwriteEncoding.PNG -> Bitmap.CompressFormat.PNG
+                    OverwriteEncoding.JPEG -> Bitmap.CompressFormat.JPEG
+                    // 有损 WebP 自 Android 10 起提供，旧版本不会选出该编码
+                    OverwriteEncoding.WEBP ->
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            Bitmap.CompressFormat.WEBP_LOSSY
+                        } else {
+                            Bitmap.CompressFormat.WEBP
+                        }
+                }
+            FileOutputStream(target).use { stream -> source.compress(format, quality, stream) }
+        } finally {
+            if (source !== bitmap) source.recycle()
+        }
+    }.getOrDefault(false)
+
 /** 确保目录存在，目录已存在或创建成功时返回真。 */
 private fun ensureDirectory(directory: File): Boolean = directory.exists() || directory.mkdirs() || directory.exists()
+
+/** 解码与重放结果；成功时位图由调用方负责写入并回收。 */
+private sealed interface RenderResult {
+    /** 成功生成的编辑结果。 */
+    class Success(
+        /** 编辑后的位图，调用方负责回收。 */
+        val bitmap: Bitmap,
+    ) : RenderResult
+
+    /** 失败原因，面向用户显示。 */
+    class Failure(
+        /** 中文失败说明。 */
+        val message: String,
+    ) : RenderResult
+}
+
+/** 覆盖写入使用的编码格式，由源文件扩展名决定。 */
+internal enum class OverwriteEncoding {
+    /** PNG 无损编码，保留透明度。 */
+    PNG,
+
+    /** JPEG 有损编码，无透明通道，写入前需铺纸色底。 */
+    JPEG,
+
+    /** 有损 WebP 编码，仅 Android 10 及以上可选。 */
+    WEBP,
+}
+
+/**
+ * 覆盖写入计划。
+ *
+ * 参数 target 为被覆盖的源文件，temp 为同目录下先写入的临时文件，encoding 为按源文件
+ * 扩展名选定的编码格式，quality 为压缩质量。target 与 temp 位于同一文件系统，
+ * 保证最终替换为原子操作。
+ */
+internal data class OverwritePlan(
+    val target: File,
+    val temp: File,
+    val encoding: OverwriteEncoding,
+    val quality: Int,
+)
+
+/**
+ * 按源文件名选择覆盖写入使用的编码格式。
+ *
+ * 参数 fileName 为源文件名，扩展名按忽略大小写匹配；sdkInt 为系统接口级别，默认取
+ * [Build.VERSION.SDK_INT]。扩展名为 jpg 或 jpeg 时返回 [OverwriteEncoding.JPEG]，
+ * png 返回 [OverwriteEncoding.PNG]，webp 在 Android 10 及以上返回
+ * [OverwriteEncoding.WEBP]；其余扩展名与无扩展名返回空，表示该格式不支持覆盖。
+ */
+internal fun overwriteEncodingFor(
+    fileName: String,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+): OverwriteEncoding? =
+    when (fileName.substringAfterLast('.', "").lowercase(Locale.US)) {
+        "jpg", "jpeg" -> OverwriteEncoding.JPEG
+        "png" -> OverwriteEncoding.PNG
+        "webp" -> if (sdkInt >= Build.VERSION_CODES.R) OverwriteEncoding.WEBP else null
+        else -> null
+    }
+
+/**
+ * 判断覆盖写入被拒绝的原因。
+ *
+ * 参数 source 为待覆盖的源文件；sdkInt 为系统接口级别，用于判断 WebP 编码是否可用。
+ * 可执行覆盖时返回空，否则返回面向用户的中文原因；格式不受支持时提示该格式不支持覆盖。
+ */
+@Suppress("ReturnCount")
+private fun overwriteBlockReason(
+    source: File,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+): String? {
+    if (!source.isFile || !source.canWrite()) return "源文件不可写"
+    val directory = source.parentFile ?: return "源文件不可写"
+    if (!directory.isDirectory || !directory.canWrite()) return "源文件不可写"
+    if (overwriteEncodingFor(source.name, sdkInt) == null) return "该格式不支持覆盖"
+    val temp = File(directory, OVERWRITE_TEMP_PREFIX + source.name)
+    if (temp.exists() && !temp.delete()) return "临时文件无法清理"
+    return null
+}
+
+/**
+ * 构造覆盖写入计划。
+ *
+ * 参数 source 为待覆盖的源文件；sdkInt 为系统接口级别，默认取 [Build.VERSION.SDK_INT]。
+ * 源文件非普通文件、不可写、所在目录不可写、残留的同名临时文件无法清理，或扩展名不受
+ * 支持时返回空，调用方据此提示改用另存。
+ */
+@Suppress("ReturnCount")
+internal fun planOverwrite(
+    source: File,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+): OverwritePlan? {
+    if (overwriteBlockReason(source, sdkInt) != null) return null
+    val directory = source.parentFile ?: return null
+    val encoding = overwriteEncodingFor(source.name, sdkInt) ?: return null
+    val temp = File(directory, OVERWRITE_TEMP_PREFIX + source.name)
+    return OverwritePlan(source, temp, encoding, EXPORT_QUALITY)
+}
+
+/**
+ * 用临时文件原子替换目标文件。
+ *
+ * 参数 plan 为覆盖计划。替换成功返回真；失败时删除临时文件并返回假，目标文件保持原内容。
+ */
+internal fun replaceAtomically(plan: OverwritePlan): Boolean {
+    val replaced =
+        runCatching {
+            Files.move(
+                plan.temp.toPath(),
+                plan.target.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE,
+            )
+        }.isSuccess
+    if (!replaced) plan.temp.delete()
+    return replaced
+}

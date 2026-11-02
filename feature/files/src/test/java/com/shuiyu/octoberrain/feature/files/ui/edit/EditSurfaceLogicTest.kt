@@ -73,8 +73,9 @@ class EditSurfaceLogicTest {
 
     @Test
     fun `页签循环切换`() {
-        assertEquals(EditTab.SAVE, EditUiState(tab = EditTab.CROP).cycleTab(-1).tab)
-        assertEquals(EditTab.CROP, EditUiState(tab = EditTab.SAVE).cycleTab(1).tab)
+        assertEquals(3, EditTab.entries.size)
+        assertEquals(EditTab.FILTER, EditUiState(tab = EditTab.CROP).cycleTab(-1).tab)
+        assertEquals(EditTab.CROP, EditUiState(tab = EditTab.FILTER).cycleTab(1).tab)
     }
 
     @Test

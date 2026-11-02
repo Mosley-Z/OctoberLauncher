@@ -37,9 +37,11 @@ import kotlin.math.roundToInt
 /**
  * 编辑页的绘制与交互视图。
  *
- * 顶栏提供取消与保存，底栏提供裁剪、旋转、滤镜、另存四个页签，页签上方的控制条按页签
- * 显示对应操作。预览图在后台线程按会话操作重放并缩放到预览尺寸，滤镜在缩小后的像素数组上
- * 计算；保存时按导出预算重新解码并重放完整操作，写入成功后通知缩略图缓存与桌面刷新。
+ * 顶栏提供取消与保存，底栏提供裁剪、旋转、滤镜三个页签，页签上方的控制条按页签显示
+ * 对应操作。点击顶栏保存按钮在其下方展开浮动面板，面板提供覆盖源文件与另存两项：覆盖
+ * 先二次确认再写回源文件，另存写入公共图片目录并生成新文件名。预览图在后台线程按会话
+ * 操作重放并缩放到预览尺寸，滤镜在缩小后的像素数组上计算；保存时按导出预算重新解码并
+ * 重放完整操作，写入成功后通知缩略图缓存与桌面刷新。
  *
  * 参数 context 为视图上下文；sourcePath 为源图片绝对路径；tokens 为页面尺寸令牌；
  * onFinish 在保存成功或用户放弃修改后调用。
@@ -77,6 +79,10 @@ internal class EditSurface(
     private var tabs: List<IntRect> = emptyList()
     private var cancelRect = IntRect(0, 0, 0, 0)
     private var saveRect = IntRect(0, 0, 0, 0)
+    private var saveMenuOpen = false
+    private var saveMenuRect = IntRect(0, 0, 0, 0)
+    private var overwriteRect = IntRect(0, 0, 0, 0)
+    private var saveAsRect = IntRect(0, 0, 0, 0)
 
     private var downX = 0f
     private var downY = 0f
@@ -185,8 +191,12 @@ internal class EditSurface(
 
     override fun performClick(): Boolean = super.performClick()
 
-    /** 处理返回动作，存在未保存修改时先确认。 */
+    /** 处理返回动作；保存面板展开时先收起，否则存在未保存修改时先确认。 */
     fun handleBack(): Boolean {
+        if (saveMenuOpen) {
+            closeSaveMenu()
+            return true
+        }
         requestClose()
         return true
     }
@@ -287,10 +297,18 @@ internal class EditSurface(
             }
         cancelRect = IntRect(tokens.padH, 0, tokens.padH + tokens.actionButtonWidth, tokens.topBarH)
         saveRect = IntRect(width - tokens.padH - tokens.actionButtonWidth, 0, width - tokens.padH, tokens.topBarH)
+        // 保存面板与保存按钮右对齐，在顶栏下边线以下按行展开两项
+        val menuTop = topBar.bottom + tokens.stroke
+        val itemHeight = tokens.rowH
+        val menuBottom = menuTop + itemHeight * SAVE_MENU_ITEMS
+        saveMenuRect = IntRect(saveRect.right - tokens.actionButtonWidth, menuTop, saveRect.right, menuBottom)
+        overwriteRect = IntRect(saveMenuRect.left, menuTop, saveMenuRect.right, menuTop + itemHeight)
+        saveAsRect = IntRect(saveMenuRect.left, menuTop + itemHeight, saveMenuRect.right, menuBottom)
     }
 
-    /** 按当前页签生成控制条按钮与状态。 */
+    /** 按当前页签生成控制条按钮与状态；页签切换后保存面板随之收起。 */
     private fun refreshChips() {
+        closeSaveMenu()
         val rows = chipRows()
         val rowHeight = tokens.rowH
         chips =
@@ -313,7 +331,6 @@ internal class EditSurface(
             EditTab.CROP -> CropPanel.rows(state, ::selectAspect, ::selectFrameMode, ::applyCrop, ::resetCrop)
             EditTab.ROTATE -> RotatePanel.rows(::rotate, ::undo)
             EditTab.FILTER -> FilterPanel.rows(state, ::selectFilter, ::selectContrast)
-            EditTab.SAVE -> SavePanel.rows(::requestSave)
         }
 
     /** 选择裁剪纵横比；选择本机尺寸时读取完整屏幕像素并锁定比例。 */
@@ -388,11 +405,12 @@ internal class EditSurface(
         invalidate()
     }
 
-    /** 处理按下，开始裁剪拖动、灰度调整或记录点击位置。 */
+    /** 处理按下，开始裁剪拖动、灰度调整或记录点击位置；保存面板展开时不进入拖动。 */
     private fun onDown(
         x: Float,
         y: Float,
     ) {
+        if (saveMenuOpen) return
         downX = x
         downY = y
         lastX = x
@@ -471,14 +489,28 @@ internal class EditSurface(
         invalidate()
     }
 
-    /** 处理点击：顶栏、页签、控制条按钮。 */
+    /** 处理点击：保存面板、顶栏、页签、控制条按钮。 */
     private fun handleTap(
         x: Int,
         y: Int,
     ) {
+        if (saveMenuOpen) {
+            when {
+                overwriteRect.contains(x, y) -> {
+                    closeSaveMenu()
+                    requestOverwrite()
+                }
+                saveAsRect.contains(x, y) -> {
+                    closeSaveMenu()
+                    requestSave()
+                }
+                else -> closeSaveMenu()
+            }
+            return
+        }
         when {
             cancelRect.contains(x, y) -> requestClose()
-            saveRect.contains(x, y) -> requestSave()
+            saveRect.contains(x, y) -> toggleSaveMenu()
             else -> {
                 tabs.firstOrNull { it.contains(x, y) }?.let { rect ->
                     val index = tabs.indexOf(rect)
@@ -612,6 +644,73 @@ internal class EditSurface(
             AppServices.refresh.requestPartial()
         }
         toast(EditStrings.SAVED)
+        onFinish()
+    }
+
+    /** 切换保存面板的展开状态；保存中、加载中或没有可保存的修改时不展开。 */
+    private fun toggleSaveMenu() {
+        if (saving || loading || failed) return
+        if (!saveMenuOpen && !EditExportPlan.canSave(state) && !session.canUndo) {
+            toast(EditStrings.NOTHING_TO_SAVE)
+            return
+        }
+        saveMenuOpen = !saveMenuOpen
+        invalidate()
+    }
+
+    /** 收起保存面板，仅在展开状态下刷新画面。 */
+    private fun closeSaveMenu() {
+        if (!saveMenuOpen) return
+        saveMenuOpen = false
+        invalidate()
+    }
+
+    /** 请求覆盖源文件，先确认目标文件名并说明原内容无法恢复。 */
+    private fun requestOverwrite() {
+        if (saving) return
+        if (!EditExportPlan.canSave(state) && !session.canUndo) {
+            toast(EditStrings.NOTHING_TO_SAVE)
+            return
+        }
+        InkDialogs.confirm(
+            context = context,
+            title = EditStrings.OVERWRITE_TITLE,
+            message = EditStrings.overwriteMessage(File(sourcePath).name),
+            confirmLabel = EditStrings.OVERWRITE_CONFIRM,
+            onConfirm = ::overwrite,
+        )
+    }
+
+    /** 在后台导出完整操作序列并原子替换源文件，成功时刷新缩略图并关闭页面。 */
+    private fun overwrite() {
+        saving = true
+        invalidate()
+        val frameOp = pendingFrameOp()
+        val ops = EditExportPlan.ops(session.exportOps(), state.filterLevel, state.contrastLevel, frameOp)
+        worker.execute {
+            val result =
+                runCatching {
+                    EditExport.overwrite(context, sourcePath, ops)
+                }.getOrElse { error -> ExportResult.Failure(error.message ?: EditStrings.OVERWRITE_FAILED) }
+            mainHandler.post {
+                saving = false
+                invalidate()
+                when (result) {
+                    is ExportResult.Success -> afterOverwritten()
+                    is ExportResult.Failure -> toast(EditStrings.OVERWRITE_FAILED + result.message)
+                }
+            }
+        }
+    }
+
+    /** 覆盖成功后的缓存失效、桌面刷新与关闭。 */
+    private fun afterOverwritten() {
+        runCatching {
+            ThumbCacheRegistry.invalidate(context, File(sourcePath))
+            RefreshScheduler.notifyContentChanged()
+            AppServices.refresh.requestPartial()
+        }
+        toast(EditStrings.OVERWRITTEN)
         onFinish()
     }
 
@@ -785,9 +884,10 @@ internal class EditSurface(
         if (saving) {
             drawCenteredText(canvas, EditStrings.SAVING)
         }
+        drawSaveMenu(canvas)
     }
 
-    /** 绘制控制条按钮与另存页摘要。 */
+    /** 绘制控制条按钮。 */
     private fun drawControl(canvas: Canvas) {
         canvas.drawRect(
             controlArea.left.toFloat(),
@@ -803,18 +903,6 @@ internal class EditSurface(
             controlArea.top + tokens.stroke.toFloat(),
             linePaint,
         )
-        if (state.tab == EditTab.SAVE) {
-            val summary =
-                EditExportPlan.summary(
-                    operationCount = session.size,
-                    filterLabel = state.filterLabel,
-                    contrastLabel = state.contrastLabel,
-                    crop = state.crop,
-                    frame = state.pendingFrame,
-                )
-            val textTop = controlArea.top + tokens.smallText.toInt()
-            drawLines(canvas, summary, smallPaint, controlArea.left + tokens.padH, textTop)
-        }
         for (chip in chips) {
             if (chip.selected) {
                 canvas.drawRect(
@@ -829,7 +917,7 @@ internal class EditSurface(
         }
     }
 
-    /** 绘制底部四页签，选中项反白。 */
+    /** 绘制底部三页签，选中项反白。 */
     private fun drawTabs(canvas: Canvas) {
         EditTab.entries.forEachIndexed { index, tab ->
             val rect = tabs[index]
@@ -852,6 +940,35 @@ internal class EditSurface(
             }
             drawCenteredIn(canvas, tab.label, bodyPaint, rect)
         }
+    }
+
+    /** 绘制保存面板：纸色底、描边、分隔线与覆盖、另存两项文字。 */
+    private fun drawSaveMenu(canvas: Canvas) {
+        if (!saveMenuOpen || saveMenuRect.isEmpty) return
+        // 先铺描边色，再以纸色覆盖内部，形成一圈细边框
+        canvas.drawRect(
+            saveMenuRect.left.toFloat(),
+            saveMenuRect.top.toFloat(),
+            saveMenuRect.right.toFloat(),
+            saveMenuRect.bottom.toFloat(),
+            linePaint,
+        )
+        canvas.drawRect(
+            (saveMenuRect.left + tokens.stroke).toFloat(),
+            (saveMenuRect.top + tokens.stroke).toFloat(),
+            (saveMenuRect.right - tokens.stroke).toFloat(),
+            (saveMenuRect.bottom - tokens.stroke).toFloat(),
+            paperPaint,
+        )
+        canvas.drawLine(
+            saveMenuRect.left.toFloat(),
+            saveAsRect.top.toFloat(),
+            saveMenuRect.right.toFloat(),
+            saveAsRect.top.toFloat(),
+            linePaint,
+        )
+        drawCenteredIn(canvas, EditStrings.MENU_OVERWRITE, bodyPaint, overwriteRect)
+        drawCenteredIn(canvas, EditStrings.MENU_SAVE_AS, bodyPaint, saveAsRect)
     }
 
     /** 当前图片在预览区内的等比绘制区域。 */
@@ -895,21 +1012,6 @@ internal class EditSurface(
         canvas.drawText(text, x, y, paint)
     }
 
-    /** 绘制多行文本。 */
-    private fun drawLines(
-        canvas: Canvas,
-        text: String,
-        paint: Paint,
-        x: Int,
-        y: Int,
-    ) {
-        var baseline = y.toFloat()
-        for (line in text.split('\n')) {
-            canvas.drawText(line, x.toFloat(), baseline, paint)
-            baseline += paint.textSize + tokens.dp(4f)
-        }
-    }
-
     /** 禁用态画笔，保持正文颜色体系。 */
     private fun disabledPaint(): Paint =
         Paint(bodyPaint).apply {
@@ -924,5 +1026,8 @@ internal class EditSurface(
     private companion object {
         /** 控制条行数。 */
         const val CONTROL_ROWS = 2
+
+        /** 保存面板菜单项数。 */
+        const val SAVE_MENU_ITEMS = 2
     }
 }

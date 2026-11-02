@@ -5,7 +5,7 @@ import com.shuiyu.octoberrain.feature.files.data.FrameMode
 import com.shuiyu.octoberrain.feature.files.data.FrameSpec
 import com.shuiyu.octoberrain.feature.files.ui.GrayKernels
 
-/** 编辑页的四个页签，顺序与底栏一致。 */
+/** 编辑页的三个页签，顺序与底栏一致；保存入口移至顶栏浮动面板，不再占用页签。 */
 enum class EditTab(
     /** 页签显示文案。 */
     val label: String,
@@ -18,9 +18,6 @@ enum class EditTab(
 
     /** 滤镜。 */
     FILTER("滤镜"),
-
-    /** 另存。 */
-    SAVE("另存"),
 }
 
 /**

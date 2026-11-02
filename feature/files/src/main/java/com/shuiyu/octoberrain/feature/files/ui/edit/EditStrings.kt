@@ -45,6 +45,32 @@ internal object EditStrings {
     /** 保存失败前缀。 */
     const val SAVE_FAILED = "保存失败："
 
+    /** 保存面板的覆盖项文案。 */
+    const val MENU_OVERWRITE = "覆盖"
+
+    /** 保存面板的另存项文案。 */
+    const val MENU_SAVE_AS = "另存"
+
+    /** 覆盖确认标题。 */
+    const val OVERWRITE_TITLE = "覆盖原文件"
+
+    /** 覆盖确认按钮。 */
+    const val OVERWRITE_CONFIRM = "覆盖"
+
+    /** 覆盖成功提示。 */
+    const val OVERWRITTEN = "已覆盖原文件"
+
+    /** 覆盖失败前缀，后接具体原因并提示改用另存。 */
+    const val OVERWRITE_FAILED = "覆盖失败，请改用另存："
+
+    /**
+     * 生成覆盖确认正文。
+     *
+     * @param name 源文件名，用于指明被替换的目标。
+     * @return 包含目标文件名并说明原内容无法恢复的确认文案。
+     */
+    fun overwriteMessage(name: String): String = "将用编辑结果替换「$name」，原内容无法恢复。是否继续？"
+
     /** 读取中。 */
     const val LOADING = "正在读取图片"
 
@@ -89,12 +115,6 @@ internal object EditStrings {
 
     /** 滤镜页对比度标题。 */
     const val CONTRAST_TITLE = "对比度"
-
-    /** 另存页操作提示。 */
-    const val SAVE_HINT = "点击底部保存写入文件"
-
-    /** 另存页旋转摘要。 */
-    const val ROTATION_SUMMARY = "旋转"
 
     /** 页码分隔符。 */
     const val SEPARATOR = " · "

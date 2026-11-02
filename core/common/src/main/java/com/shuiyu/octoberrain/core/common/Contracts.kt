@@ -416,8 +416,6 @@ sealed interface Destination {
 
     data object LockSettings : Destination
 
-    data object Permissions : Destination
-
     data object About : Destination
 
     data object Update : Destination
@@ -566,7 +564,6 @@ private val destinationLabels: Map<Destination, String> =
         Destination.DesktopPrefs to "桌面设置",
         Destination.TrayPrefs to "状态栏与通知",
         Destination.LockSettings to "锁屏设置",
-        Destination.Permissions to "权限",
         Destination.About to "关于",
         Destination.Update to "更新",
         Destination.WidgetPicker to "选择组件",

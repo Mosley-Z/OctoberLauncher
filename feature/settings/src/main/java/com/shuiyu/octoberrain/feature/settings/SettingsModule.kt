@@ -46,7 +46,6 @@ private class SettingsProvider : ScreenProvider {
             Destination.DesktopPrefs -> DesktopPrefsScreen()
             Destination.NegativeSettings -> NegativeSettingsScreen()
             Destination.LockSettings -> LockSettingsScreen()
-            Destination.Permissions -> PermissionsScreen()
             Destination.About -> AboutScreen()
             Destination.Update -> UpdateScreen()
             Destination.IconPackPicker -> IconPackPickerScreen()
