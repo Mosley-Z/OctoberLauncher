@@ -25,6 +25,8 @@ import com.shuiyu.octoberrain.core.design.InkGlyphs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -55,13 +57,14 @@ class StatusBarView(
 
     private val ticker = MinuteTicker { refresh() }
     private var visibilityJob: Job? = null
+    private var configJob: Job? = null
 
     init {
         // 透明背景，壁纸直接透出；不再绘制底部分隔线
         setBackgroundColor(Color.TRANSPARENT)
         val tokens = DesignRuntime.tokens
         val row =
-            LinearLayout(context).apply {
+            StatusIndicatorRow(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(tokens.pageGutter, 0, tokens.pageGutter, 0)
@@ -75,8 +78,8 @@ class StatusBarView(
             haloText(context, tokens.textStatus).apply {
                 isClickable = true
                 isFocusable = true
-                maxLines = 1
-                // 十二小时制文案更宽，以令牌宽度为下限，避免与右侧电量重叠
+                setSingleLine(true)
+                // 常规宽度保留原令牌槽位；窄屏先压留白，再仅压缩时间。
                 minWidth = tokens.statusTimeWidth
                 setOnClickListener { fullRefresh() }
             }
@@ -97,6 +100,7 @@ class StatusBarView(
         )
 
         // 右段：电量百分比、充电闪电与电池图标
+        row.timeView = timeView
         batteryView = haloText(context, tokens.textStatus)
         row.addView(
             batteryView,
@@ -138,6 +142,13 @@ class StatusBarView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        configJob =
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                AppServices.config.state
+                    .map { it.appearance.twelveHour }
+                    .distinctUntilChanged()
+                    .collect { refresh() }
+            }
         visibilityJob =
             CoroutineScope(Dispatchers.Main.immediate).launch {
                 UiVisibility.active.collect { active ->
@@ -147,6 +158,8 @@ class StatusBarView(
     }
 
     override fun onDetachedFromWindow() {
+        configJob?.cancel()
+        configJob = null
         visibilityJob?.cancel()
         visibilityJob = null
         ticker.stop()
@@ -195,7 +208,7 @@ class StatusBarView(
         }
         val config = runCatching { AppServices.config.state.value }.getOrNull()
         val twelveHour = config?.appearance?.twelveHour ?: false
-        timeView.text = TimeUtils.currentTime(twelveHour)
+        timeView.text = TimeUtils.currentTime(twelveHour, includePeriod = true)
 
         val battery = runCatching { AppServices.system.battery.value }.getOrNull()
         val showPercent = config?.tray?.showBatteryPercent != false
@@ -254,6 +267,51 @@ class StatusBarView(
             typeface = DesignRuntime.typeface()
             gravity = Gravity.CENTER_VERTICAL
         }
+}
+
+private class StatusIndicatorRow(
+    context: Context,
+) : LinearLayout(context) {
+    var timeView: TextView? = null
+
+    override fun onMeasure(
+        widthMeasureSpec: Int,
+        heightMeasureSpec: Int,
+    ) {
+        val clock = timeView
+        if (clock != null && MeasureSpec.getMode(widthMeasureSpec) != MeasureSpec.UNSPECIFIED) {
+            var reserved = paddingLeft + paddingRight
+            for (index in 0 until childCount) {
+                val child = getChildAt(index)
+                if (child === clock ||
+                    child.visibility == View.GONE ||
+                    (child.layoutParams as LayoutParams).weight > 0f
+                ) {
+                    continue
+                }
+                val params = child.layoutParams as LayoutParams
+                measureChildWithMargins(
+                    child,
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+                    0,
+                    heightMeasureSpec,
+                    0,
+                )
+                reserved += child.measuredWidth + params.leftMargin + params.rightMargin
+            }
+            val available = (MeasureSpec.getSize(widthMeasureSpec) - reserved).coerceAtLeast(0)
+            // Measure unscaled glyphs so rotation can restore the full width.
+            val oldScale = clock.paint.textScaleX
+            clock.paint.textScaleX = 1f
+            val natural = clock.paint.measureText(clock.text.toString())
+            clock.paint.textScaleX = oldScale
+            val fit = statusTimeFit(natural, DesignRuntime.tokens.statusTimeWidth, available)
+            clock.minWidth = fit.minimumWidth
+            clock.maxWidth = available
+            clock.textScaleX = fit.scaleX.coerceAtLeast(.001f)
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
 }
 
 /**

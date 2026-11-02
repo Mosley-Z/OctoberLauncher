@@ -1,5 +1,7 @@
 package com.shuiyu.octoberrain.feature.widgets
 
+import com.shuiyu.octoberrain.core.common.TimeUtils
+
 /**
  * 把累计阅读秒数格式化为「Xh Ym」形式。
  *
@@ -59,16 +61,18 @@ internal fun readingInfoText(
 internal fun markTextOf(raw: String?): String = raw.orEmpty().replace(WHITESPACE, " ").trim()
 
 /**
- * 生成 24 小时制时间文案。
+ * 生成时间文案，按外观制式输出 24 小时或 12 小时格式。
  *
  * @param hourOfDay 小时，0 到 23
  * @param minute 分钟，0 到 59
- * @return 形如「22:24」的时间文案
+ * @param twelveHour 是否使用 12 小时制，开启时在时分后附加 am/pm
+ * @return 形如「22:24」或「10:24 pm」的时间文案
  */
 internal fun clockTextOf(
     hourOfDay: Int,
     minute: Int,
-): String = "${hourOfDay.toString().padStart(DIGITS, '0')}:${minute.toString().padStart(DIGITS, '0')}"
+    twelveHour: Boolean,
+): String = TimeUtils.formatTime(hourOfDay, minute, twelveHour, includePeriod = twelveHour)
 
 /**
  * 生成中文日期文案。
@@ -95,9 +99,6 @@ private const val MINUTES_PER_HOUR: Int = 60
 
 /** 百分数上限。 */
 private const val PERCENT_MAX: Int = 100
-
-/** 两位补零的位数。 */
-private const val DIGITS: Int = 2
 
 /** 底部信息带中百分比与时长之间的间隔符号。 */
 private const val INFO_SEPARATOR: String = "  ·  "

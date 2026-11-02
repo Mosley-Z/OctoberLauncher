@@ -6,6 +6,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeConfigChangesTest {
+    @Test fun timeFormatChangeRefreshesHomeOnReturnFromSettings() {
+        val config = LauncherConfig()
+        assertTrue(homeConfigChanged(config, config.copy(appearance = config.appearance.copy(twelveHour = true))))
+    }
+
     @Test fun lockAndTrayChangesDoNotReloadDesktop() {
         val config = LauncherConfig()
         assertFalse(homeConfigChanged(config, config.copy(lock = config.lock.copy(failedAttempts = 1))))

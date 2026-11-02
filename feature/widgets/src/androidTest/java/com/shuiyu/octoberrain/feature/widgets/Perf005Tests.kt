@@ -45,96 +45,10 @@ class Perf005Tests(
             val first = File(fixture, "a.png")
             png(first, Color.BLACK)
             png(File(fixture, "b.png"), Color.WHITE)
-            main {
-                DesignRuntime.install(
-                    DeviceProfile(
-                        widthPx = 320,
-                        heightPx = 320,
-                        widthDp = 320,
-                        heightDp = 320,
-                        density = 1f,
-                        sizeClass = SizeClass.Compact,
-                        heightClass = HeightClass.Short,
-                        display = DisplayClass.Lcd,
-                        hasFrontLight = false,
-                        statusBarInsetPx = 0,
-                        navigationInsetPx = 0,
-                        longEdgePx = 320,
-                        shortEdgePx = 320,
-                    ),
-                    AppearanceConfig(),
-                    null,
-                )
-                surface = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
-                widget = ImageWidget(context)
-                widget.host =
-                    object : WidgetHost {
-                        override fun requestWidgetDraw(widget: WidgetView) {
-                            widget.draw(Canvas(surface), 320, 320)
-                            draws.incrementAndGet()
-                        }
-
-                        override fun openDestination(destination: Destination) {
-                            error("unexpected-navigation")
-                        }
-                    }
-                val config = LauncherConfig()
-                widget.onConfigChanged(config.copy(desktop = config.desktop.copy(widgetImagePath = first.path)))
-                widget.draw(Canvas(surface), 320, 320)
-            }
-            await("initial") { idle() && draws.get() > 0 && value(widget, "bitmap") != null && candidates() == 2 }
-            main { check(value(widget, "observer") != null) }
-            passed++
-            repeat(2) { click("unchanged-$it") }
-            val appended = File(fixture, "c.png")
-            mutation("append", { png(appended, Color.BLACK) }, 3)
-            val renamed = File(fixture, "d.png")
-            mutation("rename", { check(appended.renameTo(renamed)) }, 3)
-            mutation("delete", { check(renamed.delete()) }, 2)
-            passed++
-            var path = ""
-            var before = 0
-            main {
-                path = value(widget, "decodedPath") as String
-                before = surface.getPixel(160, 160)
-            }
-            val selected = File(path)
-            val oldTime = selected.lastModified()
-            val event = eventVersion()
-            png(selected, if (before == Color.BLACK) Color.WHITE else Color.BLACK)
-            check(selected.setLastModified(oldTime + 4000))
-            settleEvents("content-event", event)
-            // Two ordinary clicks return to the same selected path.
-            click("content-next")
-            click("content-return")
-            main {
-                check(value(widget, "decodedPath") == path)
-                check(surface.getPixel(160, 160) != before)
-            }
-            passed++
-            main { widget.onHostVisible(false) }
-            refresh("hidden-static")
-            var retained: Any? = null
-            main {
-                retained = value(widget, "bitmap")
-                check(retained != null)
-                check(value(widget, "observer") == null)
-                check(value(widget, "ticking") == false)
-                widget.onHostVisible(false)
-                check(value(widget, "bitmap") === retained)
-            }
-            passed++
-            main {
-                widget.onDestroy()
-                widget.onHostVisible(true)
-                widget.onRefresh(true)
-            }
-            await("destroy-quiescent") {
-                value(widget, "bitmap") == null &&
-                    value(widget, "observer") == null &&
-                    value(widget, "ticking") == false
-            }
-            passed++
+            initializeWidget(first)
+            verifyDirectoryChanges(fixture)
+            verifyContentChange()
+            verifyLifecycle()
             check(!AppServices.isReady())
             stage = "complete"
         } finally {
@@ -145,6 +59,108 @@ class Perf005Tests(
             check(fixture.parentFile == context.filesDir.canonicalFile)
             check(fixture.deleteRecursively())
         }
+    }
+
+    private fun initializeWidget(first: File) {
+        main {
+            DesignRuntime.install(
+                DeviceProfile(
+                    widthPx = 320,
+                    heightPx = 320,
+                    widthDp = 320,
+                    heightDp = 320,
+                    density = 1f,
+                    sizeClass = SizeClass.Compact,
+                    heightClass = HeightClass.Short,
+                    display = DisplayClass.Lcd,
+                    hasFrontLight = false,
+                    statusBarInsetPx = 0,
+                    navigationInsetPx = 0,
+                    longEdgePx = 320,
+                    shortEdgePx = 320,
+                ),
+                AppearanceConfig(),
+                null,
+            )
+            surface = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
+            widget = ImageWidget(context)
+            widget.host =
+                object : WidgetHost {
+                    override fun requestWidgetDraw(widget: WidgetView) {
+                        widget.draw(Canvas(surface), 320, 320)
+                        draws.incrementAndGet()
+                    }
+
+                    override fun openDestination(destination: Destination) {
+                        error("unexpected-navigation")
+                    }
+                }
+            val config = LauncherConfig()
+            widget.onConfigChanged(config.copy(desktop = config.desktop.copy(widgetImagePath = first.path)))
+            widget.draw(Canvas(surface), 320, 320)
+        }
+        await("initial") { idle() && draws.get() > 0 && value(widget, "bitmap") != null && candidates() == 2 }
+        main { check(value(widget, "observer") != null) }
+        passed++
+    }
+
+    private fun verifyDirectoryChanges(fixture: File) {
+        repeat(2) { click("unchanged-$it") }
+        val appended = File(fixture, "c.png")
+        mutation("append", { png(appended, Color.BLACK) }, 3)
+        val renamed = File(fixture, "d.png")
+        mutation("rename", { check(appended.renameTo(renamed)) }, 3)
+        mutation("delete", { check(renamed.delete()) }, 2)
+        passed++
+    }
+
+    private fun verifyContentChange() {
+        var path = ""
+        var before = 0
+        main {
+            path = value(widget, "decodedPath") as String
+            before = surface.getPixel(160, 160)
+        }
+        val selected = File(path)
+        val oldTime = selected.lastModified()
+        val event = eventVersion()
+        png(selected, if (before == Color.BLACK) Color.WHITE else Color.BLACK)
+        check(selected.setLastModified(oldTime + 4000))
+        settleEvents("content-event", event)
+        // Two ordinary clicks return to the same selected path.
+        click("content-next")
+        click("content-return")
+        main {
+            check(value(widget, "decodedPath") == path)
+            check(surface.getPixel(160, 160) != before)
+        }
+        passed++
+    }
+
+    private fun verifyLifecycle() {
+        main { widget.onHostVisible(false) }
+        refresh("hidden-static")
+        var retained: Any? = null
+        main {
+            retained = value(widget, "bitmap")
+            check(retained != null)
+            check(value(widget, "observer") == null)
+            check(value(widget, "ticking") == false)
+            widget.onHostVisible(false)
+            check(value(widget, "bitmap") === retained)
+        }
+        passed++
+        main {
+            widget.onDestroy()
+            widget.onHostVisible(true)
+            widget.onRefresh(true)
+        }
+        await("destroy-quiescent") {
+            value(widget, "bitmap") == null &&
+                value(widget, "observer") == null &&
+                value(widget, "ticking") == false
+        }
+        passed++
     }
 
     private fun mutation(

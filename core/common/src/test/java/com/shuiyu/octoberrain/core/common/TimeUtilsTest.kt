@@ -37,15 +37,46 @@ class TimeUtilsTest {
         assertEquals("23:59", TimeUtils.formatTime(23, 59, false))
     }
 
-    /** 十二小时制包含上午与下午标记，零点与正午边界分别显示十二点。 */
+    /** Twelve-hour desktop clocks keep two digits and omit the period. */
     @Test
     fun `formatTime 十二小时制边界`() {
-        assertEquals("上午 12:00", TimeUtils.formatTime(0, 0, true))
-        assertEquals("上午 9:05", TimeUtils.formatTime(9, 5, true))
-        assertEquals("上午 11:59", TimeUtils.formatTime(11, 59, true))
-        assertEquals("下午 12:00", TimeUtils.formatTime(12, 0, true))
-        assertEquals("下午 1:04", TimeUtils.formatTime(13, 4, true))
-        assertEquals("下午 11:59", TimeUtils.formatTime(23, 59, true))
+        assertEquals("12:00", TimeUtils.formatTime(0, 0, true))
+        assertEquals("09:05", TimeUtils.formatTime(9, 5, true))
+        assertEquals("11:59", TimeUtils.formatTime(11, 59, true))
+        assertEquals("12:00", TimeUtils.formatTime(12, 0, true))
+        assertEquals("01:04", TimeUtils.formatTime(13, 4, true))
+        assertEquals("11:59", TimeUtils.formatTime(23, 59, true))
+    }
+
+    @Test
+    fun statusTimeHasLowercasePeriodOnlyInTwelveHourMode() {
+        assertEquals("12:00 am", TimeUtils.formatTime(0, 0, true, includePeriod = true))
+        assertEquals("09:05 am", TimeUtils.formatTime(9, 5, true, includePeriod = true))
+        assertEquals("11:59 am", TimeUtils.formatTime(11, 59, true, includePeriod = true))
+        assertEquals("12:00 pm", TimeUtils.formatTime(12, 0, true, includePeriod = true))
+        assertEquals("01:05 pm", TimeUtils.formatTime(13, 5, true, includePeriod = true))
+        assertEquals("11:59 pm", TimeUtils.formatTime(23, 59, true, includePeriod = true))
+        for (hour in 0..23) {
+            assertEquals(
+                TimeUtils.formatTime(hour, 5, false),
+                TimeUtils.formatTime(hour, 5, false, includePeriod = true),
+            )
+        }
+    }
+
+    @Test
+    fun clockDigitsAndPeriodDoNotFollowSystemLocale() {
+        val original = java.util.Locale.getDefault()
+        try {
+            listOf("ar", "zh", "en").forEach { language ->
+                java.util.Locale.setDefault(java.util.Locale.forLanguageTag(language))
+                assertEquals("01:05", TimeUtils.formatTime(13, 5, true))
+                assertEquals("01:05 pm", TimeUtils.formatTime(13, 5, true, includePeriod = true))
+                assertEquals("13:05", TimeUtils.formatTime(13, 5, false))
+            }
+        } finally {
+            java.util.Locale.setDefault(original)
+        }
     }
 
     /** 日期格式化输出月日与星期标签。 */

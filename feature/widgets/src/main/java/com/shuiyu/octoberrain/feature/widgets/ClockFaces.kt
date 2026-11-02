@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.feature.widgets
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import com.shuiyu.octoberrain.core.common.TimeUtils
 import java.util.Calendar
 import kotlin.math.cos
 import kotlin.math.min
@@ -53,15 +54,9 @@ data class ClockTime(
     val twelveHour: Boolean = false,
     val date: ClockDate = ClockDate(),
 ) {
-    /** 小时文本：十二小时制去掉前导零，二十四小时制保持两位。 */
+    /** 两种制式均保留两位小时，不显示时段。 */
     val hourText: String
-        get() =
-            if (twelveHour) {
-                val hour = hour24 % 12
-                (if (hour == 0) 12 else hour).toString()
-            } else {
-                hour24.toString().padStart(2, '0')
-            }
+        get() = timeText.substringBefore(':')
 
     /** 分钟文本，固定两位。 */
     val minuteText: String
@@ -69,7 +64,7 @@ data class ClockTime(
 
     /** 组合后的时分文本。 */
     val timeText: String
-        get() = "$hourText:$minuteText"
+        get() = TimeUtils.formatTime(hour24, minute, twelveHour)
 
     companion object {
         /** 从日历快照构造时间对象。 */

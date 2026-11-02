@@ -13,6 +13,23 @@ class ClockTimeTest {
         assertEquals("11:59", ClockTime(23, 59, 0, true).timeText)
         assertEquals("00:00", ClockTime(0, 0, 0).timeText)
         assertEquals("23:59", ClockTime(23, 59, 0).timeText)
+        assertEquals("09:05", ClockTime(9, 5, 0, true).timeText)
+        assertEquals("01:05", ClockTime(13, 5, 0, true).timeText)
+        assertEquals("01", ClockTime(13, 5, 0, true).hourText)
+        assertEquals("05", ClockTime(13, 5, 0, true).minuteText)
+    }
+
+    @Test
+    fun everyDigitalFaceReceivesTwoDigitsWithoutPeriod() {
+        for (hour in 0..23) {
+            for (twelveHour in listOf(false, true)) {
+                val time = ClockTime(hour, 5, 0, twelveHour)
+                assertEquals(2, time.hourText.length)
+                assertEquals(2, time.minuteText.length)
+                assertEquals("${time.hourText}:${time.minuteText}", time.timeText)
+                assertEquals(5, time.timeText.length)
+            }
+        }
     }
 
     @Test

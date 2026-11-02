@@ -238,6 +238,7 @@ internal class HomeView(
         this.appsByPackage = apps.associateBy { it.packageName }
         this.appsByKey = apps.associateBy { EntryKeys.appEntryKey(it) }
         this.config = effective
+        immersiveHome.twelveHour = effective.appearance.twelveHour
         this.entries = DesktopEntries.build(apps, effective.desktop)
         rebuildFolderMembers(effective)
         if (typographyChanged(oldConfig, effective)) closeFolder()

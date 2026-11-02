@@ -19,6 +19,7 @@ import kotlin.math.abs
 
 /** 沉浸常用栏与可辨识应用抽屉；只持有临时页码，不改变普通桌面顺序。 */
 internal class ImmersiveHome {
+    var twelveHour = false
     var landscapeGeometry: ImmersiveLandscapeGeometry? = null
     var drawerOpen = false
         private set
@@ -41,7 +42,7 @@ internal class ImmersiveHome {
         ) {
             return false
         }
-        return clockPainter.admits(candidate, width)
+        return clockPainter.admits(candidate, width, twelveHour)
     }
 
     fun closeDrawer(): Boolean {
@@ -209,11 +210,11 @@ internal class ImmersiveHome {
         val landscape = width > height
         val geometry = landscapeGeometry?.takeIf { it.weight > 0f }
         if (geometry != null) {
-            clockPainter.draw(canvas, geometry, bookBounds(width, height), width)
+            clockPainter.draw(canvas, geometry, bookBounds(width, height), width, twelveHour)
             return
         }
         val now = Date()
-        val clock = SimpleDateFormat("HH:mm", Locale.CHINA).format(now)
+        val clock = immersiveClockText(now, twelveHour)
         val date = SimpleDateFormat(if (landscape) "M月d日　EEEE" else "EEEE，M月d日", Locale.CHINA).format(now)
         val balance = if (landscape) 0f else portraitBalance(width, height)
         val offset = height * .041f * balance
@@ -398,14 +399,17 @@ private class LandscapeClockPainter(
     fun admits(
         geometry: ImmersiveLandscapeGeometry,
         width: Int,
+        twelveHour: Boolean,
     ): Boolean {
         val book = geometry.originalBook
+        val now = Date()
         return drawLandscapeDate(
             null,
             geometry,
             RectF(book.left, book.top, book.right, book.bottom),
-            Date(),
+            now,
             minOf(DesignRuntime.tokens.dpF(50f), width * .16f),
+            immersiveClockText(now, twelveHour),
         )
     }
 
@@ -414,12 +418,13 @@ private class LandscapeClockPainter(
         geometry: ImmersiveLandscapeGeometry,
         book: RectF,
         width: Int,
+        twelveHour: Boolean,
     ) {
         val t = DesignRuntime.tokens
         val oldSize = minOf(t.dpF(50f), width * .16f)
         val oldCenter = book.left + book.width() * .14f + 20f
         val now = Date()
-        val clock = SimpleDateFormat("HH:mm", Locale.CHINA).format(now)
+        val clock = immersiveClockText(now, twelveHour)
         paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         paint.textSize = oldSize
         val glyph = Rect()
@@ -443,6 +448,7 @@ private class LandscapeClockPainter(
             book,
             now,
             oldSize,
+            clock,
         )
     }
 
@@ -452,9 +458,10 @@ private class LandscapeClockPainter(
         book: RectF,
         now: Date,
         oldClockSize: Float,
+        clock: String,
     ): Boolean {
         val t = DesignRuntime.tokens
-        val clockInkBottom = landscapeClockInkBottom(paint, geometry, now, oldClockSize)
+        val clockInkBottom = landscapeClockInkBottom(paint, geometry, clock, oldClockSize)
         paint.typeface = DesignRuntime.typeface()
         val oldSize = maxOf(20f, t.textCaption)
         paint.textSize = oldSize
@@ -553,10 +560,9 @@ private object LandscapeDateInk {
 private fun landscapeClockInkBottom(
     paint: Paint,
     geometry: ImmersiveLandscapeGeometry,
-    now: Date,
+    clock: String,
     oldClockSize: Float,
 ): Float {
-    val clock = SimpleDateFormat("HH:mm", Locale.CHINA).format(now)
     paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     paint.textSize = oldClockSize
     val clockGlyph = Rect()

@@ -54,7 +54,7 @@ internal class WidgetPreviewView(
         paint.typeface = clockTypeface(face, appearance.clockFont)
         paint.textScaleX = clockNumberScale(face, appearance.clockFont)
         val area = RectF(6f, 8f, 174f, if (face.includesDate) 132f else 110f)
-        ClockFaces.draw(face, canvas, area, sample, paint, 62f)
+        ClockFaces.draw(face, canvas, area, sample.copy(twelveHour = appearance.twelveHour), paint, 62f)
         if (!face.includesDate) {
             paint.textScaleX = 1f
             drawClockText(canvas, "10月27日 星期二", RectF(6f, 112f, 174f, 134f), paint, 13f)

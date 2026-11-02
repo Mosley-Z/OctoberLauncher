@@ -54,12 +54,21 @@ class WereadBoardContentTest {
         assertEquals("第一行 第二行", markTextOf("  第一行\n\n第二行  "))
     }
 
-    /** 时间固定为两位小时与两位分钟。 */
+    /** 24 小时制固定为两位小时与两位分钟，不带制式标记。 */
     @Test
     fun clockPadsBothParts() {
-        assertEquals("09:05", clockTextOf(9, 5))
-        assertEquals("22:24", clockTextOf(22, 24))
-        assertEquals("00:00", clockTextOf(0, 0))
+        assertEquals("09:05", clockTextOf(9, 5, twelveHour = false))
+        assertEquals("22:24", clockTextOf(22, 24, twelveHour = false))
+        assertEquals("00:00", clockTextOf(0, 0, twelveHour = false))
+    }
+
+    /** 12 小时制去掉前导 12 并附加小写制式标记。 */
+    @Test
+    fun clockUsesTwelveHourWithPeriod() {
+        assertEquals("07:03 pm", clockTextOf(19, 3, twelveHour = true))
+        assertEquals("12:05 am", clockTextOf(0, 5, twelveHour = true))
+        assertEquals("12:00 pm", clockTextOf(12, 0, twelveHour = true))
+        assertEquals("01:15 pm", clockTextOf(13, 15, twelveHour = true))
     }
 
     /** 日期使用中文星期与月日。 */

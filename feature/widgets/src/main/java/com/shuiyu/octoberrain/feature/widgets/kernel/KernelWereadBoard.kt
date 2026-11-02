@@ -1172,6 +1172,9 @@ private class KernelCardFiller(
     /**
      * 写入周期统计，无数据时清空状态中的统计，避免沿用上一形态的数值。
      *
+     * 已同步到快照但本期尚无阅读时仍按正常形态渲染，图表与数值如实显示为零，
+     * 只在快照缺失（未配置密钥或尚未同步）时交给占位文案。
+     *
      * @param cardState 内核卡片状态
      * @param form 内核形态编号
      * @return 是否存在可绘制数据
@@ -1182,8 +1185,7 @@ private class KernelCardFiller(
     ): Boolean {
         val stats: PeriodSnapshot? = stats(form)
         cardState.setStats(stats)
-        val usable = stats != null && (stats.totalSec > 0 || stats.readDays > 0)
-        return usable
+        return stats != null
     }
 
     /**

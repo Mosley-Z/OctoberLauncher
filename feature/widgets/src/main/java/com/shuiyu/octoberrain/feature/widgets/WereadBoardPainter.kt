@@ -195,6 +195,9 @@ internal class WereadBoardPainter {
         paint.color = InkColors.INK
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = frame.timeSize
+        val available = (frame.noteBounds.left - frame.inset).coerceAtLeast(1f)
+        val measured = paint.measureText(scene.clock)
+        if (measured > available) paint.textSize = frame.timeSize * available / measured
         canvas.drawText(scene.clock, frame.inset, frame.timeBaseline, paint)
         paint.typeface = sans
         paint.color = InkColors.INK_2

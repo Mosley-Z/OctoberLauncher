@@ -390,6 +390,19 @@ internal object AppearanceSpecs {
                 effect = SettingEffect.NONE,
             ),
             SettingSpec(
+                id = "appearance.timeFormat",
+                group = "project.status",
+                title = "时间制式",
+                hint = "应用于桌面时钟；12小时制仅在顶部状态栏显示 am/pm。",
+                control =
+                    choiceAppearance(
+                        options = listOf("24小时制", "12小时制"),
+                        read = { if (it.twelveHour) 1 else 0 },
+                        write = { appearance, index -> appearance.copy(twelveHour = index == 1) },
+                    ),
+                effect = SettingEffect.APPEARANCE,
+            ),
+            SettingSpec(
                 id = "appearance.statusBar",
                 group = "project.status",
                 title = "状态栏高度",

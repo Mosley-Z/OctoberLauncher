@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 /**
  * 时间与日期工具。
  *
- * 所有格式化方法显式传入 Locale.CHINA 或十二小时制开关，避免依赖系统区域设置。
+ * Desktop clocks use ASCII digits; dates and historical timestamps retain their established formats.
  */
 object TimeUtils {
     /** 当前毫秒时间。 */
@@ -21,29 +21,26 @@ object TimeUtils {
      * 格式化时分。
      *
      * 参数 hour 与 minute 为 24 小时制数值；twelveHour 为 true 时输出十二小时制。
+     * includePeriod is reserved for the custom status bar; it appends lowercase am/pm in twelve-hour mode.
      */
     fun formatTime(
         hour: Int,
         minute: Int,
         twelveHour: Boolean,
-    ): String =
-        if (twelveHour) {
-            val suffix = if (hour < 12) "上午" else "下午"
-            val h =
-                when {
-                    hour == 0 -> 12
-                    hour > 12 -> hour - 12
-                    else -> hour
-                }
-            String.format(Locale.CHINA, "%s %d:%02d", suffix, h, minute)
-        } else {
-            String.format(Locale.CHINA, "%02d:%02d", hour, minute)
-        }
+        includePeriod: Boolean = false,
+    ): String {
+        val displayHour = if (twelveHour) (hour % 12).takeIf { it != 0 } ?: 12 else hour
+        val digits = String.format(Locale.ROOT, "%02d:%02d", displayHour, minute)
+        return if (twelveHour && includePeriod) "$digits ${if (hour < 12) "am" else "pm"}" else digits
+    }
 
     /** 当前时分字符串。 */
-    fun currentTime(twelveHour: Boolean): String {
+    fun currentTime(
+        twelveHour: Boolean,
+        includePeriod: Boolean = false,
+    ): String {
         val calendar = Calendar.getInstance()
-        return formatTime(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), twelveHour)
+        return formatTime(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), twelveHour, includePeriod)
     }
 
     /** 日期字符串，例如 10月19日 星期日。 */

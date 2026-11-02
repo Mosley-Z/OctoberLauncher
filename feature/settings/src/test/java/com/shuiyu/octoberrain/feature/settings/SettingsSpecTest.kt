@@ -15,6 +15,23 @@ import org.junit.Test
  */
 class SettingsSpecTest {
     @Test
+    fun timeFormatPrecedesStatusHeightAndUsesExistingAppearanceField() {
+        val spec = SettingsCatalog.specOf("appearance.timeFormat")!!
+        val control = spec.control as SettingControl.Choice
+        val base = LauncherConfig()
+        assertEquals("project.status", spec.group)
+        assertEquals(SettingEffect.APPEARANCE, spec.effect)
+        assertEquals(listOf("24小时制", "12小时制"), control.options.map { it.label })
+        assertEquals(0, control.read(base))
+        val twelve = control.write(base, 1)
+        assertEquals(base.copy(appearance = base.appearance.copy(twelveHour = true)), twelve)
+        assertEquals(1, control.read(twelve))
+        assertEquals(base, control.write(twelve, 0))
+        val ids = SettingsCatalog.specsOf(spec.group).map { it.id }
+        assertEquals(ids.indexOf("appearance.statusBar") - 1, ids.indexOf(spec.id))
+    }
+
+    @Test
     fun `全部设置项标识唯一`() {
         val ids = SettingsCatalog.specs.map { it.id }
         assertEquals("设置项标识存在重复：$ids", ids.size, ids.toSet().size)

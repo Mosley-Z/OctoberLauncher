@@ -1021,7 +1021,11 @@ class WereadBoardWidget(
     /** 生成当前时间文案。 */
     private fun clockText(): String {
         clockCalendar.timeInMillis = System.currentTimeMillis()
-        return clockTextOf(clockCalendar.get(Calendar.HOUR_OF_DAY), clockCalendar.get(Calendar.MINUTE))
+        return clockTextOf(
+            clockCalendar.get(Calendar.HOUR_OF_DAY),
+            clockCalendar.get(Calendar.MINUTE),
+            AppServices.config.state.value.appearance.twelveHour,
+        )
     }
 
     /** 生成当前日期文案。 */
