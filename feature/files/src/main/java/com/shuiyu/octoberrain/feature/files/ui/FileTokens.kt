@@ -42,6 +42,9 @@ class FileTokens(
     /** 底栏高度，容纳翻页按钮与页码。 */
     val bottomBarH: Int get() = dp(52f)
 
+    /** 多选动作行高度，取底栏高度的四分之三，位于底栏正上方。 */
+    val selectionBarH: Int get() = dp(39f)
+
     /** 列表行高。 */
     val rowH: Int get() = dp(44f)
 

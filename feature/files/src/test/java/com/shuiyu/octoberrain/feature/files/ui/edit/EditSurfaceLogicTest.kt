@@ -132,4 +132,11 @@ class EditSurfaceLogicTest {
         assertFalse(EditExportPlan.canSave(EditUiState()))
         assertTrue(EditExportPlan.canSave(EditUiState(operationCount = 1)))
     }
+
+    @Test
+    fun `无修改时保存点击直接退出`() {
+        assertTrue(shouldCloseOnSave(EditUiState(), undoable = false))
+        assertFalse(shouldCloseOnSave(EditUiState(operationCount = 1), undoable = false))
+        assertFalse(shouldCloseOnSave(EditUiState(), undoable = true))
+    }
 }

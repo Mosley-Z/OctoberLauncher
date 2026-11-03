@@ -9,20 +9,27 @@ import kotlin.math.roundToInt
  * 页面由宿主放在状态栏之下，几何以内容区顶边为原点，底栏贴内容区底边。
  * 网格竖屏三列、横屏五列，行数按实测内容高度选择；方形缩略图占主位，分页容量随布局变化。
  *
- * 参数 widthPx 与 heightPx 为内容区宽高；tokens 为尺寸令牌。
+ * 参数 widthPx 与 heightPx 为内容区宽高；tokens 为尺寸令牌；
+ * selecting 为 true 时内容区为底栏上方的多选动作行再让出一行高度。
  */
 class FileMetrics(
     val widthPx: Int,
     val heightPx: Int,
     val tokens: FileTokens,
+    val selecting: Boolean = false,
 ) {
     /** 内容区上边界，即顶栏底边。 */
     val contentTop: Int = tokens.topBarH
 
-    /** 内容区下边界，即底栏顶边。 */
-    val contentBottom: Int = (heightPx - tokens.bottomBarH).coerceAtLeast(contentTop)
+    /** 内容区下边界；多选态在底栏之上再让出较矮的批量动作行。 */
+    val contentBottom: Int =
+        if (selecting) {
+            (heightPx - tokens.bottomBarH - tokens.selectionBarH).coerceAtLeast(contentTop)
+        } else {
+            (heightPx - tokens.bottomBarH).coerceAtLeast(contentTop)
+        }
 
-    /** 内容区高度。 */
+    /** 内容区高度；多选态按收缩后的下边界计算，行数与网格容量随之减少。 */
     val contentH: Int = (contentBottom - contentTop).coerceAtLeast(0)
 
     /** 列表每页行数，由内容区高度整除行高得到，至少一行。 */

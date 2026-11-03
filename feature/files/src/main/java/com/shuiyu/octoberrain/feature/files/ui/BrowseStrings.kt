@@ -25,9 +25,6 @@ internal object BrowseStrings {
     /** 空目录提示。 */
     const val EMPTY = "此目录为空"
 
-    /** 取消勾选或面板时的提示，用于后续版本。 */
-    const val FOLDERS_PENDING = "自选文件夹将在后续版本提供"
-
     /** 图片查看能力尚未接入时的提示。 */
     const val VIEW_PENDING = "图片查看将在后续版本提供"
 
@@ -66,8 +63,45 @@ internal object BrowseStrings {
     const val GRID = "网格"
     const val LIST = "列表"
 
-    /** 面板自选文件夹行标签。 */
-    const val FOLDERS = "自选文件夹"
+    /** 面板多选行标签。 */
+    const val MULTI = "多选"
+
+    /** 多选态顶部标题与动作行按钮。 */
+    const val COPY_TO = "复制到"
+    const val MOVE_TO = "移动到"
+    const val DELETE = "删除"
+    const val DONE = "完成"
+
+    /** 选择目标目录时顶栏右侧动作按钮。 */
+    const val PICK_HERE = "选择此处"
+
+    /** 选择目标目录时顶栏取消按钮。 */
+    const val CANCEL = "取消"
+
+    /** 外部目录选择器未指定标题时的默认标题。 */
+    const val PICK_DIR = "选择目录"
+
+    /** 删除确认文案，包含选中数量与不可恢复说明。 */
+    const val DELETE_CONFIRM = "确定删除选中的 %d 项？"
+    const val DELETE_WARNING = "目录将连同内容一并删除，删除后无法恢复。"
+
+    /** 批量操作完成后的汇总提示。 */
+    const val BATCH_RESULT = "成功 %d 项，失败 %d 项"
+
+    /** 选中的目录被复制或移动到自身内部时的提示。 */
+    const val INVALID_TARGET = "不能将选中的目录复制或移动到自身内部"
+
+    /** 多选态已选数量文案。 */
+    fun selectedCount(count: Int): String = "已选 $count 项"
+
+    /** 删除确认正文，拼接数量与不可恢复说明。 */
+    fun deleteMessage(count: Int): String = DELETE_CONFIRM.format(count) + DELETE_WARNING
+
+    /** 批量操作结果提示，成功与失败数量均展示。 */
+    fun batchResult(
+        done: Int,
+        failed: Int,
+    ): String = BATCH_RESULT.format(done, failed)
 
     /** 已选中标记。 */
     const val SELECTED = "已选"

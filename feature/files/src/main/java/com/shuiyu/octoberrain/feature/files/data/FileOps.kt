@@ -89,7 +89,117 @@ object FileOps {
         val target = resolveTarget(src, dst)
         return moveToTarget(src, target)
     }
+
+    /**
+     * 复制一个条目到目标目录，目录按层递归处理。
+     *
+     * 目标目录内已存在同名条目时按 [uniqueName] 自动追加序号，不询问也不覆盖。
+     * 文件沿用 [copy] 的单文件流程；目录先创建不冲突的目标目录，再逐项复制子条目。
+     * 目标目录位于源目录内部时拒绝执行，避免递归复制自身。
+     * 中途失败时已完成的部分保留在目标目录，由调用方决定提示与后续处理。
+     *
+     * 参数 src 为源文件或目录；dstDir 为已存在的目标目录。
+     * 成功返回目标条目，失败返回 null。
+     */
+    fun copyEntry(
+        src: File?,
+        dstDir: File?,
+    ): File? {
+        val source = src?.takeIf { it.exists() }
+        val targetDir = dstDir?.takeIf { it.isDirectory }
+        if (source == null || targetDir == null || isInside(source, targetDir)) return null
+        val destination = uniqueName(targetDir, source.name)?.let { File(targetDir, it) }
+        return destination?.let { target ->
+            if (source.isDirectory) copyDirectory(source, target) else target.takeIf { copy(source, it) }
+        }
+    }
+
+    /**
+     * 移动一个条目到目标目录，目录按层递归处理。
+     *
+     * 目标目录内已存在同名条目时按 [uniqueName] 自动追加序号，不询问也不覆盖。
+     * 目标目录就是源条目所在目录时视为无需移动，直接返回源条目且不改动任何内容。
+     * 目录优先整目录重命名；重命名失败时退回递归复制，复制全部成功后再删除源目录。
+     * 目标目录位于源目录内部或与源目录相同时拒绝执行。
+     * 中途失败时已完成的部分保留在目标目录，源目录不删除。
+     *
+     * 参数 src 为源文件或目录；dstDir 为已存在的目标目录。
+     * 成功返回目标条目或原条目，失败返回 null。
+     */
+    fun moveEntry(
+        src: File?,
+        dstDir: File?,
+    ): File? {
+        val source = src?.takeIf { it.exists() }
+        val targetDir = dstDir?.takeIf { it.isDirectory }
+        if (source == null || targetDir == null || isInside(source, targetDir)) return null
+        // 目标即源所在目录时属于无操作，直接返回源条目，避免生成多余序号副本。
+        val parent = source.parentFile
+        val sameDirectory = parent != null && canonicalOf(parent) == canonicalOf(targetDir)
+        return if (sameDirectory) {
+            source
+        } else {
+            uniqueName(targetDir, source.name)?.let { name ->
+                val destination = File(targetDir, name)
+                // 同一文件系统内整目录重命名代价最低，失败后再按跨卷方式复制。
+                when {
+                    source.isFile -> destination.takeIf { move(source, it) }
+                    source.renameTo(destination) -> destination
+                    copyDirectory(source, destination) == null -> null
+                    source.deleteRecursively() -> destination
+                    else -> null
+                }
+            }
+        }
+    }
 }
+
+/**
+ * 递归复制目录内容。
+ *
+ * 目标目录不存在时逐层创建；子条目按 [FileOps.uniqueName] 取得不冲突名称。
+ * 任一层失败时继续处理其余子条目以保留已完成部分，最终返回 null 表示整体失败。
+ */
+private fun copyDirectory(
+    src: File,
+    dst: File,
+): File? {
+    val children = if (dst.isDirectory || dst.mkdirs()) src.listFiles() else null
+    var completed = children != null
+    children?.forEach { child ->
+        val name = FileOps.uniqueName(dst, child.name)
+        val copied =
+            name?.let { unique ->
+                val target = File(dst, unique)
+                if (child.isDirectory) {
+                    copyDirectory(child, target)
+                } else {
+                    target.takeIf { FileOps.copy(child, it) }
+                }
+            }
+        if (copied == null) completed = false
+    }
+    return dst.takeIf { completed }
+}
+
+/** 判断目标目录是否等于源目录或位于源目录内部，用于拒绝自包含的复制与移动。 */
+private fun isInside(
+    src: File,
+    dstDir: File,
+): Boolean =
+    when (val source = canonicalOf(src)) {
+        null -> true
+        else ->
+            canonicalOf(dstDir)?.let { target ->
+                target == source || target.path.startsWith(source.path + File.separator)
+            } ?: true
+    }
+
+/** 取规范化路径，失败时退回绝对路径；均不可用时返回 null。 */
+private fun canonicalOf(file: File): File? =
+    runCatching { file.canonicalFile }.getOrElse {
+        runCatching { file.absoluteFile }.getOrNull()
+    }
 
 /** 在目录内寻找未被占用的名称，序号从 2 开始直到 [MAX_SUFFIX]。 */
 private fun freeName(
@@ -153,7 +263,7 @@ private fun moveToTarget(
     target: File,
 ): Boolean =
     when {
-        samePath(src, target) -> true
+        canonicalOf(src) == canonicalOf(target) -> true
         target.exists() -> target.isFile && FileOps.sameContent(src, target) && src.delete()
         !ensureParent(target) -> false
         else -> moveByRenameOrCopy(src, target)
@@ -170,15 +280,6 @@ private fun ensureParent(target: File): Boolean {
     val parent = target.parentFile ?: return true
     return parent.exists() || parent.mkdirs() || parent.exists()
 }
-
-/** 判断两个路径是否指向同一个文件，规范化失败时退回绝对路径比较。 */
-private fun samePath(
-    left: File,
-    right: File,
-): Boolean =
-    runCatching { left.canonicalFile == right.canonicalFile }.getOrElse {
-        left.absoluteFile == right.absoluteFile
-    }
 
 /** 计算复制或移动的最终目标路径：目标为目录时返回目录下与源同名的路径。 */
 private fun resolveTarget(

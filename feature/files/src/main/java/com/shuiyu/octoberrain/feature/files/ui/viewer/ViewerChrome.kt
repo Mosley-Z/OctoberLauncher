@@ -13,17 +13,14 @@ enum class ViewerAction {
     /** 打开详情面板。 */
     INFO,
 
-    /** 顺时针旋转并另存。 */
-    ROTATE,
+    /** 通过系统分享面板发送当前图片。 */
+    SHARE,
 
-    /** 裁剪，P4 接入，当前提示未开放。 */
-    CROP,
+    /** 进入编辑页，由编辑页承担裁剪、旋转与滤镜。 */
+    EDIT,
 
-    /** 灰度与量化切换。 */
-    FILTER,
-
-    /** 另存副本。 */
-    SAVE,
+    /** 删除当前图片，二次确认后执行。 */
+    DELETE,
 
     /** 设置为系统壁纸，仅 S4 通道支持。 */
     SET_WALLPAPER,
@@ -39,10 +36,9 @@ object ViewerHitTest {
     /** 底栏动作顺序，与 [ViewerMetrics.bottomActions] 的划分一一对应。 */
     val bottomActions: List<ViewerAction> =
         listOf(
-            ViewerAction.ROTATE,
-            ViewerAction.CROP,
-            ViewerAction.FILTER,
-            ViewerAction.SAVE,
+            ViewerAction.SHARE,
+            ViewerAction.EDIT,
+            ViewerAction.DELETE,
             ViewerAction.SET_WALLPAPER,
         )
 
@@ -80,10 +76,9 @@ object ViewerHitTest {
         when (action) {
             ViewerAction.BACK -> "返回"
             ViewerAction.INFO -> "信息"
-            ViewerAction.ROTATE -> "旋转"
-            ViewerAction.CROP -> "裁剪"
-            ViewerAction.FILTER -> "滤镜"
-            ViewerAction.SAVE -> "另存"
+            ViewerAction.SHARE -> "分享"
+            ViewerAction.EDIT -> "编辑"
+            ViewerAction.DELETE -> "删除"
             ViewerAction.SET_WALLPAPER -> "设置为"
         }
 }
@@ -91,7 +86,8 @@ object ViewerHitTest {
 /**
  * 查看器顶栏与底栏绘制。
  *
- * 顶栏包含返回、文件名、信息三部分；底栏包含旋转、裁剪、滤镜、另存、设置为五个等分按钮。
+ * 顶栏包含返回、文件名、信息三部分；底栏包含分享、编辑、删除、设置为四个等分按钮，
+ * 每个按钮以文本符号加文案的同一行形式居中绘制。
  * 绘制只读取 [ViewerMetrics]，不重复计算几何；命中判定由 [ViewerHitTest] 完成。
  *
  * 参数 context 用于取密度换算字号；参数 metrics 为当前布局。
@@ -112,6 +108,12 @@ class ViewerChrome(
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = InkColors.INK
             textSize = 14f * scaledDensity
+        }
+
+    /** 底栏符号画笔，字号比正文略大，与文案共用基线。 */
+    private val glyphPaint =
+        Paint(bodyPaint).apply {
+            textSize = bodyPaint.textSize * 1.05f
         }
     private val smallPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -180,7 +182,7 @@ class ViewerChrome(
         val areas = metrics.bottomActions(ViewerHitTest.bottomActions.size)
         areas.forEachIndexed { index, area ->
             val action = ViewerHitTest.bottomActions[index]
-            drawCentered(canvas, ViewerHitTest.labelOf(action), area, bodyPaint)
+            drawGlyphLabel(canvas, glyphOf(action), ViewerHitTest.labelOf(action), area, glyphPaint, bodyPaint)
             if (index > 0) {
                 canvas.drawLine(
                     area.left.toFloat(),
@@ -191,6 +193,57 @@ class ViewerChrome(
                 )
             }
         }
+    }
+
+    /**
+     * 底栏动作的文本符号。
+     *
+     * 符号取「↗ ✎ ✕ ⊞」，与文案在同一行绘制。设备字体缺字时退化备选为
+     * 「↑ / × ▣」，在设备上确认字形完整后只保留一组常量并删除另一组。
+     *
+     * @param action 动作。
+     * @return 与文案同行的符号；顶栏动作不使用符号，返回空串。
+     */
+    private fun glyphOf(action: ViewerAction): String =
+        when (action) {
+            ViewerAction.SHARE -> "↗"
+            ViewerAction.EDIT -> "✎"
+            ViewerAction.DELETE -> "✕"
+            ViewerAction.SET_WALLPAPER -> "⊞"
+            ViewerAction.BACK,
+            ViewerAction.INFO,
+            -> ""
+        }
+
+    /**
+     * 在矩形区域内绘制「符号 + 文案」同一行并整体居中。
+     *
+     * 先按两个画笔的字宽与 4dp 间距计算总宽，再以区域中线定位起点，
+     * 符号与文案共用正文基线，保证底栏高度与等分宽度不变。
+     *
+     * @param canvas 画布。
+     * @param glyph 文本符号。
+     * @param text 动作文案。
+     * @param area 该动作的等分区域。
+     * @param glyphPaint 符号画笔。
+     * @param bodyPaint 文案画笔，同时提供基线计算。
+     */
+    private fun drawGlyphLabel(
+        canvas: Canvas,
+        glyph: String,
+        text: String,
+        area: ViewerArea,
+        glyphPaint: Paint,
+        bodyPaint: Paint,
+    ) {
+        val gap = 4f * density
+        val glyphWidth = glyphPaint.measureText(glyph)
+        val textWidth = bodyPaint.measureText(text)
+        val totalWidth = glyphWidth + gap + textWidth
+        val baseline = area.top + area.height / 2f - (bodyPaint.descent() + bodyPaint.ascent()) / 2f
+        val start = area.left + (area.width - totalWidth) / 2f
+        canvas.drawText(glyph, start, baseline, glyphPaint)
+        canvas.drawText(text, start + glyphWidth + gap, baseline, bodyPaint)
     }
 
     private fun drawCentered(

@@ -23,12 +23,14 @@ import com.shuiyu.octoberrain.core.common.WallpaperScope
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.render.ImageDecoder
+import com.shuiyu.octoberrain.feature.files.data.deleteFileEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicInteger
@@ -88,7 +90,7 @@ class PhotoScreen(
  * 参数 context 为视图上下文；paths 为路径列表；startIndex 为起始下标；
  * source 为来源；onClose 为关闭出口。
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class PhotoSurface(
     context: Context,
     private val paths: List<String>,
@@ -98,13 +100,18 @@ class PhotoSurface(
 ) : View(context) {
     private val density = resources.displayMetrics.density
     private val scaledDensity = resources.displayMetrics.scaledDensity
-    private val state = ViewerState(paths, startIndex)
+
+    /** 当前图片列表与位置，删除图片后按剩余路径重建。 */
+    private var state = ViewerState(paths, startIndex)
     private val generation = AtomicInteger(0)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val prefetched = HashMap<Int, Bitmap>()
 
     /** 壁纸设置任务的协程作用域，页面销毁时取消。 */
     private val wallpaperScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** 删除图片任务的协程作用域，页面销毁时取消。 */
+    private val fileScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** 在途的壁纸设置任务。 */
     private var wallpaperJob: Job? = null
@@ -202,6 +209,7 @@ class PhotoSurface(
     fun detach() {
         detached = true
         wallpaperScope.cancel()
+        fileScope.cancel()
         generation.incrementAndGet()
         mainHandler.removeCallbacksAndMessages(null)
         bitmap?.recycle()
@@ -409,13 +417,72 @@ class PhotoSurface(
         when (action) {
             ViewerAction.BACK -> if (!handleBack()) onClose()
             ViewerAction.INFO -> openPanel(Panel.DETAILS)
-            ViewerAction.ROTATE,
-            ViewerAction.CROP,
-            ViewerAction.FILTER,
-            ViewerAction.SAVE,
-            -> openEdit()
+            ViewerAction.SHARE -> share()
+            ViewerAction.EDIT -> openEdit()
+            ViewerAction.DELETE -> confirmDelete()
             ViewerAction.SET_WALLPAPER -> openWallpaperMenu()
         }
+    }
+
+    /**
+     * 删除当前图片：先弹出二次确认，确认后在后台删除并切换到相邻图片或关闭页面。
+     */
+    private fun confirmDelete() {
+        val path = state.path
+        if (path.isEmpty()) return
+        panel = Panel.NONE
+        InkDialogs.confirm(
+            context = context,
+            title = "删除图片",
+            message = "确定删除「${File(path).name}」？删除后无法恢复。",
+            confirmLabel = "删除",
+            onConfirm = { deleteImage(path) },
+        )
+    }
+
+    /**
+     * 在后台删除指定图片，按删除结果刷新查看器或提示失败。
+     *
+     * @param path 待删除图片的绝对路径。
+     */
+    private fun deleteImage(path: String) {
+        fileScope.launch {
+            val deleted =
+                withContext(Dispatchers.IO) {
+                    runCatching { deleteFileEntry(File(path)) }.getOrDefault(false)
+                }
+            if (detached) return@launch
+            if (!deleted) {
+                toast("删除失败，请检查文件是否存在及存储写入权限")
+                return@launch
+            }
+            afterDeleted(path)
+            toast("图片已删除")
+        }
+    }
+
+    /**
+     * 删除成功后的状态处理：移除当前路径，仍有图片时停到相邻一张，否则关闭页面。
+     *
+     * @param path 已删除图片的绝对路径。
+     */
+    private fun afterDeleted(path: String) {
+        AppServices.refresh.requestPartial()
+        val remaining = state.paths.filterNot { it == path }
+        if (remaining.isEmpty()) {
+            onClose()
+            return
+        }
+        val nextIndex = state.index.coerceAtMost(remaining.lastIndex)
+        for (cached in prefetched.values) cached.recycle()
+        prefetched.clear()
+        bitmap?.recycle()
+        bitmap = null
+        generation.incrementAndGet()
+        state = ViewerState(remaining, nextIndex, state.grayscale)
+        panel = Panel.NONE
+        refresh()
+        invalidate()
     }
 
     /** 底栏编辑类动作进入编辑页，编辑页负责裁剪、旋转、滤镜与另存。 */

@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.feature.files.ui
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.view.MotionEvent
 import android.view.View
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.design.InkColors
@@ -42,6 +43,9 @@ open class FilePager(
     /** 顶栏右侧动作按钮文案，空串表示不绘制。 */
     protected open val topActionLabel: String get() = ""
 
+    /** 是否在顶栏动作按钮左侧显示取消按钮，选择目标目录时由子类覆盖为 true。 */
+    protected open val showCancelButton: Boolean get() = false
+
     /** 每页条目数，子类按视图形态覆盖。 */
     open val pageSize: Int get() = geometry?.pageSize ?: 1
 
@@ -51,6 +55,12 @@ open class FilePager(
     private val chrome = FilePagerChrome(tokens)
     private var metrics: FileMetrics? = null
     private var listener: PageListener? = null
+
+    /** 是否处于多选态；多选态内容区收缩一行，底栏上方显示批量动作行。 */
+    private var selecting = false
+
+    /** 取消按钮按下标记，用于区分按钮点击与滑出后松开。 */
+    private var cancelPressed = false
 
     private val touch =
         FilePagerTouch(
@@ -100,6 +110,32 @@ open class FilePager(
         setOnTouchListener { _, event -> touch.onTouchEvent(event) }
     }
 
+    /**
+     * 优先接管顶栏取消按钮的触摸。
+     *
+     * 取消按钮只在选择目标目录时显示，按下与抬起都停留按钮内才触发取消；
+     * 其余坐标继续交给分页手势处理。
+     *
+     * 参数 event 为触摸事件。返回是否已消费本次事件。
+     */
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        val inCancel = showCancelButton && chrome.containsCancel(event.x.toInt(), event.y.toInt())
+        if (!inCancel) {
+            cancelPressed = false
+            return super.dispatchTouchEvent(event)
+        }
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> cancelPressed = true
+            MotionEvent.ACTION_UP -> {
+                if (cancelPressed) onCancelAction()
+                cancelPressed = false
+            }
+            MotionEvent.ACTION_CANCEL -> cancelPressed = false
+            else -> Unit
+        }
+        return true
+    }
+
     /** 绑定页码变化监听。 */
     fun setPageListener(value: PageListener?) {
         listener = value
@@ -124,6 +160,32 @@ open class FilePager(
         changePage(forward)
     }
 
+    /**
+     * 切换多选态。
+     *
+     * 多选态内容区在底栏之上收缩一行，用于显示复制、移动与删除动作行。
+     * 状态未变化时不做任何处理；变化时按当前实测尺寸重建几何，保留当前页首项并重绘。
+     *
+     * 参数 value 为 true 进入多选态，false 退出多选态。
+     * 返回本次调用是否改变了多选状态。
+     */
+    fun setSelectingMode(value: Boolean): Boolean {
+        if (selecting == value) return false
+        selecting = value
+        metrics?.let { measured ->
+            val anchor = pagerState.firstIndex
+            val rebuilt = FileMetrics(measured.widthPx, measured.heightPx, tokens, selecting)
+            metrics = rebuilt
+            pagerState.pageSize = pageSize
+            pagerState.setPage(anchor / pageSize)
+            chrome.layout(measured.widthPx, rebuilt)
+            onGeometryChanged(rebuilt)
+            listener?.onPageChanged(pagerState.page)
+            invalidate()
+        }
+        return true
+    }
+
     override fun onSizeChanged(
         width: Int,
         height: Int,
@@ -132,7 +194,7 @@ open class FilePager(
     ) {
         super.onSizeChanged(width, height, oldWidth, oldHeight)
         val anchor = metrics?.let { pagerState.firstIndex }
-        val rebuilt = FileMetrics(width, height, tokens)
+        val rebuilt = FileMetrics(width, height, tokens, selecting)
         metrics = rebuilt
         pagerState.pageSize = pageSize
         if (anchor != null) pagerState.setPage(anchor / pageSize)
@@ -144,11 +206,20 @@ open class FilePager(
         // 每次整屏先铺纸白，避免上一页内容残留。
         canvas.drawColor(InkColors.PAPER)
         if (metrics == null) return
-        chrome.drawTitle(canvas, pageTitle, pageSubtitle, topActionLabel)
+        chrome.drawTitle(canvas, pageTitle, pageSubtitle, topActionLabel, showCancelButton)
+        onDrawContentBackground(canvas)
         onDrawContent(canvas, chrome.contentRect, pagerState.firstIndex, pagerState.lastIndex)
         chrome.drawBottomBar(canvas, pagerState, actionLabel())
+        if (selecting) chrome.drawSelectionBar(canvas)
         onDrawOverlay(canvas)
     }
+
+    /**
+     * 在条目内容之前绘制选中底色等背景层。
+     *
+     * 参数 canvas 为画布。默认不绘制，多选态由子类铺选中行底色。
+     */
+    protected open fun onDrawContentBackground(canvas: Canvas) {}
 
     /**
      * 绘制当前页内容。
@@ -188,6 +259,9 @@ open class FilePager(
 
     /** 顶栏右侧动作按钮被点击。 */
     protected open fun onTopAction() {}
+
+    /** 顶栏取消按钮被点击，选择目标目录时用于放弃本次批量动作。 */
+    protected open fun onCancelAction() {}
 
     /**
      * 几何重建回调，用于按单元格尺寸创建缩略图预取。

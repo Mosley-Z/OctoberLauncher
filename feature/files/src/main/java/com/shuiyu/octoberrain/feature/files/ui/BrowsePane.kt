@@ -10,6 +10,18 @@ import com.shuiyu.octoberrain.feature.files.data.FilePrefs
 import com.shuiyu.octoberrain.feature.files.data.FileSortKey
 import kotlinx.coroutines.CoroutineScope
 
+/** 多选态批量动作，供动作行与浏览页共用。 */
+internal enum class BatchAction {
+    /** 复制到目标目录。 */
+    COPY,
+
+    /** 移动到目标目录。 */
+    MOVE,
+
+    /** 删除选中条目。 */
+    DELETE,
+}
+
 /**
  * 浏览页公共基类。
  *
@@ -51,8 +63,26 @@ internal abstract class BrowsePane(
         /** 排序或显示偏好变化，需要重新列举。 */
         fun onPrefsChanged()
 
-        /** 打开自选文件夹。 */
-        fun onManageFolders()
+        /** 进入多选，页面据此记录多选来源并刷新状态。 */
+        fun onEnterMultiSelect()
+
+        /** 退出多选。 */
+        fun onExitMultiSelect()
+
+        /** 已选数量变化。 */
+        fun onSelectionChanged(count: Int)
+
+        /** 请求批量动作，目标目录与IO由浏览页处理。 */
+        fun onBatchAction(
+            action: BatchAction,
+            targets: List<FileItem>,
+        )
+
+        /** 确认把当前目录作为批量动作的目标目录。 */
+        fun onPickDirConfirm()
+
+        /** 取消目标目录选择，放弃当前批量动作。 */
+        fun onCancelPick()
 
         /** 请求返回上级目录或关闭页面。 */
         fun onBackRequested()
@@ -101,10 +131,31 @@ internal abstract class BrowsePane(
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = InkColors.PAPER
         }
-    private val highlightPaint =
+
+    /** 选中底色：中灰，与纸白拉开明显层次，同时仍能看清条目文字。 */
+    private val selectionFillPaint =
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = InkColors.INK_4
+            style = Paint.Style.FILL
+            color = InkColors.INK_3
         }
+
+    /** 选中外框：纯黑，线宽为常规描边的两倍，在灰度屏上边界清晰。 */
+    private val selectionStrokePaint =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = (tokens.stroke * 2).toFloat()
+            color = InkColors.INK
+        }
+
+    /** 选中项左缘标记条：纯黑实心竖条，用于在缩略图区域快速定位选中行。 */
+    private val selectionMarkPaint =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = InkColors.INK
+        }
+
+    /** 左缘标记条宽度，取 4dp，保证墨水屏上可见。 */
+    private val selectionMarkWidth = tokens.dp(4f)
 
     private var directoryTitle = ""
     private var directoryPath = ""
@@ -114,6 +165,18 @@ internal abstract class BrowsePane(
     private var contentArea = Rect()
     private var prefetcher: ThumbPrefetcher? = null
 
+    /** 是否处于多选态。 */
+    private var selecting = false
+
+    /** 多选选中的条目路径，仅对当前目录生效，翻页保留、换目录按现存条目裁剪。 */
+    private val selectedPaths = linkedSetOf<String>()
+
+    /** 是否处于目标目录选择态，由批量复制与移动进入。 */
+    private var pickingDir = false
+
+    /** 目标目录选择态的顶栏标题。 */
+    private var pickDirTitle = ""
+
     init {
         setPageListener { page ->
             prefetcher?.request(items, page)
@@ -121,18 +184,40 @@ internal abstract class BrowsePane(
         }
     }
 
-    /** 顶栏标题取目录名称。 */
-    override val pageTitle: String get() = directoryTitle
+    /** 顶栏标题：目标目录选择态显示选择用途，多选态在选中后显示已选数量，其余显示目录名称。 */
+    override val pageTitle: String
+        get() =
+            when {
+                pickingDir -> pickDirTitle
+                selecting ->
+                    if (selectedPaths.isEmpty()) {
+                        BrowseStrings.MULTI
+                    } else {
+                        BrowseStrings.selectedCount(selectedPaths.size)
+                    }
+                else -> directoryTitle
+            }
 
     /** 顶栏副标题取当前路径。 */
     override val pageSubtitle: String get() = directoryPath
 
-    /** 顶栏动作按钮用于切换视图，文案表示将要切换到的形态。 */
+    /** 顶栏动作按钮用于切换视图；目标目录选择态改为确认选择。 */
     override val topActionLabel: String
-        get() = if (prefs.grid) BrowseStrings.LIST else BrowseStrings.GRID
+        get() =
+            when {
+                pickingDir -> BrowseStrings.PICK_HERE
+                prefs.grid -> BrowseStrings.LIST
+                else -> BrowseStrings.GRID
+            }
 
-    /** 底栏动作按钮在面板打开时显示关闭。 */
-    override fun actionLabel(): String = if (panelOpen) BrowseStrings.CLOSE else BrowseStrings.MENU
+    /** 底栏动作按钮：多选态显示完成，目标目录选择态留空。 */
+    override fun actionLabel(): String =
+        when {
+            pickingDir -> ""
+            selecting -> BrowseStrings.DONE
+            panelOpen -> BrowseStrings.CLOSE
+            else -> BrowseStrings.MENU
+        }
 
     /**
      * 写入当前目录数据。
@@ -152,6 +237,11 @@ internal abstract class BrowsePane(
         panelOpen = false
         pressedPanelOpen = false
         pressedItem = null
+        // 多选只对当前目录有效：换目录或刷新后裁剪已不存在的路径，其余保持选中。
+        if (selecting) {
+            selectedPaths.retainAll(items.mapTo(HashSet()) { it.path })
+            callbacks.onSelectionChanged(selectedPaths.size)
+        }
         submitItemCount(items.size)
         invalidate()
     }
@@ -162,12 +252,101 @@ internal abstract class BrowsePane(
      * 参数 message 为失败说明，写入后清空条目并关闭操作面板。
      */
     fun setError(message: String) {
+        exitMultiSelect()
         items = emptyList()
         error = message
         panelOpen = false
         pressedPanelOpen = false
         pressedItem = null
         submitItemCount(0)
+        invalidate()
+    }
+
+    /** 是否处于多选态。 */
+    fun isSelecting(): Boolean = selecting
+
+    /** 是否处于目标目录选择态。 */
+    fun isPickingDir(): Boolean = pickingDir
+
+    /** 目标目录选择态在顶栏显示取消按钮，其余状态隐藏。 */
+    override val showCancelButton: Boolean get() = pickingDir
+
+    /** 顶栏取消按钮点击：放弃当前批量动作并回到来源目录。 */
+    override fun onCancelAction() {
+        callbacks.onCancelPick()
+    }
+
+    /**
+     * 取当前选中条目。
+     *
+     * 返回顺序与当前目录条目顺序一致，已不在当前目录的路径不返回。
+     */
+    fun selectedItems(): List<FileItem> = items.filter { selectedPaths.contains(it.path) }
+
+    /** 进入多选；重复调用保持现状，并在进入后关闭操作面板。 */
+    fun enterMultiSelect() {
+        if (pickingDir) return
+        closePanel()
+        if (selecting) return
+        selecting = true
+        selectedPaths.clear()
+        setSelectingMode(true)
+        callbacks.onSelectionChanged(0)
+        callbacks.onEnterMultiSelect()
+        invalidate()
+    }
+
+    /** 退出多选并清空选中；未处于多选时不做处理。 */
+    fun exitMultiSelect() {
+        if (!selecting) return
+        selecting = false
+        selectedPaths.clear()
+        setSelectingMode(false)
+        callbacks.onSelectionChanged(0)
+        callbacks.onExitMultiSelect()
+        invalidate()
+    }
+
+    /**
+     * 恢复一批选中路径，用于取消目标目录选择后回到多选态。
+     *
+     * 参数 paths 为原选中条目的路径集合；仅保留当前目录仍存在的条目，
+     * 存在有效项时进入多选态，否则保持普通浏览态。
+     */
+    fun restoreSelection(paths: Collection<String>) {
+        if (paths.isEmpty() || pickingDir) return
+        val available = items.mapTo(HashSet()) { it.path }
+        val restored = paths.filter { available.contains(it) }
+        if (restored.isEmpty()) return
+        if (!selecting) {
+            selecting = true
+            setSelectingMode(true)
+        }
+        selectedPaths.clear()
+        selectedPaths.addAll(restored)
+        callbacks.onSelectionChanged(selectedPaths.size)
+        invalidate()
+    }
+
+    /**
+     * 进入目标目录选择态。
+     *
+     * 参数 title 为选择用途标题，取复制到或移动到；进入前退出多选并关闭面板，
+     * 此后点击目录进入，顶栏右侧动作按钮确认选择。
+     */
+    fun beginPickDir(title: String) {
+        exitMultiSelect()
+        closePanel()
+        pickingDir = true
+        pickDirTitle = title
+        invalidate()
+    }
+
+    /** 退出目标目录选择态，恢复普通浏览与底栏动作。 */
+    fun endPickDir() {
+        if (!pickingDir) return
+        pickingDir = false
+        pickDirTitle = ""
         invalidate()
     }
 
@@ -184,10 +363,13 @@ internal abstract class BrowsePane(
         return true
     }
 
-    /** 处理返回：先关闭面板，面板未打开时交给页面返回上级目录。 */
+    /** 处理返回：先关闭面板，随后退出多选或目标目录选择，最后由页面处理目录返回。 */
     fun handleBack(): Boolean {
-        if (closePanel()) return true
-        callbacks.onBackRequested()
+        when {
+            closePanel() -> Unit
+            selecting -> exitMultiSelect()
+            else -> callbacks.onBackRequested()
+        }
         return true
     }
 
@@ -245,17 +427,24 @@ internal abstract class BrowsePane(
     }
 
     override fun onTopAction() {
+        if (pickingDir) {
+            callbacks.onPickDirConfirm()
+            return
+        }
         closePanel()
         callbacks.onToggleView()
     }
 
     override fun onAction() {
-        if (pressedPanelOpen) {
-            closePanel()
-            return
+        when {
+            pickingDir -> Unit
+            selecting -> exitMultiSelect()
+            pressedPanelOpen -> closePanel()
+            else -> {
+                panelOpen = !panelOpen
+                invalidate()
+            }
         }
-        panelOpen = !panelOpen
-        invalidate()
     }
 
     override fun onContentGesture(
@@ -264,6 +453,8 @@ internal abstract class BrowsePane(
         longPress: Boolean,
     ) {
         when {
+            pickingDir -> openAtPickDir(x, y)
+            selecting -> handleSelectionTap(x, y)
             longPress -> handleLongPress(x, y)
             pressedPanelOpen -> handlePressedPanelTap(y)
             panelOpen -> handlePanelTap(y)
@@ -274,8 +465,20 @@ internal abstract class BrowsePane(
     override fun onDrawOverlay(canvas: Canvas) {
         if (contentArea.isEmpty) return
         when {
+            pickingDir -> Unit
+            selecting -> drawSelectionOverlay(canvas)
             panelOpen -> drawPanel(canvas)
             pressedPanelOpen -> drawPressedPanel(canvas)
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        // 页面重建或销毁时复位多选态，避免内容区停留在收缩后的几何。
+        if (selecting) {
+            selecting = false
+            selectedPaths.clear()
+            setSelectingMode(false)
         }
     }
 
@@ -315,6 +518,140 @@ internal abstract class BrowsePane(
     ) {
         val item = items.getOrNull(indexAt(x, y, contentArea)) ?: return
         if (item.dir) callbacks.onEnterDir(item) else callbacks.onOpenItem(item)
+    }
+
+    /** 目标目录选择态：仅目录可进入，文件点击忽略。 */
+    private fun openAtPickDir(
+        x: Int,
+        y: Int,
+    ) {
+        val item = items.getOrNull(indexAt(x, y, contentArea)) ?: return
+        if (item.dir) callbacks.onEnterDir(item)
+    }
+
+    /** 多选态点击：命中动作行触发批量动作，命中条目切换选中。 */
+    private fun handleSelectionTap(
+        x: Int,
+        y: Int,
+    ) {
+        val cell = selectionCellAt(x, y, selectionBarRects(width, height, tokens.bottomBarH, tokens.selectionBarH))
+        when (cell) {
+            0 -> dispatchBatch(BatchAction.COPY)
+            1 -> dispatchBatch(BatchAction.MOVE)
+            2 -> dispatchBatch(BatchAction.DELETE)
+            else -> toggleSelectionAt(x, y)
+        }
+    }
+
+    /** 分发批量动作；空选时不触发，避免无效确认框。 */
+    private fun dispatchBatch(action: BatchAction) {
+        val targets = selectedItems()
+        if (targets.isEmpty()) return
+        callbacks.onBatchAction(action, targets)
+    }
+
+    /** 切换坐标处条目的选中状态，并同步页面状态。 */
+    private fun toggleSelectionAt(
+        x: Int,
+        y: Int,
+    ) {
+        val item = items.getOrNull(indexAt(x, y, contentArea)) ?: return
+        if (!selectedPaths.remove(item.path)) selectedPaths.add(item.path)
+        callbacks.onSelectionChanged(selectedPaths.size)
+        invalidate()
+    }
+
+    /**
+     * 在条目内容之下铺选中底色。
+     *
+     * 底色先于条目绘制，缩略图、名称与分隔线随即覆盖在其上，避免遮挡条目信息。
+     * 参数 canvas 为画布；矩形与网格、列表的命中区域一致。
+     */
+    override fun onDrawContentBackground(canvas: Canvas) {
+        if (!selecting || selectedPaths.isEmpty()) return
+        for (index in pagerState.firstIndex until pagerState.lastIndex) {
+            val rect =
+                items
+                    .getOrNull(index)
+                    ?.takeIf { selectedPaths.contains(it.path) }
+                    ?.let { itemRect(index) }
+                    ?: continue
+            canvas.drawRect(rect, selectionFillPaint)
+        }
+    }
+
+    /** 绘制选中条目外框与左缘标记条，位置与网格、列表的命中区域一致。 */
+    private fun drawSelectionOverlay(canvas: Canvas) {
+        if (selectedPaths.isEmpty()) return
+        for (index in pagerState.firstIndex until pagerState.lastIndex) {
+            val rect =
+                items
+                    .getOrNull(index)
+                    ?.takeIf { selectedPaths.contains(it.path) }
+                    ?.let { itemRect(index) }
+                    ?: continue
+            drawSelectionFrame(canvas, rect)
+        }
+    }
+
+    /**
+     * 在条目矩形内绘制选中外框与左缘标记条。
+     *
+     * 参数 canvas 为画布；rect 为条目在视图内的矩形。
+     * 外框按线宽内缩一半，避免边缘被条目边界裁掉。
+     */
+    private fun drawSelectionFrame(
+        canvas: Canvas,
+        rect: Rect,
+    ) {
+        val inset = (selectionStrokePaint.strokeWidth / 2f).toInt().coerceAtLeast(1)
+        canvas.drawRect(
+            (rect.left + inset).toFloat(),
+            (rect.top + inset).toFloat(),
+            (rect.right - inset).toFloat(),
+            (rect.bottom - inset).toFloat(),
+            selectionStrokePaint,
+        )
+        canvas.drawRect(
+            rect.left.toFloat(),
+            rect.top.toFloat(),
+            (rect.left + selectionMarkWidth).toFloat(),
+            rect.bottom.toFloat(),
+            selectionMarkPaint,
+        )
+    }
+
+    /**
+     * 在矩形内绘制完整选中样式：中灰底、纯黑外框与左缘标记条。
+     *
+     * 参数 canvas 为画布；rect 为目标矩形。
+     * 用于操作面板选中行等叠加在内容之上的场景，不需要再单独铺底色。
+     */
+    private fun drawSelectionDecoration(
+        canvas: Canvas,
+        rect: Rect,
+    ) {
+        canvas.drawRect(rect, selectionFillPaint)
+        drawSelectionFrame(canvas, rect)
+    }
+
+    /** 取条目在屏幕上的矩形，按当前视图形态复用列表行或网格单元格命中区域。 */
+    private fun itemRect(index: Int): Rect? {
+        val metrics = geometry ?: return null
+        val slot = index - pagerState.firstIndex
+        return when {
+            slot < 0 -> null
+            prefs.grid && slot >= metrics.pageSize -> null
+            prefs.grid -> {
+                val hit = metrics.gridCell(slot, contentArea.left, contentArea.top).hit
+                Rect(hit.left, hit.top, hit.right, hit.bottom)
+            }
+            slot >= metrics.listRows -> null
+            else -> {
+                val top = contentArea.top + slot * tokens.rowH
+                Rect(contentArea.left, top, contentArea.right, top + tokens.rowH)
+            }
+        }
     }
 
     /** 长按面板点击：命中行执行动作，空白处关闭面板。 */
@@ -362,9 +699,9 @@ internal abstract class BrowsePane(
                 closePanel()
                 callbacks.onToggleView()
             }
-            PanelAction.MANAGE_FOLDERS -> {
+            PanelAction.ENTER_MULTI -> {
                 closePanel()
-                callbacks.onManageFolders()
+                enterMultiSelect()
             }
         }
     }
@@ -404,7 +741,7 @@ internal abstract class BrowsePane(
             val row = BrowsePanel.rows[index]
             val top = area.top + index * tokens.rowH
             val rowRect = Rect(area.left, top, area.right, top + tokens.rowH)
-            if (BrowsePanel.isSelected(row, state)) canvas.drawRect(rowRect, highlightPaint)
+            if (BrowsePanel.isSelected(row, state)) drawSelectionDecoration(canvas, rowRect)
             val baseline = rowRect.centerY() + (bodyPaint.descent() - bodyPaint.ascent()) / 2f - bodyPaint.descent()
             canvas.drawText(row.label, (area.left + tokens.padH).toFloat(), baseline, bodyPaint)
             val value = BrowsePanel.stateText(row, state)

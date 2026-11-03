@@ -24,10 +24,11 @@ class BrowsePanelTest {
                 PanelRow.ORDER,
                 PanelRow.HIDDEN,
                 PanelRow.VIEW,
-                PanelRow.FOLDERS,
+                PanelRow.MULTI,
             ),
             BrowsePanel.rows,
         )
+        assertEquals("多选", PanelRow.MULTI.label)
         assertEquals(3, BrowsePanel.pressedRows(false).size)
         assertEquals(2, BrowsePanel.pressedRows(true).size)
     }
@@ -38,7 +39,7 @@ class BrowsePanelTest {
         assertEquals(PanelAction.SORT_NAME, BrowsePanel.actionOf(PanelRow.NAME))
         assertEquals(PanelAction.TOGGLE_ORDER, BrowsePanel.actionOf(PanelRow.ORDER))
         assertEquals(PanelAction.TOGGLE_VIEW, BrowsePanel.actionOf(PanelRow.VIEW))
-        assertEquals(PanelAction.MANAGE_FOLDERS, BrowsePanel.actionOf(PanelRow.FOLDERS))
+        assertEquals(PanelAction.ENTER_MULTI, BrowsePanel.actionOf(PanelRow.MULTI))
     }
 
     /** 选中状态与状态文案随偏好变化。 */
@@ -59,7 +60,7 @@ class BrowsePanelTest {
         assertEquals("降序", BrowsePanel.stateText(PanelRow.ORDER, state))
         assertEquals("开", BrowsePanel.stateText(PanelRow.HIDDEN, state))
         assertEquals("网格", BrowsePanel.stateText(PanelRow.VIEW, state))
-        assertEquals("", BrowsePanel.stateText(PanelRow.FOLDERS, state))
+        assertEquals("", BrowsePanel.stateText(PanelRow.MULTI, state))
     }
 
     /** 行命中按纵向坐标与行高换算，范围外返回 -1。 */

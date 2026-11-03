@@ -42,8 +42,8 @@ internal enum class PanelRow(
     /** 切换网格与列表视图。 */
     VIEW(BrowseStrings.VIEW),
 
-    /** 打开自选文件夹。 */
-    FOLDERS(BrowseStrings.FOLDERS),
+    /** 进入多选。 */
+    MULTI(BrowseStrings.MULTI),
 }
 
 /** 长按条目后弹出的操作面板。 */
@@ -69,7 +69,7 @@ internal enum class PanelAction {
     TOGGLE_ORDER,
     TOGGLE_HIDDEN,
     TOGGLE_VIEW,
-    MANAGE_FOLDERS,
+    ENTER_MULTI,
 }
 
 /**
@@ -96,7 +96,7 @@ internal object BrowsePanel {
             PanelRow.ORDER -> PanelAction.TOGGLE_ORDER
             PanelRow.HIDDEN -> PanelAction.TOGGLE_HIDDEN
             PanelRow.VIEW -> PanelAction.TOGGLE_VIEW
-            PanelRow.FOLDERS -> PanelAction.MANAGE_FOLDERS
+            PanelRow.MULTI -> PanelAction.ENTER_MULTI
         }
 
     /** 判断排序行是否为当前排序依据。 */
@@ -112,14 +112,14 @@ internal object BrowsePanel {
             PanelRow.ORDER -> false
             PanelRow.HIDDEN -> state.showHidden
             PanelRow.VIEW -> state.grid
-            PanelRow.FOLDERS -> false
+            PanelRow.MULTI -> false
         }
 
     /**
      * 取面板行右侧状态文案。
      *
      * 参数 row 为面板行；state 为当前显示状态。排序行仅在命中时返回已选标记，
-     * 其余行返回开关或形态说明，自选文件夹行返回空串。
+     * 其余行返回开关或形态说明，多选行返回空串。
      */
     fun stateText(
         row: PanelRow,
@@ -134,7 +134,7 @@ internal object BrowsePanel {
             PanelRow.ORDER -> if (state.ascending) BrowseStrings.ASCENDING else BrowseStrings.DESCENDING
             PanelRow.HIDDEN -> if (state.showHidden) BrowseStrings.ON else BrowseStrings.OFF
             PanelRow.VIEW -> if (state.grid) BrowseStrings.GRID else BrowseStrings.LIST
-            PanelRow.FOLDERS -> ""
+            PanelRow.MULTI -> ""
         }
 
     /**

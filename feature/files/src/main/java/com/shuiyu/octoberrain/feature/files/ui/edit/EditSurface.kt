@@ -35,6 +35,21 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
 /**
+ * 判断顶栏保存点击是否应当直接退出编辑页。
+ *
+ * 无任何可保存修改且撤销栈中没有可撤销步骤时，保存按钮等同于取消：
+ * 点击直接退出，不展开保存面板，也不提示没有修改。
+ *
+ * @param state 当前编辑状态。
+ * @param undoable 撤销栈中是否还有可撤销步骤。
+ * @return 应当直接退出时返回 true，否则返回 false。
+ */
+internal fun shouldCloseOnSave(
+    state: EditUiState,
+    undoable: Boolean,
+): Boolean = !EditExportPlan.canSave(state) && !undoable
+
+/**
  * 编辑页的绘制与交互视图。
  *
  * 顶栏提供取消与保存，底栏提供裁剪、旋转、滤镜三个页签，页签上方的控制条按页签显示
@@ -510,7 +525,8 @@ internal class EditSurface(
         }
         when {
             cancelRect.contains(x, y) -> requestClose()
-            saveRect.contains(x, y) -> toggleSaveMenu()
+            saveRect.contains(x, y) ->
+                if (shouldCloseOnSave(state, session.canUndo)) requestClose() else toggleSaveMenu()
             else -> {
                 tabs.firstOrNull { it.contains(x, y) }?.let { rect ->
                     val index = tabs.indexOf(rect)
@@ -591,11 +607,11 @@ internal class EditSurface(
         invalidate()
     }
 
-    /** 请求保存，先检查是否有修改。 */
+    /** 请求保存；没有可保存的修改时直接退出编辑页。 */
     private fun requestSave() {
         if (saving) return
-        if (!EditExportPlan.canSave(state) && !session.canUndo) {
-            toast(EditStrings.NOTHING_TO_SAVE)
+        if (shouldCloseOnSave(state, session.canUndo)) {
+            requestClose()
             return
         }
         InkDialogs.confirm(
@@ -875,8 +891,7 @@ internal class EditSurface(
             IntRect(tokens.padH * 4, 0, width - tokens.padH * 4, topBar.height)
         drawCenteredIn(canvas, EditStrings.TITLE, titlePaint, titleRect)
         drawCenteredIn(canvas, EditStrings.CANCEL, bodyPaint, cancelRect)
-        val saveColorPaint = if (canSaveNow()) bodyPaint else disabledPaint()
-        drawCenteredIn(canvas, EditStrings.SAVE, saveColorPaint, saveRect)
+        drawCenteredIn(canvas, EditStrings.SAVE, bodyPaint, saveRect)
         if (tabs.size != EditTab.entries.size) return
         drawControl(canvas)
         drawGrayBar(canvas)
@@ -984,9 +999,6 @@ internal class EditSurface(
         return IntRect(left, top, left + width, top + height)
     }
 
-    /** 是否允许保存。 */
-    private fun canSaveNow(): Boolean = !loading && !failed && !saving && EditExportPlan.canSave(state)
-
     /** 绘制居中的单行提示。 */
     private fun drawCenteredText(
         canvas: Canvas,
@@ -1011,12 +1023,6 @@ internal class EditSurface(
         val y = rect.top + (rect.height + paint.textSize) / 2f - paint.descent()
         canvas.drawText(text, x, y, paint)
     }
-
-    /** 禁用态画笔，保持正文颜色体系。 */
-    private fun disabledPaint(): Paint =
-        Paint(bodyPaint).apply {
-            color = InkColors.INK_3
-        }
 
     /** 显示轻提示。 */
     private fun toast(message: String) {

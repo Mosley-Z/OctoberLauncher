@@ -48,14 +48,13 @@ class ViewerChromeTest {
         assertNull(ViewerHitTest.hit(240, 400, metrics()))
     }
 
-    /** 底栏五个等分区域依次命中旋转、裁剪、滤镜、另存、设置为。 */
+    /** 底栏四个等分区域依次命中分享、编辑、删除、设置为。 */
     @Test
     fun `底栏动作按等分顺序命中`() {
         val geometry = metrics()
-        assertEquals(ViewerAction.ROTATE, ViewerHitTest.hit(10, 760, geometry))
-        assertEquals(ViewerAction.CROP, ViewerHitTest.hit(130, 760, geometry))
-        assertEquals(ViewerAction.FILTER, ViewerHitTest.hit(220, 760, geometry))
-        assertEquals(ViewerAction.SAVE, ViewerHitTest.hit(330, 760, geometry))
+        assertEquals(ViewerAction.SHARE, ViewerHitTest.hit(10, 760, geometry))
+        assertEquals(ViewerAction.EDIT, ViewerHitTest.hit(130, 760, geometry))
+        assertEquals(ViewerAction.DELETE, ViewerHitTest.hit(250, 760, geometry))
         assertEquals(ViewerAction.SET_WALLPAPER, ViewerHitTest.hit(470, 760, geometry))
         assertEquals(ViewerAction.SET_WALLPAPER, ViewerHitTest.hit(479, 799, geometry))
     }
@@ -65,10 +64,9 @@ class ViewerChromeTest {
     fun `底栏动作顺序固定`() {
         assertEquals(
             listOf(
-                ViewerAction.ROTATE,
-                ViewerAction.CROP,
-                ViewerAction.FILTER,
-                ViewerAction.SAVE,
+                ViewerAction.SHARE,
+                ViewerAction.EDIT,
+                ViewerAction.DELETE,
                 ViewerAction.SET_WALLPAPER,
             ),
             ViewerHitTest.bottomActions,
@@ -77,13 +75,12 @@ class ViewerChromeTest {
 
     /** 动作文案与界面按钮一致。 */
     @Test
-    fun `动作文案覆盖七个动作`() {
+    fun `动作文案覆盖六个动作`() {
         assertEquals("返回", ViewerHitTest.labelOf(ViewerAction.BACK))
         assertEquals("信息", ViewerHitTest.labelOf(ViewerAction.INFO))
-        assertEquals("旋转", ViewerHitTest.labelOf(ViewerAction.ROTATE))
-        assertEquals("裁剪", ViewerHitTest.labelOf(ViewerAction.CROP))
-        assertEquals("滤镜", ViewerHitTest.labelOf(ViewerAction.FILTER))
-        assertEquals("另存", ViewerHitTest.labelOf(ViewerAction.SAVE))
+        assertEquals("分享", ViewerHitTest.labelOf(ViewerAction.SHARE))
+        assertEquals("编辑", ViewerHitTest.labelOf(ViewerAction.EDIT))
+        assertEquals("删除", ViewerHitTest.labelOf(ViewerAction.DELETE))
         assertEquals("设置为", ViewerHitTest.labelOf(ViewerAction.SET_WALLPAPER))
     }
 

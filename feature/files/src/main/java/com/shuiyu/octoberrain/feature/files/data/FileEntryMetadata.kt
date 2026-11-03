@@ -32,3 +32,16 @@ internal data class FileEntryMetadata(
 
 /** 仅删除选中的普通文件，不递归处理目录。失败或权限异常由调用方呈现。 */
 internal fun deleteFileEntry(file: File): Boolean = file.isFile && file.delete()
+
+/**
+ * 删除选中的条目，目录连同内容一并删除。
+ *
+ * 文件沿用 [deleteFileEntry] 的单文件流程；目录交给 deleteRecursively 逐层删除。
+ * 条目不存在时返回 false，供调用方按失败计数。
+ *
+ * 参数 file 为待删除文件或目录。
+ */
+internal fun deleteFileEntryDeep(file: File): Boolean {
+    if (!file.exists()) return false
+    return if (file.isDirectory) file.deleteRecursively() else deleteFileEntry(file)
+}

@@ -15,12 +15,15 @@ import com.shuiyu.octoberrain.core.common.DocumentRef
 import com.shuiyu.octoberrain.core.common.Screen
 import com.shuiyu.octoberrain.core.common.VolumeKeySink
 import com.shuiyu.octoberrain.core.design.InkColors
+import com.shuiyu.octoberrain.core.design.InkDialogs
 import com.shuiyu.octoberrain.core.device.DeviceRuntime
 import com.shuiyu.octoberrain.core.render.RefreshScheduler
 import com.shuiyu.octoberrain.feature.files.data.FileItem
 import com.shuiyu.octoberrain.feature.files.data.FileListing
+import com.shuiyu.octoberrain.feature.files.data.FileOps
 import com.shuiyu.octoberrain.feature.files.data.FilePrefs
 import com.shuiyu.octoberrain.feature.files.data.StorageAccess
+import com.shuiyu.octoberrain.feature.files.data.deleteFileEntryDeep
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * 文件浏览页。
@@ -36,7 +40,9 @@ import kotlinx.coroutines.withContext
  * 排序、隐藏文件与视图形态来自模块偏好，进入目录、返回上级与翻页都在本类处理。
  * 页面自身不读写共享存储之外的状态，写入与删除后的缩略图失效通过 [notifyFileChanged] 通知。
  *
- * 参数 initialPath 为入口指定的起始目录，null 表示回到上次浏览位置。
+ * 参数 initialPath 为入口指定的起始目录，null 表示回到上次浏览位置；
+ * pickDirMode 为 true 时页面作为目标目录选择器使用，条目只进入目录，顶栏右侧确认当前目录；
+ * pickDirTitle 为选择器标题；onPickedDir 接收确认后的目录路径。
  *
  * 本类同时承担页面生命周期、目录加载、面板切换与权限引导，方法数量高于 detekt 默认阈值；
  * 这些职责共享同一份页面状态，因此保留单类实现并在此处抑制函数数量检查。
@@ -44,8 +50,20 @@ import kotlinx.coroutines.withContext
 @Suppress("TooManyFunctions")
 internal class BrowseScreen(
     private val initialPath: String?,
+    private val pickDirMode: Boolean = false,
+    private val pickDirTitle: String = "",
+    private val onPickedDir: ((String) -> Unit)? = null,
 ) : Screen,
     VolumeKeySink {
+    /** 待执行的批量动作与来源目录快照，目标目录选择期间非空。 */
+    private data class PendingBatch(
+        val action: BatchAction,
+        val targets: List<FileItem>,
+        val sourcePath: String,
+        val firstIndex: Int,
+        val selectedPaths: List<String>,
+    )
+
     private lateinit var container: FrameLayout
     private lateinit var tokens: FileTokens
     private lateinit var prefs: FilePrefs
@@ -57,6 +75,8 @@ internal class BrowseScreen(
     private var currentPath: String = ""
     private var loadJob: Job? = null
     private var permissionView: View? = null
+    private var picking: PendingBatch? = null
+    private var activePickTitle: String = ""
 
     override fun createView(context: Context): View {
         val textScale =
@@ -90,17 +110,32 @@ internal class BrowseScreen(
     }
 
     override fun onBack(): Boolean {
-        val currentPane = pane
-        val parent = if (currentPane == null) null else listing.parentOf(currentPath)
-        return when {
-            currentPane == null -> false
-            currentPane.closePanel() -> true
-            parent != null -> {
-                load(parent, 0, resetPage = true)
-                true
+        val currentPane = pane ?: return false
+        val currentPick = picking
+        val handled =
+            when {
+                currentPick != null -> {
+                    // 选择目标目录时逐级返回上级；已无上级时取消本次批量动作。
+                    val parent = pickBackTarget(currentPath, listing::parentOf)
+                    if (parent != null) {
+                        load(parent, 0, resetPage = true)
+                    } else {
+                        cancelPickDir()
+                    }
+                    true
+                }
+                currentPane.closePanel() -> true
+                currentPane.isSelecting() -> {
+                    currentPane.exitMultiSelect()
+                    true
+                }
+                else -> {
+                    val parent = listing.parentOf(currentPath)
+                    if (parent != null) load(parent, 0, resetPage = true)
+                    parent != null
+                }
             }
-            else -> false
-        }
+        return handled
     }
 
     override fun onDestroy() {
@@ -136,6 +171,10 @@ internal class BrowseScreen(
         pane = created
         container.addView(created, matchParent())
         load(currentPath, 0, resetPage = true)
+        if (pickDirMode) {
+            activePickTitle = pickDirTitle.ifEmpty { BrowseStrings.PICK_DIR }
+            created.beginPickDir(activePickTitle)
+        }
     }
 
     /** 普通文档与用户明确选择查看结构的安装包共用阅读器入口。 */
@@ -189,8 +228,31 @@ internal class BrowseScreen(
                     load(currentPath, pane?.pagerState?.firstIndex ?: 0, resetPage = false)
                 }
 
-                override fun onManageFolders() {
-                    AppServices.router.toast(BrowseStrings.FOLDERS_PENDING)
+                override fun onEnterMultiSelect() {
+                    // 多选状态由面板自身维护，页面只保留回调位置供后续统计。
+                }
+
+                override fun onExitMultiSelect() {
+                    // 退出多选无需额外处理，动作行与内容区已由面板复位。
+                }
+
+                override fun onSelectionChanged(count: Int) {
+                    // 选中数量变化只影响面板绘制，页面无需重新列举目录。
+                }
+
+                override fun onBatchAction(
+                    action: BatchAction,
+                    targets: List<FileItem>,
+                ) {
+                    runBatch(action, targets)
+                }
+
+                override fun onPickDirConfirm() {
+                    confirmPickDir()
+                }
+
+                override fun onCancelPick() {
+                    cancelPickDir()
                 }
 
                 override fun onBackRequested() {
@@ -208,26 +270,186 @@ internal class BrowseScreen(
         }
     }
 
-    /** 切换视图形态时保留当前页的页首下标。 */
+    /** 切换视图形态时保留当前页的页首下标与多选中的条目。 */
     private fun rebuildPane() {
         val firstIndex = pane?.pagerState?.firstIndex ?: 0
+        val selected = pane?.selectedItems().orEmpty().map { it.path }
         container.removeAllViews()
         val rebuilt = buildPane()
         pane = rebuilt
         container.addView(rebuilt, matchParent())
-        load(currentPath, firstIndex, resetPage = firstIndex <= 0)
+        load(currentPath, firstIndex, resetPage = firstIndex <= 0, restore = selected)
+        // 重建后恢复目标目录选择态，避免切换视图时退出批量流程。
+        if (activePickTitle.isNotEmpty()) rebuilt.beginPickDir(activePickTitle)
+    }
+
+    /**
+     * 分发批量动作。
+     *
+     * 参数 action 为复制、移动或删除；targets 为选中条目。
+     * 删除先弹确认框；复制与移动进入目标目录选择态，确认目录后执行IO。
+     */
+    private fun runBatch(
+        action: BatchAction,
+        targets: List<FileItem>,
+    ) {
+        if (targets.isEmpty()) return
+        when (action) {
+            BatchAction.DELETE -> confirmDelete(targets)
+            BatchAction.COPY,
+            BatchAction.MOVE,
+            -> beginTargetPick(action, targets)
+        }
+    }
+
+    /** 记录待执行批量动作并进入目标目录选择态。 */
+    private fun beginTargetPick(
+        action: BatchAction,
+        targets: List<FileItem>,
+    ) {
+        picking =
+            PendingBatch(
+                action = action,
+                targets = targets,
+                sourcePath = currentPath,
+                firstIndex = pane?.pagerState?.firstIndex ?: 0,
+                selectedPaths = targets.map { it.path },
+            )
+        val title = if (action == BatchAction.COPY) BrowseStrings.COPY_TO else BrowseStrings.MOVE_TO
+        activePickTitle = title
+        pane?.beginPickDir(title)
+    }
+
+    /**
+     * 处理顶栏确认。
+     *
+     * 批量流程中把当前目录作为目标目录执行复制或移动；作为外部目录选择器时
+     * 把当前目录回传给调用方并结束页面。
+     */
+    private fun confirmPickDir() {
+        val pending = picking
+        if (pending != null) {
+            // 目标与来源相同或位于来源内部时拒绝执行，留在选择态供用户改选。
+            if (isValidDestination(pending, File(currentPath))) {
+                executePendingBatch(pending)
+            } else {
+                AppServices.router.toast(BrowseStrings.INVALID_TARGET)
+            }
+        } else if (pickDirMode) {
+            val chosen = currentPath
+            activePickTitle = ""
+            pane?.endPickDir()
+            onPickedDir?.invoke(chosen)
+            AppServices.router.back()
+        }
+    }
+
+    /**
+     * 判断目标目录是否可作为批量动作落点。
+     *
+     * 允许选择来源目录本身或其它任意目录；仅当待处理条目中存在目录，
+     * 且目标落在该目录自身或其内部时拒绝，避免递归复制或自我吞并。
+     */
+    private fun isValidDestination(
+        pending: PendingBatch,
+        destination: File,
+    ): Boolean = pending.targets.none { it.dir && isSameOrInside(destination, File(it.path)) }
+
+    /** 判断 target 是否等于 source 或位于 source 内部，比较前先规范化路径以消除符号链接差异。 */
+    private fun isSameOrInside(
+        target: File,
+        source: File,
+    ): Boolean {
+        val targetPath = runCatching { target.canonicalPath }.getOrElse { target.absolutePath }
+        val sourcePath = runCatching { source.canonicalPath }.getOrElse { source.absolutePath }
+        return targetPath == sourcePath || targetPath.startsWith(sourcePath + File.separator)
+    }
+
+    /** 取消目标目录选择，回到来源目录并恢复原选中项。 */
+    private fun cancelPickDir() {
+        val pending = picking ?: return
+        picking = null
+        activePickTitle = ""
+        pane?.endPickDir()
+        load(pending.sourcePath, pending.firstIndex, resetPage = false, restore = pending.selectedPaths)
+    }
+
+    /**
+     * 执行复制或移动。
+     *
+     * 参数 pending 为待执行动作与来源信息；目标目录取当前浏览目录。
+     * 逐项执行并统计成功与失败，完成后通知路径变化、回到来源目录并提示汇总。
+     */
+    private fun executePendingBatch(pending: PendingBatch) {
+        val destination = File(currentPath)
+        picking = null
+        activePickTitle = ""
+        pane?.endPickDir()
+        scope.launch {
+            val results =
+                withContext(Dispatchers.IO) {
+                    pending.targets.map { item ->
+                        val source = File(item.path)
+                        val target =
+                            when (pending.action) {
+                                BatchAction.COPY -> FileOps.copyEntry(source, destination)
+                                BatchAction.MOVE -> FileOps.moveEntry(source, destination)
+                                BatchAction.DELETE -> null
+                            }
+                        item to target
+                    }
+                }
+            val done = results.count { it.second != null }
+            results.forEach { (item, target) ->
+                notifyFileChanged(item.path)
+                target?.let { notifyFileChanged(it.path) }
+            }
+            AppServices.router.toast(BrowseStrings.batchResult(done, results.size - done))
+            // 批量动作完成后统一退出多选，回到来源目录并保持在原页附近。
+            pane?.exitMultiSelect()
+            load(pending.sourcePath, pending.firstIndex, resetPage = false)
+        }
+    }
+
+    /** 弹出删除确认框，正文包含数量与目录连同内容删除的说明。 */
+    private fun confirmDelete(targets: List<FileItem>) {
+        InkDialogs.confirm(
+            context = container.context,
+            title = BrowseStrings.DELETE,
+            message = BrowseStrings.deleteMessage(targets.size),
+            confirmLabel = BrowseStrings.DELETE,
+            onConfirm = { executeDelete(targets) },
+        )
+    }
+
+    /** 逐项递归删除选中条目，完成后退出多选并刷新当前目录。 */
+    private fun executeDelete(targets: List<FileItem>) {
+        val folder = currentPath
+        val firstIndex = pane?.pagerState?.firstIndex ?: 0
+        scope.launch {
+            val failed =
+                withContext(Dispatchers.IO) {
+                    targets.count { !deleteFileEntryDeep(File(it.path)) }
+                }
+            pane?.exitMultiSelect()
+            targets.forEach { notifyFileChanged(it.path) }
+            AppServices.router.toast(BrowseStrings.batchResult(targets.size - failed, failed))
+            if (currentPath == folder) load(folder, firstIndex, resetPage = false)
+        }
     }
 
     /**
      * 列举目录并刷新面板。
      *
      * 参数 path 为目标目录；firstIndex 为期望显示的条目下标；resetPage 为 true 时回到首页，
-     * 否则按每页条目数换算页码。目录读取失败时面板显示错误态。
+     * 否则按每页条目数换算页码；restore 为加载完成后需要恢复的选中路径。
+     * 目录读取失败时面板显示错误态。
      */
     private fun load(
         path: String,
         firstIndex: Int,
         resetPage: Boolean,
+        restore: Collection<String> = emptyList(),
     ) {
         currentPath = path
         prefs.lastPath = path
@@ -242,6 +464,7 @@ internal class BrowseScreen(
                 } else {
                     target.setData(items, listing.nameOf(path), path)
                     target.setPage(if (resetPage) 0 else firstIndex / target.pageSize.coerceAtLeast(1))
+                    if (restore.isNotEmpty()) target.restoreSelection(restore)
                 }
                 AppServices.refresh.requestPartial()
             }
@@ -312,3 +535,14 @@ internal class BrowseScreen(
         return params
     }
 }
+
+/**
+ * 计算选择目标目录时返回上级的落点。
+ *
+ * 参数 currentPath 为当前目录；parentOf 为上级目录解析，根目录与存储卷根返回 null。
+ * 来源目录不再作为返回边界：只要存在上级就返回上级，没有上级时返回 null 表示取消。
+ */
+internal fun pickBackTarget(
+    currentPath: String,
+    parentOf: (String) -> String?,
+): String? = parentOf(currentPath)

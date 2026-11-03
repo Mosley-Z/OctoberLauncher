@@ -13,13 +13,18 @@ import com.shuiyu.octoberrain.core.design.InkColors
  * 页面由路由的 `Destination.Files` 触发，内部委托 [BrowseScreen] 承担列表与网格浏览、
  * 分页、排序与缩略图加载；本类只保留稳定类型名并对宿主暴露音量键能力。
  *
- * 参数 startPath 为路由携带的起始目录，null 表示回到上次浏览位置。
+ * 参数 startPath 为路由携带的起始目录，null 表示回到上次浏览位置；
+ * pickDirMode 为 true 时页面作为目标目录选择器使用；
+ * pickDirTitle 为选择器标题；onPickedDir 接收确认后的目录路径。
  */
 class FilesScreen(
     startPath: String?,
+    pickDirMode: Boolean = false,
+    pickDirTitle: String = "",
+    onPickedDir: ((String) -> Unit)? = null,
 ) : Screen,
     VolumeKeySink {
-    private val delegate = BrowseScreen(startPath)
+    private val delegate = BrowseScreen(startPath, pickDirMode, pickDirTitle, onPickedDir)
 
     /** 创建页面视图，参数 context 为宿主上下文。 */
     override fun createView(context: Context): View {

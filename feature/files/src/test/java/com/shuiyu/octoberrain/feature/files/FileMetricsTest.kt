@@ -7,6 +7,7 @@ import com.shuiyu.octoberrain.core.device.SizeClass
 import com.shuiyu.octoberrain.feature.files.ui.FileMetrics
 import com.shuiyu.octoberrain.feature.files.ui.FileTokens
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 文件页几何测试：按三档目标设备核对 dp 换算、内容区与网格单元格。 */
@@ -99,6 +100,31 @@ class FileMetricsTest {
         assertEquals(metrics.contentTop, metrics.contentBottom)
         assertEquals(0, metrics.contentH)
         assertEquals(1, metrics.listRows)
+    }
+
+    /** 多选态在底栏上方让出较矮的动作行，内容区与列表行数随之收缩。 */
+    @Test
+    fun `多选态内容区收缩一行`() {
+        val base = metricsOf(width = 480, height = 800, dpi = 219)
+        val selecting = FileMetrics(480, 800, base.tokens, selecting = true)
+        assertEquals(base.tokens.bottomBarH, 71)
+        assertEquals(53, selecting.tokens.selectionBarH)
+        assertEquals(729 - selecting.tokens.selectionBarH, selecting.contentBottom)
+        assertEquals(676 - base.tokens.topBarH, selecting.contentH)
+        assertEquals(9, selecting.listRows)
+        assertEquals(10, base.listRows)
+        // 网格行数可能因取整保持四行，单元格绘制高度同步收缩。
+        assertTrue(selecting.gridCellDrawH < base.gridCellDrawH)
+    }
+
+    /** 多选态在小屏上仍保证至少一行，下边界不越过上边界。 */
+    @Test
+    fun `多选态过矮时保底一行`() {
+        val base = metricsOf(width = 480, height = 200, dpi = 219)
+        val selecting = FileMetrics(480, 200, base.tokens, selecting = true)
+        assertEquals(1, selecting.listRows)
+        assertEquals(selecting.contentTop, selecting.contentBottom)
+        assertEquals(0, selecting.contentH)
     }
 
     private fun metricsOf(
