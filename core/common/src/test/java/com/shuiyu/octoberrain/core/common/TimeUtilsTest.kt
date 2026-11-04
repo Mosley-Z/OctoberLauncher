@@ -40,7 +40,7 @@ class TimeUtilsTest {
     /** Twelve-hour desktop clocks keep two digits and omit the period. */
     @Test
     fun `formatTime 十二小时制边界`() {
-        assertEquals("12:00", TimeUtils.formatTime(0, 0, true))
+        assertEquals("00:00", TimeUtils.formatTime(0, 0, true))
         assertEquals("09:05", TimeUtils.formatTime(9, 5, true))
         assertEquals("11:59", TimeUtils.formatTime(11, 59, true))
         assertEquals("12:00", TimeUtils.formatTime(12, 0, true))
@@ -50,7 +50,8 @@ class TimeUtilsTest {
 
     @Test
     fun statusTimeHasLowercasePeriodOnlyInTwelveHourMode() {
-        assertEquals("12:00 am", TimeUtils.formatTime(0, 0, true, includePeriod = true))
+        assertEquals("00:00 am", TimeUtils.formatTime(0, 0, true, includePeriod = true))
+        assertEquals("00:50 am", TimeUtils.formatTime(0, 50, true, includePeriod = true))
         assertEquals("09:05 am", TimeUtils.formatTime(9, 5, true, includePeriod = true))
         assertEquals("11:59 am", TimeUtils.formatTime(11, 59, true, includePeriod = true))
         assertEquals("12:00 pm", TimeUtils.formatTime(12, 0, true, includePeriod = true))

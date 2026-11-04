@@ -66,10 +66,10 @@ internal object EditStrings {
     /**
      * 生成覆盖确认正文。
      *
-     * @param name 源文件名，用于指明被替换的目标。
-     * @return 包含目标文件名并说明原内容无法恢复的确认文案。
+     * 参数 name 为源文件名。覆盖会输出不透明黑白图片并移除拍摄信息，正文须明确这两项后果，
+     * 让用户在确认前知道原内容与元数据都无法恢复。
      */
-    fun overwriteMessage(name: String): String = "将用编辑结果替换「$name」，原内容无法恢复。是否继续？"
+    fun overwriteMessage(name: String): String = "将用编辑结果替换「$name」，输出为黑白图片并移除拍摄信息，原内容无法恢复。是否继续？"
 
     /** 读取中。 */
     const val LOADING = "正在读取图片"

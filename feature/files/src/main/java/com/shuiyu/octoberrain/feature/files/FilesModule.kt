@@ -41,20 +41,13 @@ class FilesModule : LauncherModule {
 
     /** 页面提供者：处理文件、相册、图片查看与图片编辑目的地，其余目的地返回 null 交由宿主处理。 */
     private object FileScreenProvider : ScreenProvider {
-        /** 文件列表入口标识。 */
-        private const val SOURCE_FILES = "files"
-
         override fun create(destination: Destination): Screen? =
             when (destination) {
                 is Destination.Files -> FilesScreen(destination.path)
                 is Destination.PhotoViewer -> PhotoScreen(destination.paths, destination.index)
-                is Destination.PhotoEditor -> EditScreen(destination.path, editSourceOf(destination.source))
+                is Destination.PhotoEditor -> EditScreen(destination.path, EditSource.fromRoute(destination.source))
                 is Destination.Album -> AlbumScreen()
                 else -> null
             }
-
-        /** 按来源标识映射编辑页入口来源，未指定时按查看器处理。 */
-        private fun editSourceOf(source: String?): EditSource =
-            if (source == SOURCE_FILES) EditSource.FILES else EditSource.VIEWER
     }
 }

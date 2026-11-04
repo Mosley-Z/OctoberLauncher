@@ -14,8 +14,6 @@ import com.shuiyu.octoberrain.core.render.ImageDecoder
 import com.shuiyu.octoberrain.core.render.ImageSizing
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -50,9 +48,6 @@ private const val EDIT_MARK = "-编-"
 
 /** 文件名时间戳格式。 */
 private const val STAMP_PATTERN = "yyyyMMdd-HHmmss"
-
-/** 覆盖写入时临时文件名的前缀，以点号开头避免被媒体扫描识别为图片。 */
-internal const val OVERWRITE_TEMP_PREFIX = ".overwrite-"
 
 /** 导出结果。 */
 sealed interface ExportResult {
@@ -198,16 +193,9 @@ object EditExport {
         if (rendered is RenderResult.Failure) return ExportResult.Failure(rendered.message)
         val edited = (rendered as RenderResult.Success).bitmap
         return try {
-            when {
-                !writeBitmapToFile(edited, plan.temp, plan.encoding, plan.quality) -> {
-                    plan.temp.delete()
-                    ExportResult.Failure("写入图片失败")
-                }
-                !replaceAtomically(plan) -> ExportResult.Failure("替换源文件失败")
-                else -> {
-                    syncMediaStore(context, source, plan.encoding)
-                    ExportResult.Success(source.name, source.absolutePath)
-                }
+            val result = writeOverwrite(plan, { temp -> writeBitmapToFile(edited, temp, plan.encoding, plan.quality) })
+            result.also {
+                if (result is ExportResult.Success) syncMediaStore(context, source, plan.encoding)
             }
         } finally {
             edited.recycle()
@@ -231,7 +219,7 @@ object EditExport {
             return RenderResult.Failure("图片尺寸超出处理上限")
         }
         val edge = targetEdge(memoryClassOf(context))
-        val sample = ImageSizing.sampleFor(maxOf(bounds[0], bounds[1]), edge / 2)
+        val sample = ImageSizing.sampleFor(maxOf(bounds[0], bounds[1]), edge)
         val decoded =
             ImageDecoder.decodeWithSample(sourcePath, sample)
                 ?: return RenderResult.Failure("图片解码失败")
@@ -430,13 +418,11 @@ internal enum class OverwriteEncoding {
 /**
  * 覆盖写入计划。
  *
- * 参数 target 为被覆盖的源文件，temp 为同目录下先写入的临时文件，encoding 为按源文件
- * 扩展名选定的编码格式，quality 为压缩质量。target 与 temp 位于同一文件系统，
- * 保证最终替换为原子操作。
+ * 参数 target 为被覆盖的源文件，encoding 为按源文件扩展名选定的编码格式，quality 为压缩质量。
+ * 计划只做校验，不创建或删除文件。
  */
 internal data class OverwritePlan(
     val target: File,
-    val temp: File,
     val encoding: OverwriteEncoding,
     val quality: Int,
 )
@@ -475,8 +461,6 @@ private fun overwriteBlockReason(
     val directory = source.parentFile ?: return "源文件不可写"
     if (!directory.isDirectory || !directory.canWrite()) return "源文件不可写"
     if (overwriteEncodingFor(source.name, sdkInt) == null) return "该格式不支持覆盖"
-    val temp = File(directory, OVERWRITE_TEMP_PREFIX + source.name)
-    if (temp.exists() && !temp.delete()) return "临时文件无法清理"
     return null
 }
 
@@ -484,8 +468,8 @@ private fun overwriteBlockReason(
  * 构造覆盖写入计划。
  *
  * 参数 source 为待覆盖的源文件；sdkInt 为系统接口级别，默认取 [Build.VERSION.SDK_INT]。
- * 源文件非普通文件、不可写、所在目录不可写、残留的同名临时文件无法清理，或扩展名不受
- * 支持时返回空，调用方据此提示改用另存。
+ * 源文件非普通文件、不可写、所在目录不可写或扩展名不受支持时返回空，
+ * 调用方据此提示改用另存。计划阶段不触及临时文件。
  */
 @Suppress("ReturnCount")
 internal fun planOverwrite(
@@ -493,27 +477,6 @@ internal fun planOverwrite(
     sdkInt: Int = Build.VERSION.SDK_INT,
 ): OverwritePlan? {
     if (overwriteBlockReason(source, sdkInt) != null) return null
-    val directory = source.parentFile ?: return null
     val encoding = overwriteEncodingFor(source.name, sdkInt) ?: return null
-    val temp = File(directory, OVERWRITE_TEMP_PREFIX + source.name)
-    return OverwritePlan(source, temp, encoding, EXPORT_QUALITY)
-}
-
-/**
- * 用临时文件原子替换目标文件。
- *
- * 参数 plan 为覆盖计划。替换成功返回真；失败时删除临时文件并返回假，目标文件保持原内容。
- */
-internal fun replaceAtomically(plan: OverwritePlan): Boolean {
-    val replaced =
-        runCatching {
-            Files.move(
-                plan.temp.toPath(),
-                plan.target.toPath(),
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE,
-            )
-        }.isSuccess
-    if (!replaced) plan.temp.delete()
-    return replaced
+    return OverwritePlan(source, encoding, EXPORT_QUALITY)
 }

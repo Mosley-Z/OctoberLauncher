@@ -485,12 +485,13 @@ class PhotoSurface(
         invalidate()
     }
 
-    /** 底栏编辑类动作进入编辑页，编辑页负责裁剪、旋转、滤镜与另存。 */
+    /** 底栏编辑类动作进入编辑页；外部打开的图片源路径是缓存副本，只允许另存。 */
     private fun openEdit() {
         val path = state.path
         if (path.isEmpty()) return
         panel = Panel.NONE
-        AppServices.router.navigate(Destination.PhotoEditor(path, SOURCE_VIEWER))
+        val route = if (source == PhotoSource.EXTERNAL) SOURCE_EXTERNAL else SOURCE_VIEWER
+        AppServices.router.navigate(Destination.PhotoEditor(path, route))
     }
 
     private fun openPanel(target: Panel) {
@@ -786,6 +787,9 @@ class PhotoSurface(
     private companion object {
         private const val TAG = "图片查看"
         private const val SOURCE_VIEWER = "viewer"
+
+        /** 外部应用打开的来源标识，编辑页据此禁用覆盖。 */
+        private const val SOURCE_EXTERNAL = "external"
         private const val LONG_PRESS_MILLIS = 350L
         private const val SWIPE_THRESHOLD_DP = 48f
         private const val THUMB_DP = 8f

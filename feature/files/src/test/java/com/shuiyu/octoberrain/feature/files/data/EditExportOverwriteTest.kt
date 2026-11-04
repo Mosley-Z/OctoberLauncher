@@ -1,5 +1,6 @@
 package com.shuiyu.octoberrain.feature.files.data
 
+import android.content.ContextWrapper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -8,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Test
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import java.util.TimeZone
 
@@ -20,7 +22,7 @@ import java.util.TimeZone
  * 放在真机验收覆盖。
  */
 class EditExportOverwriteTest {
-    /** 覆盖计划把临时文件放在源文件同目录，并以固定前缀命名，同时带上 PNG 编码与统一质量。 */
+    /** 覆盖计划只校验源文件，并带上 PNG 编码与统一质量，不创建临时文件。 */
     @Test
     fun `覆盖计划与源文件同目录`() {
         withTempDir { dir ->
@@ -29,10 +31,9 @@ class EditExportOverwriteTest {
             assertNotNull(plan)
             plan ?: return@withTempDir
             assertEquals(source.absolutePath, plan.target.absolutePath)
-            assertEquals(dir.absolutePath, plan.temp.parentFile?.absolutePath)
-            assertTrue(plan.temp.name.startsWith(OVERWRITE_TEMP_PREFIX))
             assertEquals(OverwriteEncoding.PNG, plan.encoding)
             assertEquals(100, plan.quality)
+            assertEquals(listOf(source.name), dir.list()?.toList())
         }
     }
 
@@ -70,7 +71,7 @@ class EditExportOverwriteTest {
         }
     }
 
-    /** JPEG 源文件的覆盖计划选择 JPEG 编码，临时文件保留原文件名。 */
+    /** JPEG 源文件的覆盖计划选择 JPEG 编码，不创建临时文件。 */
     @Test
     fun `JPEG 源文件选择 JPEG 编码`() {
         withTempDir { dir ->
@@ -79,7 +80,7 @@ class EditExportOverwriteTest {
             assertNotNull(plan)
             plan ?: return@withTempDir
             assertEquals(OverwriteEncoding.JPEG, plan.encoding)
-            assertEquals(OVERWRITE_TEMP_PREFIX + "photo.jpg", plan.temp.name)
+            assertEquals(listOf(source.name), dir.list()?.toList())
         }
     }
 
@@ -103,30 +104,37 @@ class EditExportOverwriteTest {
     fun `原子替换更新内容并清理临时文件`() {
         withTempDir { dir ->
             val source = File(dir, "photo.png").apply { writeText("old") }
+            val sentinel = File(dir, OVERWRITE_TEMP_PREFIX + source.name).apply { writeText("sentinel") }
             val plan = planOverwrite(source)
             assertNotNull(plan)
             plan ?: return@withTempDir
-            plan.temp.writeText("new")
-            assertTrue(replaceAtomically(plan))
+            val result =
+                writeOverwrite(plan, { temp ->
+                    assertEquals(dir.absolutePath, temp.parentFile?.absolutePath)
+                    assertTrue(temp.isFile)
+                    assertTrue(temp.name.startsWith(OVERWRITE_TEMP_PREFIX))
+                    assertFalse(temp == sentinel)
+                    temp.writeText("new")
+                    true
+                })
+            assertEquals(ExportResult.Success(source.name, source.absolutePath), result)
             assertEquals("new", source.readText())
-            assertFalse(plan.temp.exists())
+            assertEquals("sentinel", sentinel.readText())
+            assertEquals(setOf(source.name, sentinel.name), dir.list()?.toSet())
         }
     }
 
-    /** 替换失败时删除临时文件，源路径保持原状。 */
+    /** 原子替换失败时源路径保持原状，临时文件由调用方拥有并清理。 */
     @Test
     fun `替换失败删除临时文件`() {
         withTempDir { dir ->
             val source = File(dir, "photo.png").apply { writeText("old") }
-            val plan = planOverwrite(source)
-            assertNotNull(plan)
-            plan ?: return@withTempDir
+            val temp = File.createTempFile(OVERWRITE_TEMP_PREFIX, ".tmp", dir).apply { writeText("new") }
             // 删除源文件并在原路径建立非空目录，使替换操作无法覆盖
             assertTrue(source.delete())
             assertTrue(File(source, "child").apply { parentFile?.mkdirs() }.createNewFile())
-            plan.temp.writeText("new")
-            assertFalse(replaceAtomically(plan))
-            assertFalse(plan.temp.exists())
+            assertFalse(replaceAtomically(temp, source))
+            assertEquals("new", temp.readText())
             assertTrue(source.isDirectory)
         }
     }
@@ -158,6 +166,87 @@ class EditExportOverwriteTest {
             block(dir)
         } finally {
             dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `计划校验保留陌生文件且不创建临时文件`() {
+        withTempDir { dir ->
+            val source = File(dir, "photo.jpg").apply { writeText("old") }
+            val sentinel = File(dir, OVERWRITE_TEMP_PREFIX + source.name).apply { writeText("sentinel") }
+            assertNotNull(planOverwrite(source))
+            assertNotNull(planOverwrite(source))
+            assertEquals("old", source.readText())
+            assertEquals("sentinel", sentinel.readText())
+            assertEquals(setOf(source.name, sentinel.name), dir.list()?.toSet())
+        }
+    }
+
+    @Test
+    fun `渲染失败保留源图与陌生文件`() {
+        withTempDir { dir ->
+            val source = File(dir, "photo.jpg").apply { writeText("invalid image") }
+            val sentinel = File(dir, OVERWRITE_TEMP_PREFIX + source.name).apply { writeText("sentinel") }
+            val result = EditExport.overwrite(ContextWrapper(null), source.absolutePath, emptyList())
+            assertTrue(result is ExportResult.Failure)
+            assertEquals("invalid image", source.readText())
+            assertEquals("sentinel", sentinel.readText())
+            assertEquals(setOf(source.name, sentinel.name), dir.list()?.toSet())
+        }
+    }
+
+    @Test
+    fun `写入及替换失败仅清理本次临时文件`() {
+        for (stage in listOf("write false", "write throws", "replace false", "replace throws")) {
+            withTempDir { dir ->
+                val source = File(dir, "photo.jpg").apply { writeText("old") }
+                val sentinel = File(dir, OVERWRITE_TEMP_PREFIX + source.name).apply { writeText("sentinel") }
+                val plan = requireNotNull(planOverwrite(source))
+                val result =
+                    writeOverwrite(
+                        plan,
+                        write = { temp ->
+                            temp.writeText("partial")
+                            if (stage == "write throws") throw IOException("write failed")
+                            stage != "write false"
+                        },
+                        replace = { _, _ ->
+                            assertFalse(stage.startsWith("write"))
+                            if (stage == "replace throws") throw IOException("replace failed")
+                            false
+                        },
+                    )
+                assertTrue(stage, result is ExportResult.Failure)
+                assertEquals(stage, "old", source.readText())
+                assertEquals(stage, "sentinel", sentinel.readText())
+                assertEquals(stage, setOf(source.name, sentinel.name), dir.list()?.toSet())
+            }
+        }
+    }
+
+    @Test
+    fun `同时覆盖各自独占临时文件`() {
+        withTempDir { dir ->
+            val source = File(dir, "photo.jpg").apply { writeText("old") }
+            val sentinel = File(dir, OVERWRITE_TEMP_PREFIX + source.name).apply { writeText("sentinel") }
+            val plan = requireNotNull(planOverwrite(source))
+            val result =
+                writeOverwrite(plan, { outer ->
+                    outer.writeText("outer")
+                    val nested =
+                        writeOverwrite(plan, { inner ->
+                            assertFalse(outer == inner)
+                            inner.writeText("inner")
+                            true
+                        })
+                    assertTrue(nested is ExportResult.Success)
+                    assertEquals("outer", outer.readText())
+                    true
+                })
+            assertTrue(result is ExportResult.Success)
+            assertEquals("outer", source.readText())
+            assertEquals("sentinel", sentinel.readText())
+            assertEquals(setOf(source.name, sentinel.name), dir.list()?.toSet())
         }
     }
 

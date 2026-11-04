@@ -53,13 +53,13 @@ internal fun shouldCloseOnSave(
  * 编辑页的绘制与交互视图。
  *
  * 顶栏提供取消与保存，底栏提供裁剪、旋转、滤镜三个页签，页签上方的控制条按页签显示
- * 对应操作。点击顶栏保存按钮在其下方展开浮动面板，面板提供覆盖源文件与另存两项：覆盖
- * 先二次确认再写回源文件，另存写入公共图片目录并生成新文件名。预览图在后台线程按会话
- * 操作重放并缩放到预览尺寸，滤镜在缩小后的像素数组上计算；保存时按导出预算重新解码并
- * 重放完整操作，写入成功后通知缩略图缓存与桌面刷新。
+ * 对应操作。点击顶栏保存按钮在其下方展开浮动面板，面板提供覆盖源文件与另存两项，外部
+ * 打开入口只保留另存：覆盖先二次确认再写回源文件，另存写入公共图片目录并生成新文件名。
+ * 预览图在后台线程按会话操作重放并缩放到预览尺寸，滤镜在缩小后的像素数组上计算；保存
+ * 时按导出预算重新解码并重放完整操作，写入成功后通知缩略图缓存与桌面刷新。
  *
  * 参数 context 为视图上下文；sourcePath 为源图片绝对路径；tokens 为页面尺寸令牌；
- * onFinish 在保存成功或用户放弃修改后调用。
+ * source 为入口来源；onFinish 在保存成功或用户放弃修改后调用。
  *
  * 面积超过阈值：布局、绘制、手势与后台任务共享同一编辑状态，拆分会引入跨对象转发，
  * 因此保留单类并抑制 LargeClass。
@@ -69,8 +69,12 @@ internal class EditSurface(
     context: Context,
     private val sourcePath: String,
     private val tokens: FileTokens,
+    private val source: EditSource,
     private val onFinish: () -> Unit,
 ) : View(context) {
+    /** 外部打开入口的图片是应用缓存副本，保存菜单只提供另存。 */
+    private val canOverwrite: Boolean get() = source != EditSource.EXTERNAL
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private val generation = AtomicInteger(0)
     private val worker = Executors.newSingleThreadExecutor()
@@ -315,10 +319,12 @@ internal class EditSurface(
         // 保存面板与保存按钮右对齐，在顶栏下边线以下按行展开两项
         val menuTop = topBar.bottom + tokens.stroke
         val itemHeight = tokens.rowH
-        val menuBottom = menuTop + itemHeight * SAVE_MENU_ITEMS
+        val itemCount = if (canOverwrite) SAVE_MENU_ITEMS else 1
+        val menuBottom = menuTop + itemHeight * itemCount
         saveMenuRect = IntRect(saveRect.right - tokens.actionButtonWidth, menuTop, saveRect.right, menuBottom)
         overwriteRect = IntRect(saveMenuRect.left, menuTop, saveMenuRect.right, menuTop + itemHeight)
-        saveAsRect = IntRect(saveMenuRect.left, menuTop + itemHeight, saveMenuRect.right, menuBottom)
+        val saveAsTop = if (canOverwrite) menuTop + itemHeight else menuTop
+        saveAsRect = IntRect(saveMenuRect.left, saveAsTop, saveMenuRect.right, saveAsTop + itemHeight)
     }
 
     /** 按当前页签生成控制条按钮与状态；页签切换后保存面板随之收起。 */
@@ -511,7 +517,7 @@ internal class EditSurface(
     ) {
         if (saveMenuOpen) {
             when {
-                overwriteRect.contains(x, y) -> {
+                canOverwrite && overwriteRect.contains(x, y) -> {
                     closeSaveMenu()
                     requestOverwrite()
                 }
@@ -683,7 +689,8 @@ internal class EditSurface(
 
     /** 请求覆盖源文件，先确认目标文件名并说明原内容无法恢复。 */
     private fun requestOverwrite() {
-        if (saving) return
+        // 外部入口的源路径是缓存副本，只提供另存；保存中也不再重复提交
+        if (!canOverwrite || saving) return
         if (!EditExportPlan.canSave(state) && !session.canUndo) {
             toast(EditStrings.NOTHING_TO_SAVE)
             return
@@ -975,14 +982,16 @@ internal class EditSurface(
             (saveMenuRect.bottom - tokens.stroke).toFloat(),
             paperPaint,
         )
-        canvas.drawLine(
-            saveMenuRect.left.toFloat(),
-            saveAsRect.top.toFloat(),
-            saveMenuRect.right.toFloat(),
-            saveAsRect.top.toFloat(),
-            linePaint,
-        )
-        drawCenteredIn(canvas, EditStrings.MENU_OVERWRITE, bodyPaint, overwriteRect)
+        if (canOverwrite) {
+            canvas.drawLine(
+                saveMenuRect.left.toFloat(),
+                saveAsRect.top.toFloat(),
+                saveMenuRect.right.toFloat(),
+                saveAsRect.top.toFloat(),
+                linePaint,
+            )
+            drawCenteredIn(canvas, EditStrings.MENU_OVERWRITE, bodyPaint, overwriteRect)
+        }
         drawCenteredIn(canvas, EditStrings.MENU_SAVE_AS, bodyPaint, saveAsRect)
     }
 

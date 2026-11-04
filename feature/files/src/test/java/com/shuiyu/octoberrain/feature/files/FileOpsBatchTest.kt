@@ -2,6 +2,7 @@ package com.shuiyu.octoberrain.feature.files
 
 import com.shuiyu.octoberrain.feature.files.data.FileOps
 import com.shuiyu.octoberrain.feature.files.data.deleteFileEntryDeep
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -11,6 +12,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.nio.file.Path
 
 /**
  * 批量复制、移动与删除测试。
@@ -241,6 +243,275 @@ class FileOpsBatchTest {
         assertEquals(album, moved)
         assertTrue(File(album, "cover.txt").exists())
         assertFalse(File(source, "album_2").exists())
+    }
+
+    @Test
+    fun `同卷移动文件和目录不回退复制`() {
+        for (directory in listOf(false, true)) {
+            val source = temporary.newFolder()
+            val target = temporary.newFolder()
+            val entry = File(source, "entry")
+            val payload = "source".toByteArray()
+            if (directory) {
+                assertTrue(entry.mkdir())
+                File(entry, "payload.txt").writeBytes(payload)
+            } else {
+                entry.writeBytes(payload)
+            }
+            var copyProbeCount = 0
+            var traversalCount = 0
+            val observed =
+                object : File(entry.path) {
+                    override fun isDirectory(): Boolean {
+                        copyProbeCount++
+                        return super.isDirectory()
+                    }
+
+                    override fun listFiles(): Array<File>? {
+                        traversalCount++
+                        return super.listFiles()
+                    }
+                }
+
+            val destination = File(target, "entry")
+            assertEquals(destination, FileOps.moveEntry(observed, target))
+
+            val movedPayload = if (directory) File(destination, "payload.txt") else destination
+            assertFalse(entry.exists())
+            assertArrayEquals(payload, movedPayload.readBytes())
+            assertEquals(0, copyProbeCount)
+            assertEquals(0, traversalCount)
+        }
+    }
+
+    @Test
+    fun `文件自动命名耗尽失败且保留全部内容`() {
+        val source = temporary.newFolder("source")
+        val target = temporary.newFolder("target")
+        val entry = writeText(source, "note.txt", "source")
+        occupyNames(target, "note", ".txt")
+
+        assertNull(FileOps.uniqueName(target, entry.name))
+        assertNull(FileOps.copyEntry(entry, target))
+        assertNull(FileOps.moveEntry(entry, target))
+        assertEquals("source", entry.readText())
+        assertOccupiedNames(target, "note", ".txt")
+    }
+
+    @Test
+    fun `目录自动命名耗尽失败且不合并目录`() {
+        val source = temporary.newFolder("source")
+        val target = temporary.newFolder("target")
+        val entry = File(source, "album").apply { mkdir() }
+        writeText(entry, "new.txt", "source")
+        occupyNames(target, "album", "", directories = true)
+
+        assertNull(FileOps.copyEntry(entry, target))
+        assertNull(FileOps.moveEntry(entry, target))
+        assertEquals("source", File(entry, "new.txt").readText())
+        assertOccupiedNames(target, "album", "", directories = true)
+    }
+
+    @Test
+    fun `顶层命名后文件或目录被抢占时失败`() {
+        for (directory in listOf(false, true)) {
+            for (moving in listOf(false, true)) {
+                val source = temporary.newFolder()
+                val target = temporary.newFolder()
+                val original = File(source, "entry")
+                if (directory) {
+                    assertTrue(original.mkdir())
+                    writeText(original, "new.txt", "source")
+                } else {
+                    original.writeText("source")
+                }
+                val destination = File(target, "entry")
+                val raced =
+                    object : File(original.path) {
+                        override fun toPath(): Path {
+                            if (moving) occupyDestination(destination, directory)
+                            return super.toPath()
+                        }
+
+                        override fun isDirectory(): Boolean {
+                            if (!moving) occupyDestination(destination, directory)
+                            return directory
+                        }
+                    }
+
+                assertNull(if (moving) FileOps.moveEntry(raced, target) else FileOps.copyEntry(raced, target))
+                if (directory) {
+                    assertEquals(listOf("sentinel.txt"), destination.list()?.toList())
+                    assertEquals("sentinel", File(destination, "sentinel.txt").readText())
+                    assertEquals("source", File(original, "new.txt").readText())
+                } else {
+                    assertEquals("sentinel", destination.readText())
+                    assertEquals("source", original.readText())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `递归命名耗尽返回失败并保留原目标`() {
+        for (directory in listOf(false, true)) {
+            val source = temporary.newFolder()
+            val target = temporary.newFolder()
+            val original = File(source, "album").apply { mkdir() }
+            val child = File(original, "entry")
+            if (directory) {
+                assertTrue(child.mkdir())
+                writeText(child, "new.txt", "source")
+            } else {
+                child.writeText("source")
+            }
+            val destination = File(target, "album")
+            val observed =
+                object : File(original.path) {
+                    override fun listFiles(): Array<File> {
+                        occupyNames(destination, "entry", "", directory)
+                        return arrayOf(child)
+                    }
+                }
+
+            assertNull(FileOps.copyEntry(observed, target))
+            assertOccupiedNames(destination, "entry", "", directory)
+            assertEquals("source", (if (directory) File(child, "new.txt") else child).readText())
+        }
+    }
+
+    @Test
+    fun `递归命名后文件或目录被抢占时失败`() {
+        for (directory in listOf(false, true)) {
+            val source = temporary.newFolder()
+            val target = temporary.newFolder()
+            val original = File(source, "album").apply { mkdir() }
+            val child = File(original, "entry")
+            if (directory) {
+                assertTrue(child.mkdir())
+                writeText(child, "new.txt", "source")
+            } else {
+                child.writeText("source")
+            }
+            val destination = File(target, "album/entry")
+            val racedChild =
+                object : File(child.path) {
+                    override fun isDirectory(): Boolean {
+                        if (directory) {
+                            assertTrue(destination.mkdir())
+                            writeText(destination, "sentinel.txt", "sentinel")
+                        } else {
+                            destination.writeText("sentinel")
+                        }
+                        return directory
+                    }
+                }
+            val observed =
+                object : File(original.path) {
+                    override fun listFiles(): Array<File> = arrayOf(racedChild)
+                }
+
+            assertNull(FileOps.copyEntry(observed, target))
+            if (directory) assertEquals(listOf("sentinel.txt"), destination.list()?.toList())
+            assertEquals("sentinel", (if (directory) File(destination, "sentinel.txt") else destination).readText())
+            assertEquals("source", (if (directory) File(child, "new.txt") else child).readText())
+        }
+    }
+
+    @Test
+    fun `递归已有同名文件或目录仍正常追加序号`() {
+        for (directory in listOf(false, true)) {
+            val source = temporary.newFolder()
+            val target = temporary.newFolder()
+            val original = File(source, "album").apply { mkdir() }
+            val child = File(original, "entry")
+            if (directory) {
+                assertTrue(child.mkdir())
+                writeText(child, "new.txt", "source")
+            } else {
+                child.writeText("source")
+            }
+            val destination = File(target, "album")
+            val observed =
+                object : File(original.path) {
+                    override fun listFiles(): Array<File> {
+                        val existing = File(destination, "entry")
+                        if (directory) {
+                            assertTrue(existing.mkdir())
+                            writeText(existing, "sentinel.txt", "sentinel")
+                        } else {
+                            existing.writeText("sentinel")
+                        }
+                        return arrayOf(child)
+                    }
+                }
+
+            assertEquals(destination, FileOps.copyEntry(observed, target))
+            val existing = File(destination, "entry")
+            val copied = File(destination, "entry_2")
+            assertEquals("sentinel", (if (directory) File(existing, "sentinel.txt") else existing).readText())
+            assertEquals("source", (if (directory) File(copied, "new.txt") else copied).readText())
+            assertEquals("source", (if (directory) File(child, "new.txt") else child).readText())
+        }
+    }
+
+    @Test
+    fun `明确覆盖复制仍替换不同内容`() {
+        val source = temporary.newFolder("source")
+        val target = temporary.newFolder("target")
+        val entry = writeText(source, "note.txt", "source")
+        val existing = writeText(target, "note.txt", "old")
+
+        assertTrue(FileOps.copy(entry, existing))
+        assertEquals("source", existing.readText())
+        assertEquals("source", entry.readText())
+    }
+
+    private fun occupyDestination(
+        destination: File,
+        directory: Boolean,
+    ) {
+        if (!destination.exists()) {
+            if (directory) {
+                assertTrue(destination.mkdir())
+                writeText(destination, "sentinel.txt", "sentinel")
+            } else {
+                destination.writeText("sentinel")
+            }
+        }
+    }
+
+    private fun occupyNames(
+        dir: File,
+        base: String,
+        extension: String,
+        directories: Boolean = false,
+    ) {
+        for (index in 1..999) {
+            val name = base + (if (index == 1) "" else "_$index") + extension
+            val entry = File(dir, name)
+            if (directories) {
+                assertTrue(entry.mkdir())
+                writeText(entry, "sentinel.txt", "sentinel-$index")
+            } else {
+                entry.writeText("sentinel-$index")
+            }
+        }
+    }
+
+    private fun assertOccupiedNames(
+        dir: File,
+        base: String,
+        extension: String,
+        directories: Boolean = false,
+    ) {
+        assertEquals(999, dir.list()?.size)
+        for (index in 1..999) {
+            val name = base + (if (index == 1) "" else "_$index") + extension
+            val entry = File(dir, name)
+            if (directories) assertEquals(listOf("sentinel.txt"), entry.list()?.toList())
+            assertEquals("sentinel-$index", (if (directories) File(entry, "sentinel.txt") else entry).readText())
+        }
     }
 
     private fun writeText(

@@ -12,7 +12,7 @@ private const val TEMP_SUFFIX = ".inkdisk-tmp"
  * 文件内容比对、同名改名与复制移动工具。
  *
  * 供文件操作卡片（移动、冲突处理）调用，不涉及界面与权限，全部方法可在本地 JVM 运行。
- * 复制与覆盖写入由 [FileStreams] 流式完成，不整体读入内存。
+ * 复制与覆盖写入均以流式完成，不整体读入内存。
  * 所有方法返回布尔值表示完成与否，失败原因通过返回值语义表达，不抛受检异常。
  */
 object FileOps {
@@ -43,7 +43,7 @@ object FileOps {
      * 未被占用的名称，扩展名保留在序号之后。本方法只探测可用名称，不创建任何文件。
      *
      * 参数 dir 为目标目录，允许为 null；name 为原始文件名，允许为 null 或空串。
-     * 返回目录内最终可用的文件名；序号耗尽时返回原名称，由调用方决定是否覆盖。
+     * 返回目录内最终可用的文件名；序号耗尽时返回 null。
      */
     fun uniqueName(
         dir: File?,
@@ -94,7 +94,7 @@ object FileOps {
      * 复制一个条目到目标目录，目录按层递归处理。
      *
      * 目标目录内已存在同名条目时按 [uniqueName] 自动追加序号，不询问也不覆盖。
-     * 文件沿用 [copy] 的单文件流程；目录先创建不冲突的目标目录，再逐项复制子条目。
+     * 文件以独占新建方式写入；目录先创建不冲突的目标目录，再逐项复制子条目。
      * 目标目录位于源目录内部时拒绝执行，避免递归复制自身。
      * 中途失败时已完成的部分保留在目标目录，由调用方决定提示与后续处理。
      *
@@ -109,9 +109,7 @@ object FileOps {
         val targetDir = dstDir?.takeIf { it.isDirectory }
         if (source == null || targetDir == null || isInside(source, targetDir)) return null
         val destination = uniqueName(targetDir, source.name)?.let { File(targetDir, it) }
-        return destination?.let { target ->
-            if (source.isDirectory) copyDirectory(source, target) else target.takeIf { copy(source, it) }
-        }
+        return destination?.let { copyEntryToNewTarget(source, it) }
     }
 
     /**
@@ -119,7 +117,7 @@ object FileOps {
      *
      * 目标目录内已存在同名条目时按 [uniqueName] 自动追加序号，不询问也不覆盖。
      * 目标目录就是源条目所在目录时视为无需移动，直接返回源条目且不改动任何内容。
-     * 目录优先整目录重命名；重命名失败时退回递归复制，复制全部成功后再删除源目录。
+     * 文件与目录均优先无覆盖移动；目标已存在时失败，其他移动失败才独占复制后删除源条目。
      * 目标目录位于源目录内部或与源目录相同时拒绝执行。
      * 中途失败时已完成的部分保留在目标目录，源目录不删除。
      *
@@ -141,45 +139,10 @@ object FileOps {
         } else {
             uniqueName(targetDir, source.name)?.let { name ->
                 val destination = File(targetDir, name)
-                // 同一文件系统内整目录重命名代价最低，失败后再按跨卷方式复制。
-                when {
-                    source.isFile -> destination.takeIf { move(source, it) }
-                    source.renameTo(destination) -> destination
-                    copyDirectory(source, destination) == null -> null
-                    source.deleteRecursively() -> destination
-                    else -> null
-                }
+                moveEntryToNewTarget(source, destination)
             }
         }
     }
-}
-
-/**
- * 递归复制目录内容。
- *
- * 目标目录不存在时逐层创建；子条目按 [FileOps.uniqueName] 取得不冲突名称。
- * 任一层失败时继续处理其余子条目以保留已完成部分，最终返回 null 表示整体失败。
- */
-private fun copyDirectory(
-    src: File,
-    dst: File,
-): File? {
-    val children = if (dst.isDirectory || dst.mkdirs()) src.listFiles() else null
-    var completed = children != null
-    children?.forEach { child ->
-        val name = FileOps.uniqueName(dst, child.name)
-        val copied =
-            name?.let { unique ->
-                val target = File(dst, unique)
-                if (child.isDirectory) {
-                    copyDirectory(child, target)
-                } else {
-                    target.takeIf { FileOps.copy(child, it) }
-                }
-            }
-        if (copied == null) completed = false
-    }
-    return dst.takeIf { completed }
 }
 
 /** 判断目标目录是否等于源目录或位于源目录内部，用于拒绝自包含的复制与移动。 */
@@ -205,7 +168,7 @@ private fun canonicalOf(file: File): File? =
 private fun freeName(
     dir: File,
     name: String,
-): String {
+): String? {
     if (!File(dir, name).exists()) return name
     val dot = name.lastIndexOf('.')
     // 扩展名分隔点位于首位时属于隐藏文件风格名称（如 .nomedia），不拆分为基名与扩展名。
@@ -216,7 +179,7 @@ private fun freeName(
             .asSequence()
             .map { index -> File(dir, base + "_" + index + extension) }
             .firstOrNull { !it.exists() }
-    return candidate?.name ?: name
+    return candidate?.name
 }
 
 /** 目标不存在时直接写入；已存在时按内容是否相同分别处理。 */

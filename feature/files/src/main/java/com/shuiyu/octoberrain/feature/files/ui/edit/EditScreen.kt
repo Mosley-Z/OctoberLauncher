@@ -10,7 +10,8 @@ import com.shuiyu.octoberrain.feature.files.ui.FileTokens
 /**
  * 编辑页入口来源。
  *
- * 用于记录页面由文件列表还是查看器打开，关闭后回到对应来源；保存流程与界面一致。
+ * 用于记录页面由文件列表、查看器还是外部应用打开；外部应用交付的是缓存副本，
+ * 保存流程只提供另存，其余来源保留覆盖。
  */
 enum class EditSource {
     /** 由文件列表打开。 */
@@ -18,6 +19,31 @@ enum class EditSource {
 
     /** 由查看器打开。 */
     VIEWER,
+
+    /** 由外部应用 ACTION_VIEW 打开，源路径是应用缓存副本。 */
+    EXTERNAL,
+
+    ;
+
+    companion object {
+        /** 文件列表路由标识。 */
+        private const val ROUTE_FILES = "files"
+
+        /** 外部打开路由标识。 */
+        private const val ROUTE_EXTERNAL = "external"
+
+        /**
+         * 按路由来源标识映射编辑页入口来源。
+         *
+         * 参数 source 为 `Destination.PhotoEditor.source`；未指定或无法识别时按查看器处理。
+         */
+        fun fromRoute(source: String?): EditSource =
+            when (source) {
+                ROUTE_FILES -> FILES
+                ROUTE_EXTERNAL -> EXTERNAL
+                else -> VIEWER
+            }
+    }
 }
 
 /**
@@ -41,7 +67,7 @@ class EditScreen(
                 DeviceRuntime.profile,
                 AppServices.config.state.value.appearance.textScale,
             )
-        val view = EditSurface(context, path, tokens, ::close)
+        val view = EditSurface(context, path, tokens, source, ::close)
         surface = view
         return view
     }

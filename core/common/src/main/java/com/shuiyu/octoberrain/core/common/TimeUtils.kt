@@ -20,8 +20,9 @@ object TimeUtils {
     /**
      * 格式化时分。
      *
-     * 参数 hour 与 minute 为 24 小时制数值；twelveHour 为 true 时输出十二小时制。
-     * includePeriod is reserved for the custom status bar; it appends lowercase am/pm in twelve-hour mode.
+     * 参数 hour 与 minute 为二十四小时制数值。twelveHour 为真时输出十二小时制：零点保留
+     * 00，十二点保留 12，午后小时减 12。includePeriod 仅供自绘状态栏使用，为真时在十二小时制
+     * 结果末尾追加小写 am 或 pm。
      */
     fun formatTime(
         hour: Int,
@@ -29,7 +30,13 @@ object TimeUtils {
         twelveHour: Boolean,
         includePeriod: Boolean = false,
     ): String {
-        val displayHour = if (twelveHour) (hour % 12).takeIf { it != 0 } ?: 12 else hour
+        val displayHour =
+            when {
+                !twelveHour -> hour
+                hour == 0 -> 0
+                hour > 12 -> hour - 12
+                else -> hour
+            }
         val digits = String.format(Locale.ROOT, "%02d:%02d", displayHour, minute)
         return if (twelveHour && includePeriod) "$digits ${if (hour < 12) "am" else "pm"}" else digits
     }

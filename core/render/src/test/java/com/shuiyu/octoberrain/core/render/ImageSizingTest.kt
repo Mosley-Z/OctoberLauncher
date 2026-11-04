@@ -45,6 +45,13 @@ class ImageSizingTest {
     }
 
     @Test
+    fun `覆盖导出按目标长边计算采样`() {
+        assertEquals(2, ImageSizing.sampleFor(longEdge = 6000, minPx = 2400))
+        assertEquals(2, ImageSizing.sampleFor(longEdge = 6000, minPx = 1600))
+        assertEquals(1, ImageSizing.sampleFor(longEdge = 2400, minPx = 2400))
+    }
+
+    @Test
     fun `宽高为零或负数时不在上限内`() {
         assertFalse(ImageSizing.withinLimit(0, 100))
         assertFalse(ImageSizing.withinLimit(100, -1))

@@ -8,7 +8,7 @@ import java.util.TimeZone
 class ClockTimeTest {
     @Test
     fun twelveHourMidnightNoonAndLateEvening() {
-        assertEquals("12:00", ClockTime(0, 0, 0, true).timeText)
+        assertEquals("00:00", ClockTime(0, 0, 0, true).timeText)
         assertEquals("12:00", ClockTime(12, 0, 0, true).timeText)
         assertEquals("11:59", ClockTime(23, 59, 0, true).timeText)
         assertEquals("00:00", ClockTime(0, 0, 0).timeText)

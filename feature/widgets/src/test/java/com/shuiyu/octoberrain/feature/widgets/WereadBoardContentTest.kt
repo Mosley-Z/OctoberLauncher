@@ -66,7 +66,7 @@ class WereadBoardContentTest {
     @Test
     fun clockUsesTwelveHourWithPeriod() {
         assertEquals("07:03 pm", clockTextOf(19, 3, twelveHour = true))
-        assertEquals("12:05 am", clockTextOf(0, 5, twelveHour = true))
+        assertEquals("00:05 am", clockTextOf(0, 5, twelveHour = true))
         assertEquals("12:00 pm", clockTextOf(12, 0, twelveHour = true))
         assertEquals("01:15 pm", clockTextOf(13, 15, twelveHour = true))
     }
