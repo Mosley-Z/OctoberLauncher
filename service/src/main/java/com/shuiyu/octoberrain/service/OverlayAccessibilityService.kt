@@ -3,6 +3,7 @@ package com.shuiyu.octoberrain.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
@@ -25,6 +26,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -77,6 +80,23 @@ class OverlayAccessibilityService : AccessibilityService() {
         applyOverlayVisibility()
         NotificationPanelAccess.connect { performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) }
         S4WallpaperChannelAccess.attach(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        rebuildStatusWindow()
+    }
+
+    private fun rebuildStatusWindow() {
+        DesignRuntime.update(AppServices.config.state.value.appearance)
+        DesignRuntime.updateTextMetrics(resources.displayMetrics)
+        com.shuiyu.octoberrain.core.device.DeviceRuntime
+            .refresh(this)
+        DesignRuntime.updateDevice(com.shuiyu.octoberrain.core.device.DeviceRuntime.profile)
+        removeStatusWindow()
+        statusView = null
+        statusParams = null
+        applyOverlayVisibility()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
@@ -176,7 +196,11 @@ class OverlayAccessibilityService : AccessibilityService() {
         val system = runCatching { AppServices.system }.getOrNull() ?: return
         scope.launch { system.battery.collect { updateStatus() } }
         scope.launch { system.wifi.collect { updateStatus() } }
-        scope.launch { AppServices.config.state.collect { applyOverlayVisibility() } }
+        scope.launch {
+            AppServices.config.state.map { it.appearance to it.tray.overlayEnabled }.distinctUntilChanged().collect {
+                rebuildStatusWindow()
+            }
+        }
         scope.launch { UiVisibility.interactive.collect { applyOverlayVisibility() } }
     }
 

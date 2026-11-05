@@ -128,6 +128,12 @@ class MainActivity : Activity() {
         refreshWindowProfile()
         buildLayout()
         configureWindow()
+        configScope.launch {
+            AppServices.config.state.map { it.tray.overlayEnabled to it.appearance }.distinctUntilChanged().collect {
+                configureWindow()
+                rebuildStatusBar()
+            }
+        }
         if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0) {
             configScope.launch {
                 NotificationPanelAccess.available.collect {
@@ -173,8 +179,9 @@ class MainActivity : Activity() {
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
-        refreshWindowProfile()
         super.onConfigurationChanged(newConfig)
+        refreshWindowProfile()
+        configureWindow()
         rebuildStatusBar()
         root.requestLayout()
         root.invalidate()
@@ -194,6 +201,25 @@ class MainActivity : Activity() {
     /** P4仅在无障碍入口已实际连接时隐藏系统栏，否则保留可下拉的真实栏。 */
     private fun configureWindow() {
         window.setBackgroundDrawableResource(android.R.color.white)
+        if (!AppServices.config.state.value.tray.overlayEnabled) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            window.statusBarColor = Color.WHITE
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.setDecorFitsSystemWindows(true)
+                window.insetsController?.show(
+                    android.view.WindowInsets.Type
+                        .statusBars(),
+                )
+                window.insetsController?.setSystemBarsAppearance(
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                )
+            }
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0 &&
@@ -210,6 +236,10 @@ class MainActivity : Activity() {
                         .statusBars(),
                 )
             } else {
+                window.setDecorFitsSystemWindows(false)
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility =
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 if (com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0) {
                     // 通知面板收起时也保持全屏尺寸，避免短暂状态栏inset把桌面压缩79px。
                     window.setDecorFitsSystemWindows(false)
@@ -235,22 +265,12 @@ class MainActivity : Activity() {
         root =
             FrameLayout(this).apply {
                 setBackgroundColor(InkColors.PAPER)
-                addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
-                    val profile = com.shuiyu.octoberrain.core.device.DeviceRuntime.profile
-                    val insets =
-                        com.shuiyu.octoberrain.core.device.DisplaySafeArea.insets(
-                            profile.physicalSideInsetPx,
-                            right - left,
-                            bottom - top,
-                        )
-                    val current =
-                        com.shuiyu.octoberrain.core.device.DisplaySafeArea.Insets(
-                            view.paddingLeft,
-                            view.paddingTop,
-                            view.paddingRight,
-                            view.paddingBottom,
-                        )
-                    if (current != insets) view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+                addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                    applyRootInsets(view, view.rootWindowInsets)
+                }
+                setOnApplyWindowInsetsListener { view, insets ->
+                    applyRootInsets(view, insets)
+                    insets
                 }
             }
 
@@ -315,7 +335,15 @@ class MainActivity : Activity() {
         rebuildStatusBar()
     }
 
+    private fun applyRootInsets(
+        view: View,
+        insets: android.view.WindowInsets?,
+    ) {
+        WindowInsetsLayout.apply(view, insets, contentFrame, statusHolder)
+    }
+
     private fun statusBarHeight(): Int {
+        if (!AppServices.config.state.value.tray.overlayEnabled) return 0
         val tokens = DesignRuntime.tokens
         val systemOwnsIndicators =
             com.shuiyu.octoberrain.core.device.DeviceRuntime.profile.physicalSideInsetPx > 0 &&
@@ -325,10 +353,14 @@ class MainActivity : Activity() {
 
     /** 服务连接变化时同步指示归属与栏高度，不重建桌面内容。 */
     private fun rebuildStatusBar() {
+        DesignRuntime.update(AppServices.config.state.value.appearance)
+        applyRootInsets(root, root.rootWindowInsets)
         val height = statusBarHeight()
         statusHolder.layoutParams = statusHolder.layoutParams.apply { this.height = height }
         contentFrame.layoutParams = (contentFrame.layoutParams as FrameLayout.LayoutParams).apply { topMargin = height }
         statusHolder.removeAllViews()
+        statusHolder.visibility = if (height == 0) View.GONE else View.VISIBLE
+        if (height == 0) return
         runCatching {
             statusHolder.addView(
                 AppServices.tray.createStatusBar(this),

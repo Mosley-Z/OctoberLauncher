@@ -309,52 +309,15 @@ interface ContentSource : WereadContent {
 }
 
 /**
- * 系统能力入口，涵盖 WiFi、蓝牙、前光、媒体与电池。
+ * 系统能力入口，涵盖 WiFi、蓝牙、媒体与电池。
  *
  * 状态以 StateFlow 暴露，切换动作异步执行并通过状态回流反映结果。
  */
 interface SystemControls {
     val wifi: StateFlow<WifiState>
     val bluetooth: StateFlow<BluetoothState>
-    val frontLight: StateFlow<FrontLightState>
     val media: StateFlow<MediaState>
     val battery: StateFlow<BatteryState>
-
-    /** 查询是否具备蓝牙硬件。 */
-    fun hasBluetooth(): Boolean
-
-    /** 查询是否具备前光通道。 */
-    fun hasFrontLight(): Boolean
-
-    /** 设置 WiFi 开关。 */
-    fun setWifi(enabled: Boolean)
-
-    /** 设置蓝牙开关。 */
-    fun setBluetooth(enabled: Boolean)
-
-    /** 设置前光冷光档位，取值 0 到 10。 */
-    fun setFrontLight(
-        cold: Int,
-        warm: Int,
-    )
-
-    /** 播放或暂停媒体。 */
-    fun mediaPlayPause()
-
-    /** 上一曲。 */
-    fun mediaPrevious()
-
-    /** 下一曲。 */
-    fun mediaNext()
-
-    /** 打开系统 WiFi 设置页。 */
-    fun openWifiSettings()
-
-    /** 打开系统蓝牙设置页。 */
-    fun openBluetoothSettings()
-
-    /** 打开系统显示设置页。 */
-    fun openDisplaySettings()
 }
 
 /** 通知数据入口，由通知监听服务写入。 */
@@ -594,7 +557,7 @@ private val destinationLabels: Map<Destination, String> =
 fun Destination.displayLabel(): String =
     when (this) {
         is Destination.IconPicker -> "更换图标"
-        is Destination.Files -> "文件"
+        is Destination.Files -> "十雨文件"
         is Destination.DocumentReader -> "文件阅读"
         is Destination.PhotoViewer -> "图片查看"
         is Destination.PhotoEditor -> "图片编辑"

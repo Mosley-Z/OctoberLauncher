@@ -336,7 +336,7 @@ class OnboardingScreen(
         body.addView(title("认识十雨"))
         guide("桌面", "放置桌面小组件；长按空白处可更换背景、进入美化模式。点按应用打开，长按应用可拖动排布。")
         guide("负一屏", "在桌面首页向右滑，进入左侧负一屏，查看书架、最近图片、墨单与阅读统计。显示内容可在设置中调整。")
-        guide("文件", "“文件”是十雨内置的文件管理器，支持文件浏览管理、多种文档阅读与照片处理。")
+        guide("十雨文件", "“十雨文件”是十雨内置的文件管理器，支持文件浏览管理、多种文档阅读与照片处理。")
         body.addView(button("下一步") { moveTo(6) })
         body.addView(button("跳过介绍", filled = false) { moveTo(7) })
         body.addView(button("上一步", filled = false) { moveTo(previousSetupStep()) })

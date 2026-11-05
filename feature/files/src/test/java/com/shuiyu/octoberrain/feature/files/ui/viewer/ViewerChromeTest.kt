@@ -11,6 +11,15 @@ import org.junit.Test
  * 以及底栏动作顺序与文案映射。几何取自 [ViewerMetrics] 的纯计算，不涉及绘制。
  */
 class ViewerChromeTest {
+    @org.junit.Test
+    fun `unsupported wallpaper removes its button and reflows hit areas`() {
+        val actions = ViewerHitTest.actions(false)
+        org.junit.Assert.assertEquals(listOf(ViewerAction.SHARE, ViewerAction.EDIT, ViewerAction.DELETE), actions)
+        org.junit.Assert.assertEquals(4, ViewerHitTest.actions(true).size)
+        assertEquals(ViewerAction.DELETE, ViewerHitTest.hit(470, 760, metrics(), actions))
+        assertEquals(ViewerAction.EDIT, ViewerHitTest.hit(240, 760, metrics(), actions))
+    }
+
     /** 480×800 视口，顶栏 64、行为 44、底栏 52 的常见手机几何。 */
     private fun metrics(): ViewerMetrics =
         ViewerMetrics(

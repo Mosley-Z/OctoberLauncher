@@ -584,14 +584,14 @@ data class AppearanceConfig(
 /**
  * 状态栏与刷新配置，保留tray存储分区以兼容旧配置。
  *
- * overlayEnabled 为已有悬浮状态栏开关；
+ * overlayEnabled 为透明状态栏开关；
  * autoRefreshMinutes 为定时整屏刷新间隔，0 表示关闭；
  * refreshOnAppExit 表示从其他应用回到桌面后执行一次整屏刷新，
  * refreshOnAppExitDelayMs 为该次刷新的延迟毫秒数，用于等待窗口合成完成。
  */
 @Serializable
 data class TrayConfig(
-    val overlayEnabled: Boolean = false,
+    val overlayEnabled: Boolean = true,
     val showBatteryPercent: Boolean = true,
     val autoRefreshMinutes: Int = 0,
     val volumeKeyFlip: Boolean = false,
@@ -1100,13 +1100,6 @@ data class WifiState(
 data class BluetoothState(
     val enabled: Boolean,
     val connectedName: String?,
-)
-
-/** 前光状态，两个通道各 0 到 10 档。 */
-data class FrontLightState(
-    val cold: Int,
-    val warm: Int,
-    val available: Boolean,
 )
 
 /** 媒体播放状态。 */

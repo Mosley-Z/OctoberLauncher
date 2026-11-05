@@ -6,7 +6,6 @@ import com.inkread.weekread.kernel.CardState
 import com.inkread.weekread.kernel.PeriodCalendar
 import com.inkread.weekread.kernel.PeriodSnapshot
 import com.inkread.weekread.kernel.render.CardLayout
-import com.inkread.weekread.kernel.render.HostPeriodChart
 
 /** Index C: date, rule, italic total, full-width chart, then summary. */
 internal object LandscapePeriodRenderer {
@@ -40,7 +39,7 @@ internal object LandscapePeriodRenderer {
             total(ink, stats.totalSec, g.body.left, layout.totalTop, if (monthly) 27f else 42f, g.body.width, monthly)
         }
         if (layout.chartVisible) {
-            if (monthly) calendar(ink, g, state, stats, layout) else week(ink, g, stats, layout)
+            week(ink, g, stats, layout)
         }
         summary(ink, g, state, stats, layout.summaryTop, layout.summaryLineStep)
         ink.canvas.restoreToCount(saved)
@@ -127,70 +126,6 @@ internal object LandscapePeriodRenderer {
         }
         ink.rule(g.body.left, bottom, g.body.right, bottom, Color.GRAY)
     }
-
-    private fun calendar(
-        ink: LandscapeInk,
-        g: LandscapeCardGeometry,
-        state: CardState,
-        stats: PeriodSnapshot,
-        layout: LandscapePeriodLayout,
-    ) {
-        val u = g.unit
-        val count = stats.dayCount.takeIf { it in 1..31 } ?: 31
-        val offset = PeriodCalendar.firstWeekdayIndex(stats.baseTime)
-        val gap = layout.cellGap
-        val cellWidth = (g.body.width - 6f * gap) / 7f
-        val cellHeight = layout.cellHeight
-        val top = layout.chartTop
-        weekdays.forEachIndexed { index, name ->
-            val left = g.body.left + index * (cellWidth + gap)
-            ink.centered(name, LandscapeRect(left, top, left + cellWidth, top + 18f * u), 12f)
-        }
-        for (day in 0 until count) {
-            val slot = offset + day
-            if (slot / 7 >= layout.visibleCalendarRows) continue
-            val left = g.body.left + (slot % 7) * (cellWidth + gap)
-            val y = top + 22f * u + (slot / 7) * (cellHeight + gap)
-            val rect = LandscapeRect(left, y, left + cellWidth, y + cellHeight)
-            dayCell(ink, state, stats, day, rect)
-        }
-    }
-
-    private fun dayCell(
-        ink: LandscapeInk,
-        state: CardState,
-        stats: PeriodSnapshot,
-        day: Int,
-        rect: LandscapeRect,
-    ) {
-        val seconds = stats.daySec?.getOrElse(day) { 0 } ?: 0
-        val future = stats.isCurrentPeriod() && day > stats.todayIndex()
-        val level = HostPeriodChart.heatLevel(seconds)
-        val fill = dayFill(future, state.monthHeatmap(), level)
-        ink.box(rect, fill, Color.LTGRAY)
-        if (!state.monthHeatmap() && seconds > 0 && !future) {
-            // Retain the user's checkbox representation of days with reading.
-            ink.centered("✓", rect, 15f)
-        } else {
-            val textColor = if (state.monthHeatmap() && level >= 2 && !future) Color.WHITE else Color.DKGRAY
-            ink.centered((day + 1).toString(), rect, 12f, textColor)
-        }
-        if (stats.isCurrentPeriod() && day == stats.todayIndex()) ink.box(rect, color = Color.BLACK)
-    }
-
-    private fun dayFill(
-        future: Boolean,
-        heatmap: Boolean,
-        level: Int,
-    ): Int? =
-        when {
-            future -> null
-            !heatmap -> Color.WHITE
-            level <= 0 -> Color.rgb(238, 238, 238)
-            level == 1 -> Color.LTGRAY
-            level == 2 -> Color.GRAY
-            else -> Color.DKGRAY
-        }
 
     private fun right(
         ink: LandscapeInk,

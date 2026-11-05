@@ -13,6 +13,7 @@ import com.shuiyu.octoberrain.core.device.SizeClass
 class InkTokens(
     private val profile: DeviceProfile,
     val textScale: Float = 1f,
+    private val statusBarHeightDp: Int = 0,
     private val spToPx: (Float) -> Float = { it * profile.density },
 ) {
     /** 设备画像只读引用。 */
@@ -102,7 +103,22 @@ class InkTokens(
 
     /** 状态栏高度。 */
     val statusBarHeight: Int get() =
-        maxOf(dp(if (heightClass == HeightClass.Short) 28f else 34f), Math.ceil(textStatus * 1.4).toInt() + dp(8f))
+        maxOf(
+            dp(
+                if (statusBarHeightDp >
+                    0
+                ) {
+                    statusBarHeightDp.toFloat()
+                } else if (heightClass ==
+                    HeightClass.Short
+                ) {
+                    28f
+                } else {
+                    34f
+                },
+            ),
+            Math.ceil(textStatus * 1.4).toInt() + dp(8f),
+        )
 
     /** 状态栏图标尺寸。 */
     val statusIcon: Int get() = dp(16f)

@@ -22,11 +22,11 @@ import com.shuiyu.octoberrain.core.design.InkWidgets
 /**
  * 设置中心首页。
  *
- * 版式对齐图墨桌面设置页：不设标题栏与返回箭头，页面顶部为齿轮徽标与「十雨」字样，
+ * 版式对齐图墨桌面设置页：不设独立标题栏，返回箭头位于标识区左侧，页面顶部为齿轮徽标与「十雨」字样，
  * 下方四项为单列全宽圆角卡片：桌面偏好、美化与图标、微读墨记、检查更新；
  * 系统原生设置作为独立应用入口保留，不在此页混排。
  * 卡片尺寸、描边与圆角全部取自设计令牌，页面内容位于 InkPage 的滚动容器内。
- * 返回操作由系统返回键承担。
+ * 返回箭头与系统返回键均沿用路由返回。
  */
 class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
     override fun build(
@@ -51,6 +51,13 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
             }
+
+        row.addView(
+            backButton(context),
+            LinearLayout.LayoutParams(tokens.dp(48f), tokens.dp(48f)).apply {
+                rightMargin = tokens.gap
+            },
+        )
 
         val badge =
             FrameLayout(context).apply {
@@ -93,6 +100,19 @@ class SettingsHomeScreen : SettingsBaseScreen(null, showBack = false) {
                 ).apply { bottomMargin = tokens.gapLarge }
         return row
     }
+
+    private fun backButton(context: Context): View =
+        FrameLayout(context).apply {
+            val tokens = DesignRuntime.tokens
+            isClickable = true
+            isFocusable = true
+            contentDescription = "返回"
+            addView(
+                InkGlyphs.view(context, InkGlyphs.Kind.BACK),
+                FrameLayout.LayoutParams(tokens.settingsIcon, tokens.settingsIcon, Gravity.CENTER),
+            )
+            setOnClickListener { AppServices.router.back() }
+        }
 
     /**
      * 单列全宽卡片。

@@ -3,7 +3,6 @@ import argparse
 import os
 import hashlib
 import json
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,19 +22,20 @@ assert hashlib.sha256(apk.read_bytes()).hexdigest() == manifest['sha256']
 assert apk.stat().st_size == manifest['sizeBytes']
 html = site / 'index.html'
 raw = html.read_bytes()
-previous = old['versionName'].encode()
-# Only lines concerning OctoberLauncher; other products retain their versions.
-lines = raw.splitlines(keepends=True)
-for i, line in enumerate(lines):
-    if b'OctoberLauncher' in line or '十雨'.encode() in line:
-        lines[i] = re.sub(rb'(?<![0-9.])' + re.escape(previous) + rb'(?![0-9.])', version.encode(), line)
-updated = b''.join(lines)
-assert updated.count(b'\r\n') == raw.count(b'\r\n'), 'CRLF changed'
 shutil.copyfile(apk, site / 'apk' / name)
 manifest['downloadUrls'] = [manifest['downloadUrl']]
 manifest['downloadUrl'] = f'https://wereadmoji.app.workbuddy.host/apk/{name}'
 (site / 'update-october.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-html.write_bytes(updated)
+python = Path('C:/Users/MosleyZ/.workbuddy/binaries/python/versions/3.13.12/python.exe')
+sync = subprocess.run(
+    [str(python), str(a.workspace / '_tools/sync_october_version.py'), '--site', str(site), '--apply'],
+    env=dict(os.environ, PYTHONIOENCODING='utf-8'),
+    capture_output=True, text=True, encoding='utf-8',
+)
+print(sync.stdout)
+print(sync.stderr)
+assert sync.returncode == 0, 'Homepage version sync failed; do not deploy'
+assert html.read_bytes().count(b'\r\n') == raw.count(b'\r\n'), 'CRLF changed'
 contracts = list((a.workspace / '_baseline_contract').glob('contract_*.txt'))
 latest = max(contracts, key=lambda x: x.stat().st_mtime)
 entries = latest.read_text(encoding='utf-8-sig').splitlines()
@@ -49,7 +49,6 @@ for rel in sorted(changed):
     entries.append(f'{hashlib.sha256(data).hexdigest()}  {len(data):10d}  {rel}')
 contract = a.workspace / f'_baseline_contract/contract_october{version.replace(".", "")}.txt'
 contract.write_text('\n'.join(entries) + '\n', encoding='utf-8')
-python = Path('C:/Users/MosleyZ/.workbuddy/binaries/python/versions/3.13.12/python.exe')
 result = subprocess.run([str(python), str(a.workspace / '_tools/preflight.py')], env=dict(os.environ, PYTHONIOENCODING='utf-8'), capture_output=True, text=True, encoding='utf-8')
 print(result.stdout)
 print(result.stderr)

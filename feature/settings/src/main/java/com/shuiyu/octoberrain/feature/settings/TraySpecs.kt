@@ -38,8 +38,8 @@ internal object TraySpecs {
             SettingSpec(
                 id = "tray.overlayEnabled",
                 group = GROUP_TRAY_STATUS,
-                title = "悬浮状态栏",
-                hint = "在其他应用上方显示现有时间、电量与刷新入口",
+                title = "透明状态栏",
+                hint = "开启自绘状态栏及应用上方悬浮栏；关闭后使用系统原生状态栏",
                 control =
                     toggleTray(
                         read = { it.overlayEnabled },

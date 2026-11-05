@@ -3,7 +3,6 @@ package com.shuiyu.octoberrain.service.wallpaper
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import com.shuiyu.octoberrain.core.common.WallpaperChannel
 import com.shuiyu.octoberrain.core.common.WallpaperOutcome
 import com.shuiyu.octoberrain.core.common.WallpaperProgress
@@ -52,7 +51,9 @@ class S4WallpaperChannel(
         service = null
     }
 
-    override fun supports(): Boolean = isS4Device() && service != null && vendorIntent() != null
+    override val componentAvailable: Boolean = InstalledWallpaperCapability.read(context)
+
+    override fun supports(): Boolean = componentAvailable && service != null
 
     override fun isBusy(): Boolean = busy
 
@@ -121,17 +122,11 @@ class S4WallpaperChannel(
 
     /** 构造厂商主活动的显式启动意图，组件缺失或非 S4 时返回 null。 */
     private fun vendorIntent(): Intent? {
-        if (!isS4Device()) return null
-        val intent =
-            Intent().apply {
-                setClassName(VENDOR_PACKAGE, VENDOR_ACTIVITY)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-        val resolved =
-            runCatching {
-                context.packageManager.resolveActivity(intent, 0)
-            }.getOrNull()
-        return intent.takeIf { resolved?.activityInfo != null }
+        if (!componentAvailable) return null
+        return Intent().apply {
+            setClassName(VENDOR_PACKAGE, VENDOR_ACTIVITY)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
     }
 
     /** 启动厂商主活动。 */
@@ -141,12 +136,8 @@ class S4WallpaperChannel(
     }
 }
 
-/** 当前机型是否为 S4。 */
-private fun isS4Device(): Boolean = Build.MODEL.equals(MODEL_S4, ignoreCase = true)
-
-private const val MODEL_S4 = "S4"
-private const val VENDOR_PACKAGE = "com.wetao.wallpaper"
-private const val VENDOR_ACTIVITY = "com.wetao.wallpaper.MainActivity"
+internal const val VENDOR_PACKAGE = "com.wetao.wallpaper"
+internal const val VENDOR_ACTIVITY = "com.wetao.wallpaper.MainActivity"
 
 /** 检查通道可用性：无障碍未连接或机型不支持时返回不可用结果。 */
 private fun precheckChannel(

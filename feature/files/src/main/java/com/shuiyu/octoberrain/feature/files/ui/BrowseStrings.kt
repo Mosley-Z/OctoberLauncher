@@ -8,7 +8,7 @@ package com.shuiyu.octoberrain.feature.files.ui
  */
 internal object BrowseStrings {
     /** 页面默认标题。 */
-    const val TITLE = "文件"
+    const val TITLE = "十雨文件"
 
     /** 底栏上一页按钮。 */
     const val PREVIOUS = "上一页"

@@ -103,7 +103,7 @@ object IconTargets {
     fun specialLabel(entry: SpecialEntry): String =
         when (entry) {
             SpecialEntry.WEREAD -> "微信读书"
-            SpecialEntry.FILES -> "文件"
+            SpecialEntry.FILES -> "十雨文件"
             SpecialEntry.BOOKSHELF -> "书架"
             SpecialEntry.SETTINGS -> "十雨设置"
             SpecialEntry.SEARCH -> "搜索"

@@ -101,6 +101,9 @@ sealed interface WallpaperProgress {
  * 目标能力检测失败时返回 [WallpaperResult.Unavailable]，不以桌面壁纸接口替代。
  */
 interface WallpaperChannel {
+    /** 安装级厂商组件能力，不包含运行时无障碍授权。 */
+    val componentAvailable: Boolean get() = false
+
     /** 当前阶段，界面可订阅显示。 */
     val progress: StateFlow<WallpaperProgress>
 

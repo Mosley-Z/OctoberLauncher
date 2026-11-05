@@ -404,7 +404,7 @@ class DesktopPrefsScreen : SettingsBaseScreen("桌面与布局") {
     /** The project file entry is separate from installed system file managers. */
     private fun buildFileVisibility(page: InkPage) {
         SettingsUi.section(page, "内置入口", "开为显示，关闭后从桌面隐藏").toggle(
-            label = "文件",
+            label = "十雨文件",
             get = { FILES_ENTRY_KEY !in SettingsUi.settings().desktop.hiddenSpecials },
         ) { visible ->
             updateDesktop { desktop ->

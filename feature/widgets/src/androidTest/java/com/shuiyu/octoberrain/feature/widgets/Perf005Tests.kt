@@ -73,7 +73,6 @@ class Perf005Tests(
                     sizeClass = SizeClass.Compact,
                     heightClass = HeightClass.Short,
                     display = DisplayClass.Lcd,
-                    hasFrontLight = false,
                     statusBarInsetPx = 0,
                     navigationInsetPx = 0,
                     longEdgePx = 320,

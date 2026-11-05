@@ -2,7 +2,6 @@ package com.shuiyu.octoberrain.core.device
 
 import android.content.Context
 import android.os.Build
-import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.WindowManager
 
@@ -41,9 +40,6 @@ object DeviceProfileDetector {
             "tolino",
         )
 
-    /** 前光暖光设置项键，与系统能力实现写入的键一致。 */
-    private const val KEY_FRONT_LIGHT = "screen_brightness1"
-
     /**
      * 计算当前设备画像。
      *
@@ -72,7 +68,6 @@ object DeviceProfileDetector {
             sizeClass = sizeClass,
             heightClass = heightClass,
             display = display,
-            hasFrontLight = resolveFrontLight(display.isEink) { probeFrontLight(context) },
             statusBarInsetPx = systemBarHeight(context, "status_bar_height"),
             navigationInsetPx = systemBarHeight(context, "navigation_bar_height"),
             longEdgePx = maxOf(widthPx, heightPx),
@@ -108,38 +103,6 @@ object DeviceProfileDetector {
                 .lowercase()
         val knownEink = EINK_MARKERS.any { identity.contains(it) }
         return if (knownEink) DisplayClass.EinkFull else DisplayClass.Lcd
-    }
-
-    /**
-     * 结合墨水屏判定与前光探测得出前光能力。
-     *
-     * 液晶屏直接判定无前光；墨水屏以探测结果为准，探测抛出异常或返回假时判定无前光，
-     * 避免对不具备前光硬件的机型写入屏幕亮度设置项。
-     *
-     * @param isEink 是否为墨水屏
-     * @param probe 前光探测，返回真表示存在前光硬件
-     * @return 前光硬件存在返回真
-     */
-    internal fun resolveFrontLight(
-        isEink: Boolean,
-        probe: () -> Boolean,
-    ): Boolean {
-        if (!isEink) return false
-        return runCatching(probe).getOrDefault(false)
-    }
-
-    /**
-     * 探测前光硬件是否存在。
-     *
-     * 暖光设置项由厂商在系统设置中登记，键不存在时读取抛出 SettingNotFoundException，
-     * 由 [resolveFrontLight] 统一降级为不存在。
-     *
-     * @param context 用于读取系统设置的内容解析器
-     * @return 键存在返回真
-     */
-    private fun probeFrontLight(context: Context): Boolean {
-        Settings.System.getInt(context.contentResolver, KEY_FRONT_LIGHT)
-        return true
     }
 
     /**

@@ -37,7 +37,6 @@ class AboutScreen : SettingsBaseScreen("关于") {
                 "${sizeClassLabel(profile.sizeClass.name)} · ${heightClassLabel(profile.heightClass.name)}",
             )
             device.info("屏幕类型", displayLabel(profile.display.name))
-            device.info("前光", if (profile.hasFrontLight) "支持" else "不支持")
             device.info("每行图标", "${profile.gridColumns()} 个")
         } else {
             device.info("设备画像", "尚未初始化")

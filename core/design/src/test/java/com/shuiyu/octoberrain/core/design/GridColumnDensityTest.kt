@@ -25,7 +25,6 @@ class GridColumnDensityTest {
                         sizeClass = SizeClass.fromWidth(widthDp),
                         heightClass = HeightClass.Tall,
                         display = DisplayClass.EinkFast,
-                        hasFrontLight = false,
                         statusBarInsetPx = 0,
                         navigationInsetPx = 0,
                         longEdgePx = heightPx,

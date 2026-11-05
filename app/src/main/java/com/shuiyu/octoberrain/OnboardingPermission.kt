@@ -12,7 +12,7 @@ internal fun onboardingPermissions(model: String): List<OnboardingPermission> {
         OnboardingPermission(
             "accessibility",
             "无障碍服务",
-            if (p4) "影响 P4 状态栏的正常显示与交互，建议开启。" else "用于悬浮状态栏交互",
+            if (p4) "影响 P4 状态栏的正常显示与交互，建议开启。" else "用于透明状态栏交互",
         )
     val others =
         listOf(

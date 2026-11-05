@@ -2,7 +2,6 @@ package com.shuiyu.octoberrain.service
 
 import android.app.Notification
 import android.content.ComponentName
-import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
@@ -12,8 +11,6 @@ import android.service.notification.StatusBarNotification
 import com.shuiyu.octoberrain.core.common.AppServices
 import com.shuiyu.octoberrain.core.common.MediaState
 import com.shuiyu.octoberrain.core.common.NotificationItem
-import com.shuiyu.octoberrain.core.data.MediaBridge
-import com.shuiyu.octoberrain.core.data.MediaCommand
 import com.shuiyu.octoberrain.core.data.NotificationCenter
 import com.shuiyu.octoberrain.core.data.SystemControlsImpl
 
@@ -38,7 +35,6 @@ class NotificationRelayService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
-        MediaBridge.install(::performMediaCommand)
     }
 
     override fun onListenerConnected() {
@@ -55,7 +51,6 @@ class NotificationRelayService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         NotificationCenter.installHandlers(null, null)
-        MediaBridge.install(null)
         detachMediaSessions()
         instance = null
         super.onListenerDisconnected()
@@ -73,7 +68,6 @@ class NotificationRelayService : NotificationListenerService() {
 
     override fun onDestroy() {
         NotificationCenter.installHandlers(null, null)
-        MediaBridge.install(null)
         detachMediaSessions()
         handler.removeCallbacksAndMessages(null)
         instance = null
@@ -213,34 +207,6 @@ class NotificationRelayService : NotificationListenerService() {
         )
     }
 
-    /** 执行托盘下发的媒体命令。 */
-    private fun performMediaCommand(command: MediaCommand) {
-        val controller = activeController() ?: return
-        runCatching {
-            when (command) {
-                MediaCommand.TOGGLE -> {
-                    val playing = controller.playbackState?.state == PlaybackState.STATE_PLAYING
-                    if (playing) controller.transportControls.pause() else controller.transportControls.play()
-                }
-
-                MediaCommand.PREVIOUS -> controller.transportControls.skipToPrevious()
-
-                MediaCommand.NEXT -> controller.transportControls.skipToNext()
-            }
-        }
-        // 播放状态由系统异步回流，稍后再读取一次
-        handler.postDelayed({ refreshMedia() }, MEDIA_REFRESH_DELAY_MS)
-    }
-
-    /** 取当前可控制的媒体会话。 */
-    private fun activeController(): MediaController? {
-        val manager = sessionManager ?: return null
-        val component = ComponentName(this, NotificationRelayService::class.java)
-        return runCatching { manager.getActiveSessions(component) }
-            .getOrNull()
-            ?.lastOrNull { it.playbackState != null }
-    }
-
     /** 写回媒体状态，系统能力层未装配时忽略。 */
     private fun updateMedia(state: MediaState) {
         runCatching { (AppServices.system as? SystemControlsImpl)?.updateMedia(state) }
@@ -257,8 +223,6 @@ class NotificationRelayService : NotificationListenerService() {
             service.reload()
             return true
         }
-
-        private const val MEDIA_REFRESH_DELAY_MS = 300L
 
         /** 系统写入的“本条为分组摘要”标记，对应 NotificationCompat.EXTRA_IS_GROUP_SUMMARY。 */
         private const val EXTRA_IS_GROUP_SUMMARY = "android.isGroupSummary"

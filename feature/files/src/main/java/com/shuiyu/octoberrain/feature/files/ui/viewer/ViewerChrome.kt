@@ -42,6 +42,9 @@ object ViewerHitTest {
             ViewerAction.SET_WALLPAPER,
         )
 
+    fun actions(wallpaperAvailable: Boolean): List<ViewerAction> =
+        if (wallpaperAvailable) bottomActions else bottomActions.filterNot { it == ViewerAction.SET_WALLPAPER }
+
     /**
      * 判断坐标命中的动作。
      *
@@ -54,14 +57,15 @@ object ViewerHitTest {
         x: Int,
         y: Int,
         metrics: ViewerMetrics,
+        actions: List<ViewerAction> = bottomActions,
     ): ViewerAction? {
-        val areas = metrics.bottomActions(bottomActions.size)
+        val areas = metrics.bottomActions(actions.size)
         return when {
             metrics.backArea.contains(x, y) -> ViewerAction.BACK
             metrics.infoArea.contains(x, y) -> ViewerAction.INFO
             else -> {
                 val index = areas.indexOfFirst { it.contains(x, y) }
-                if (index >= 0) bottomActions[index] else null
+                if (index >= 0) actions[index] else null
             }
         }
     }
@@ -95,6 +99,7 @@ object ViewerHitTest {
 class ViewerChrome(
     context: Context,
     private val metrics: ViewerMetrics,
+    private val actions: List<ViewerAction> = ViewerHitTest.bottomActions,
 ) {
     private val density: Float = context.resources.displayMetrics.density
     private val scaledDensity: Float = context.resources.displayMetrics.scaledDensity
@@ -179,9 +184,9 @@ class ViewerChrome(
             bar.top.toFloat(),
             linePaint,
         )
-        val areas = metrics.bottomActions(ViewerHitTest.bottomActions.size)
+        val areas = metrics.bottomActions(actions.size)
         areas.forEachIndexed { index, area ->
-            val action = ViewerHitTest.bottomActions[index]
+            val action = actions[index]
             drawGlyphLabel(canvas, glyphOf(action), ViewerHitTest.labelOf(action), area, glyphPaint, bodyPaint)
             if (index > 0) {
                 canvas.drawLine(

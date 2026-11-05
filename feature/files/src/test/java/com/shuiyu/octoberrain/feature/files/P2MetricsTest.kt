@@ -66,7 +66,6 @@ class P2MetricsTest {
             sizeClass = SizeClass.fromWidth(widthDp),
             heightClass = HeightClass.fromHeight(heightDp),
             display = DisplayClass.EinkFast,
-            hasFrontLight = true,
             statusBarInsetPx = 0,
             navigationInsetPx = 0,
             longEdgePx = maxOf(width, height),

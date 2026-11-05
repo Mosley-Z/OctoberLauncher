@@ -121,7 +121,7 @@ class DesktopEntriesTest {
         val specials =
             listOf(
                 LauncherEntry("special:weread", EntryType.SPECIAL, "微信读书", special = SpecialEntry.WEREAD),
-                LauncherEntry("special:files", EntryType.SPECIAL, "文件", special = SpecialEntry.FILES),
+                LauncherEntry("special:files", EntryType.SPECIAL, "十雨文件", special = SpecialEntry.FILES),
                 LauncherEntry("special:settings", EntryType.SPECIAL, "十雨设置", special = SpecialEntry.SETTINGS),
             ).filter { it.key !in desktop.hiddenSpecials }
         val base = sorted + specials

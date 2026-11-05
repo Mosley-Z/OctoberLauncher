@@ -1,5 +1,6 @@
 package com.shuiyu.octoberrain.feature.settings
 
+import android.app.Activity
 import android.view.Gravity
 import android.widget.LinearLayout
 import com.shuiyu.octoberrain.core.common.AppServices
@@ -10,6 +11,7 @@ import com.shuiyu.octoberrain.core.design.DesignRuntime
 import com.shuiyu.octoberrain.core.design.InkColors
 import com.shuiyu.octoberrain.core.design.InkPage
 import com.shuiyu.octoberrain.core.design.InkWidgets
+import com.shuiyu.octoberrain.core.device.HomeRole
 import com.shuiyu.octoberrain.core.device.PermissionCenter
 
 /**
@@ -44,9 +46,21 @@ internal class ProjectContentScreen : SettingsBaseScreen("权限与备份") {
 
         val system = SettingsUi.section(page, "系统", "后台与电池")
         system.action(
+            label = "主屏幕应用",
+            value = if (HomeRole.isDefault(page.context)) "已设为默认" else "未设为默认",
+            hint = "将十雨桌面设为默认主屏幕应用",
+        ) {
+            val activity = page.context as? Activity
+            if (activity != null) {
+                HomeRole.request(activity, 16601)
+            } else {
+                HomeRole.openHomeSettings(page.context)
+            }
+        }
+        system.action(
             label = "电池优化",
             value = "系统设置",
-            hint = "关闭电池优化可避免刷新与悬浮状态栏被系统冻结",
+            hint = "关闭电池优化可避免刷新与透明状态栏被系统冻结",
         ) {
             runCatching { permissions.openBatterySettings() }
         }
@@ -132,7 +146,7 @@ internal class ProjectContentScreen : SettingsBaseScreen("权限与备份") {
                 PermissionItem(
                     key = PermissionCenter.KEY_ACCESSIBILITY,
                     label = "无障碍服务",
-                    hint = "悬浮状态栏交互需要此服务",
+                    hint = "透明状态栏交互需要此服务",
                 ) { it.openAccessibilitySettings() },
                 PermissionItem(
                     key = PermissionCenter.KEY_STORAGE,

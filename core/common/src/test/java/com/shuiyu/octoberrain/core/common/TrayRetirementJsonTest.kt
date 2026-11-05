@@ -7,6 +7,14 @@ import org.junit.Test
 
 class TrayRetirementJsonTest {
     @Test
+    fun `transparent bar defaults on but preserves an explicit off choice`() {
+        assertTrue(AppJson.format.decodeFromString(TrayConfig.serializer(), "{}").overlayEnabled)
+        assertFalse(
+            AppJson.format.decodeFromString(TrayConfig.serializer(), "{\"overlayEnabled\":false}").overlayEnabled,
+        )
+    }
+
+    @Test
     fun `legacy panel fields do not prevent shared settings restore`() {
         val legacy = """{
           "version":15,

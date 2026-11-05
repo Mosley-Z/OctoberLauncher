@@ -4,8 +4,10 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.util.LruCache
 import com.inkread.weekread.kernel.CardState
 import com.inkread.weekread.kernel.PeriodCalendar
 import com.inkread.weekread.kernel.PeriodSnapshot
@@ -111,9 +113,33 @@ internal object LandscapeMonthRenderer {
                 heatCell(ink, x, y, layout.cell, HostPeriodChart.heatLevel(seconds))
             } else {
                 ink.box(LandscapeRect(x, y, x + layout.cell, y + layout.cell), Color.WHITE, Color.BLACK)
-                if (seconds > 0) ink.centered("✓", LandscapeRect(x, y, x + layout.cell, y + layout.cell), 12f)
+                if (seconds > 0) checkmark(ink, x, y, layout.cell)
             }
         }
+    }
+
+    /** A proportional stroked mark stays inside even the smallest allocated date cell. */
+    private fun checkmark(
+        ink: LandscapeInk,
+        x: Float,
+        y: Float,
+        size: Float,
+    ) {
+        val paint = ink.paint
+        val saved = ink.canvas.save()
+        ink.canvas.clipRect(x + size * .15f, y + size * .15f, x + size * .85f, y + size * .85f)
+        paint.color = Color.BLACK
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = size * .08f
+        val path =
+            Path().apply {
+                moveTo(x + size * .25f, y + size * .48f)
+                lineTo(x + size * .44f, y + size * .68f)
+                lineTo(x + size * .76f, y + size * .30f)
+            }
+        ink.canvas.drawPath(path, paint)
+        paint.style = Paint.Style.FILL
+        ink.canvas.restoreToCount(saved)
     }
 
     private fun text(
@@ -174,15 +200,24 @@ internal object LandscapeMonthRenderer {
 }
 
 internal object MonthHeatPattern {
-    private val patterns = mutableMapOf<Pair<Int, Int>, Bitmap>()
+    // Byte budget includes all sizes and tiers; eviction releases references without recycling in-use images.
+    private val patterns by lazy {
+        object : LruCache<Pair<Int, Int>, Bitmap>(64 * 1024) {
+            override fun sizeOf(
+                key: Pair<Int, Int>,
+                value: Bitmap,
+            ): Int = value.allocationByteCount
+        }
+    }
 
     fun bitmap(
         size: Int,
         level: Int,
     ): Bitmap =
-        patterns.getOrPut(size to level) {
-            Bitmap.createBitmap(pixels(size, level), size, size, Bitmap.Config.ARGB_8888)
-        }
+        patterns.get(size to level)
+            ?: Bitmap.createBitmap(pixels(size, level), size, size, Bitmap.Config.ARGB_8888).also {
+                patterns.put(size to level, it)
+            }
 
     fun pixels(
         size: Int,

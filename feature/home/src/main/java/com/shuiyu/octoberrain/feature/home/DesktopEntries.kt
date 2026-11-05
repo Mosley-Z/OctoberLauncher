@@ -30,7 +30,7 @@ internal object DesktopEntries {
     private val specials =
         listOf(
             SpecialSpec("special:weread", "微信读书", SpecialEntry.WEREAD),
-            SpecialSpec("special:files", "文件", SpecialEntry.FILES),
+            SpecialSpec("special:files", "十雨文件", SpecialEntry.FILES),
             SpecialSpec("special:settings", "十雨设置", SpecialEntry.SETTINGS),
         )
 

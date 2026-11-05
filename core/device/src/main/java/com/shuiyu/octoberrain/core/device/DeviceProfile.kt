@@ -41,7 +41,6 @@ enum class HeightClass {
  *
  * 参数 widthPx 与 heightPx 为当前窗口像素尺寸；widthDp 与 heightDp 为对应 dp 尺寸；
  * density 为像素密度；sizeClass 为宽度断点；heightClass 为高度断点；
- * display 为显示类型；hasFrontLight 表示是否具备前光通道；
  * statusBarInsetPx 为系统状态栏高度；navigationInsetPx 为导航栏高度；
  * longEdgePx 与 shortEdgePx 为长短边像素值。
  */
@@ -54,7 +53,6 @@ data class DeviceProfile(
     val sizeClass: SizeClass,
     val heightClass: HeightClass,
     val display: DisplayClass,
-    val hasFrontLight: Boolean,
     val statusBarInsetPx: Int,
     val navigationInsetPx: Int,
     val longEdgePx: Int,

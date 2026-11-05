@@ -117,6 +117,7 @@ class PhotoSurface(
     private var wallpaperJob: Job? = null
     private var metrics: ViewerMetrics? = null
     private var chrome: ViewerChrome? = null
+    private val viewerActions = ViewerHitTest.actions(AppServices.wallpaper?.componentAvailable == true)
     private var bitmap: Bitmap? = null
     private var loading = false
     private var failed = false
@@ -245,7 +246,7 @@ class PhotoSurface(
                 bottomBarHeight = (52f * density).toInt(),
             )
         metrics = built
-        chrome = ViewerChrome(context, built)
+        chrome = ViewerChrome(context, built, viewerActions)
         refresh()
     }
 
@@ -385,7 +386,7 @@ class PhotoSurface(
             panel != Panel.NONE -> handlePanelTap(y.toInt(), size)
             abs(dx) > threshold && abs(dx) > abs(dy) -> turnPage(forward = dx < 0)
             abs(dx) < thumb && abs(dy) < thumb -> {
-                val action = ViewerHitTest.hit(x.toInt(), y.toInt(), size)
+                val action = ViewerHitTest.hit(x.toInt(), y.toInt(), size, viewerActions)
                 if (action != null) handleAction(action) else cycleZoom()
             }
         }

@@ -46,7 +46,8 @@ object DesignRuntime {
         InkTokens(
             profile,
             appearance.textScale.coerceIn(0.85f, 1.6f),
-            textConverter ?: { it * profile.density },
+            statusBarHeightDp = appearance.statusBarHeightDp,
+            spToPx = textConverter ?: { it * profile.density },
         )
 
     /** 安装运行时，需在第一次创建界面前调用。 */

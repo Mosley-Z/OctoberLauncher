@@ -50,7 +50,6 @@ class SystemControlsImplTest {
         assertEquals(0, context.registerCalls)
         assertEquals(0, context.unregisterCalls)
         assertEquals(0, context.serviceCalls)
-        assertFalse(controls.hasFrontLight())
     }
 
     @Test
@@ -72,18 +71,6 @@ class SystemControlsImplTest {
         assertEquals(1, context.unregisterCalls)
         controls.start()
         assertEquals(2, context.registerCalls)
-    }
-
-    @Test
-    fun `无前光设备上设置前光不改变状态`() {
-        val context = FakeContext()
-        val controls = SystemControlsImpl(context)
-        controls.start()
-        controls.setFrontLight(8, 6)
-        val state = controls.frontLight.value
-        assertEquals(0, state.cold)
-        assertEquals(0, state.warm)
-        assertFalse(state.available)
     }
 
     @Test

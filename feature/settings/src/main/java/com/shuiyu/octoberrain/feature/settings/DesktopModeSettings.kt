@@ -70,7 +70,7 @@ internal object DesktopModeSettings {
         val specials =
             listOf(
                 "special:weread" to "微信读书",
-                "special:files" to "文件",
+                "special:files" to "十雨文件",
                 "special:settings" to "设置",
             )
         return apps + specials.filter { it.first !in desktop.hiddenSpecials }

@@ -406,7 +406,7 @@ internal object AppearanceSpecs {
                 id = "appearance.statusBar",
                 group = "project.status",
                 title = "状态栏高度",
-                hint = "自动档位按设备状态栏实际高度计算",
+                hint = "自动档位随屏幕可用高度与字号调整",
                 control =
                     choiceAppearance(
                         options = STATUS_BAR_OPTIONS,

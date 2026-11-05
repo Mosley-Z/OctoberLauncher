@@ -20,12 +20,15 @@ class SmallTextTest {
                     SizeClass.Compact,
                     HeightClass.Normal,
                     DisplayClass.EinkFast,
-                    false,
                     0,
                     0,
                     800,
                     480,
                 )
+            val requested = InkTokens(profile, statusBarHeightDp = 52)
+            org.junit.Assert.assertEquals(requested.dp(52f), requested.statusBarHeight)
+            val short = InkTokens(profile.copy(heightClass = HeightClass.Short))
+            assertTrue(short.statusBarHeight <= InkTokens(profile).statusBarHeight)
             val small = InkTokens(profile, 0.85f)
             val large = InkTokens(profile, 1.6f)
             assertTrue(small.textSmall >= 18f)
