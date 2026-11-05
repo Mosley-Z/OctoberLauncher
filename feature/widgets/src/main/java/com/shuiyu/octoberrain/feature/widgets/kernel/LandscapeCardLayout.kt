@@ -215,16 +215,18 @@ private fun verticalChromeText(
     rows.forEachIndexed { index, row ->
         ink.paint.typeface = face
         ink.paint.textSize = actual * ink.unit
-        if (multiline) {
-            val box = LandscapeRect(area.left, area.top + index * step, area.right, area.top + (index + 1) * step)
-            val save = ink.canvas.save()
-            if (row == ":") ink.canvas.rotate(90f, box.centerX, box.centerY)
-            ink.centered(row, box, actual)
-            ink.canvas.restoreToCount(save)
-        } else {
-            val x = area.centerX - ink.paint.measureText(row) / 2f
-            ink.text(row, x, area.top + index * step, actual, face = face)
-        }
+        ink.paint.color = Color.BLACK
+        val box = LandscapeRect(area.left, area.top + index * step, area.right, area.top + (index + 1) * step)
+        val saved = ink.canvas.save()
+        if (multiline && row == ":") ink.canvas.rotate(90f, box.centerX, box.centerY)
+        val metrics = ink.paint.fontMetrics
+        ink.canvas.drawText(
+            row,
+            box.centerX - ink.paint.measureText(row) / 2f,
+            box.centerY - (metrics.ascent + metrics.descent) / 2f,
+            ink.paint,
+        )
+        ink.canvas.restoreToCount(saved)
     }
 }
 

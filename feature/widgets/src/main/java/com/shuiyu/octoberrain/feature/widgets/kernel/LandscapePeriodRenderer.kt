@@ -20,6 +20,10 @@ internal object LandscapePeriodRenderer {
         monthly: Boolean,
     ) {
         val stats = state.stats() ?: return
+        if (monthly) {
+            LandscapeMonthRenderer.draw(originalInk, original, state, stats)
+            return
+        }
         val count = stats.dayCount.takeIf { it in 1..31 } ?: 31
         val rows = (PeriodCalendar.firstWeekdayIndex(stats.baseTime) + count + 6) / 7
         val comparison = stats.compare != null && !stats.compare.isNaN()
@@ -51,18 +55,11 @@ internal object LandscapePeriodRenderer {
     ) {
         val stats = state.stats() ?: return
         val date = if (monthly) PeriodCalendar.monthLabel(stats.baseTime) else PeriodCalendar.weekLabel(stats.baseTime)
-        val days = "${stats.readDays}天"
-        val daysWidth = if (monthly) 50f * g.unit else 0f
-        val width = g.meta.width - daysWidth
         ink.paint.typeface = Typeface.DEFAULT
-        ink.paint.textSize = 15f * g.unit
+        ink.paint.textSize = maxOf(18f, 15f * g.unit)
         val measured = ink.paint.measureText(date)
-        // Full date takes priority; the same day count remains in the footer if the row is unusually narrow.
-        val showDays = monthly && measured <= width
-        val dateWidth = if (showDays) width else g.meta.width
-        val font = minOf(15f, 15f * dateWidth / measured.coerceAtLeast(1f))
-        ink.text(date, g.meta.left, g.meta.top + 10f * g.unit, font, dateWidth, color = Color.DKGRAY)
-        if (showDays) right(ink, days, g.meta.right, g.meta.top + 10f * g.unit, 15f)
+        val font = minOf(15f, 15f * g.meta.width / measured.coerceAtLeast(1f))
+        ink.text(date, g.meta.left, g.meta.top + 10f * g.unit, font, g.meta.width, color = Color.DKGRAY)
     }
 
     private fun total(
