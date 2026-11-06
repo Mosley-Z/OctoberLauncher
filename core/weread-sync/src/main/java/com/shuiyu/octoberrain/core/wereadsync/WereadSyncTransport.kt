@@ -7,6 +7,13 @@ class WereadSyncTransport(
     private val send: (String, JsonObject, Int) -> WereadGatewayResult,
     private val budget: AutomaticSyncBudget? = null,
 ) : WereadRequest {
+    var requestCount: Int = 0
+        private set
+    var responseBytes: Long = 0L
+        private set
+    var requestMillis: Long = 0L
+        private set
+
     private var failure: WereadGatewayError? = null
 
     val failureMessage: String?
@@ -19,6 +26,15 @@ class WereadSyncTransport(
                 null -> if (budget?.stopped == true) "自动刷新已暂停或达到本轮限额，保留已有数据" else null
             }
 
+    override fun stopAfterFailure(): Boolean =
+        failure in
+            setOf(
+                WereadGatewayError.MISSING_KEY,
+                WereadGatewayError.INVALID_KEY,
+                WereadGatewayError.TRANSPORT,
+            ) ||
+            budget?.stopped == true
+
     override fun request(
         apiName: String,
         business: JsonObject,
@@ -28,8 +44,19 @@ class WereadSyncTransport(
         return if (timeout == null || failed) {
             null
         } else {
-            when (val response = send(apiName, business, timeout)) {
-                is WereadGatewayResult.Success -> response.payload
+            requestCount++
+            val started = System.nanoTime()
+            val response =
+                try {
+                    send(apiName, business, timeout)
+                } finally {
+                    requestMillis += (System.nanoTime() - started) / 1_000_000
+                }
+            when (response) {
+                is WereadGatewayResult.Success -> {
+                    responseBytes += response.responseBytes
+                    response.payload
+                }
                 is WereadGatewayResult.Failure -> {
                     failure = response.error
                     null

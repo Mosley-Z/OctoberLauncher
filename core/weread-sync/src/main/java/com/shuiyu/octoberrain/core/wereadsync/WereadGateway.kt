@@ -114,7 +114,7 @@ class WereadGateway(
                 }
         val code = businessCode(json)
         return if (code == null || code == 0) {
-            WereadGatewayResult.Success(json)
+            WereadGatewayResult.Success(json, body.toByteArray(Charsets.UTF_8).size.toLong())
         } else {
             failureForCode(code)
         }
@@ -161,6 +161,7 @@ sealed interface WereadGatewayResult {
     /** 请求成功，携带解析后的响应对象。 */
     data class Success(
         val payload: JsonObject,
+        val responseBytes: Long = 0L,
     ) : WereadGatewayResult
 
     /** 请求失败，携带分类与说明。 */

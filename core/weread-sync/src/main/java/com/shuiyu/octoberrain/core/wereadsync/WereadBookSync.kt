@@ -174,7 +174,7 @@ class WereadBookSync(
 
     /** 卡片只补当前选中书，不启动整库资产预热。 */
     fun currentBook(selectedId: String): Pair<List<WereadShelfBook>, WereadShelfBook?>? {
-        val books = shelf() ?: return null
+        val books = shelfSnapshot ?: shelf() ?: return null
         val selected =
             books.firstOrNull { it.bookId == selectedId }
                 ?: books.filter { it.readUpdateTime > 0 }.maxByOrNull { it.readUpdateTime }

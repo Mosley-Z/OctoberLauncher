@@ -111,7 +111,16 @@ internal class LandscapeCardLayout(
         val period = form == "week" || form == "month"
         if (form != "todo") {
             drawLandscapeRefresh(ink, g.refreshInk, refreshing)
-            val label = landscapeUpdatedRows(localUpdatedLabel ?: state.updatedLabel()).joinToString("\n")
+            val label =
+                if (refreshing &&
+                    !localUpdatedLabel.isNullOrBlank()
+                ) {
+                    localUpdatedLabel.orEmpty().take(6)
+                } else {
+                    landscapeUpdatedRows(
+                        localUpdatedLabel ?: state.updatedLabel(),
+                    ).joinToString("\n")
+                }
             verticalChromeText(ink, label, g.chrome.updatedInk, 13f)
         }
         if (period) {

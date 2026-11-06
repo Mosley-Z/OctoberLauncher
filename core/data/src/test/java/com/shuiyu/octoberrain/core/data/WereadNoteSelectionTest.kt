@@ -138,6 +138,21 @@ class WereadNoteSelectionTest {
         assertEquals("recent", WereadBookSelection.automaticBookId(root))
     }
 
+    @Test
+    fun expandedCandidatePoolRebuildsBatchWithoutReplacingTodaysNote() {
+        val root = library(2, 8)
+        val second = File(root, "nt_b1.json")
+        val body = second.readText()
+        second.delete()
+        File(root, "ni_b1.json").delete()
+        val selection = WereadNoteSelection(root, random = Random(3))
+        val initial = selection.current()!!
+        second.writeText(body)
+        assertEquals(initial.bookmarkId, selection.current()!!.bookmarkId)
+        val books = (1..20).map { selection.current(advance = true)!!.bookId }.toSet()
+        assertTrue("b1" in books)
+    }
+
     private fun library(
         bookCount: Int,
         markCount: Int,

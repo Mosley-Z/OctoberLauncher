@@ -109,7 +109,7 @@ class WereadCardRefreshServiceTest {
         }
 
     @Test
-    fun `本记关闭绑定时只刷新笔记且绕过正文有效期`() =
+    fun `本记关闭绑定时只补书架与笔记并检查最近书`() =
         runBlocking {
             File(folder.root, "kernel_prefs.json").writeText("""{"int":{"bind_targets":0}}""")
             val calls = mutableListOf<String>()
@@ -117,6 +117,7 @@ class WereadCardRefreshServiceTest {
                 WereadRequest { api, _ ->
                     calls += api
                     when (api) {
+                        "/shelf/sync" -> obj("""{"books":[{"bookId":"b","readUpdateTime":10}]}""")
                         "/user/notebooks" ->
                             obj(
                                 """{"books":[{"bookId":"b","sort":1,"book":{"title":"书"}}],"hasMore":0}""",
@@ -128,7 +129,7 @@ class WereadCardRefreshServiceTest {
             assertTrue(WereadNoteSync(transport, folder.root).sync()!!.complete)
             calls.clear()
             assertTrue(WereadCardRefreshService(transport, folder.root).refresh(WereadRefreshRequest("note")).success)
-            assertEquals(listOf("/user/notebooks", "/book/bookmarklist", "/review/list/mine"), calls)
+            assertEquals(listOf("/shelf/sync", "/user/notebooks", "/book/bookmarklist", "/review/list/mine"), calls)
         }
 
     @Test
@@ -146,6 +147,8 @@ class WereadCardRefreshServiceTest {
                             "/user/notebooks"
                         ) {
                             obj("""{"books":[],"hasMore":0}""")
+                        } else if (api == "/shelf/sync") {
+                            obj("""{"books":[]}""")
                         } else {
                             obj("""{"readTime":60}""")
                         }
@@ -153,7 +156,7 @@ class WereadCardRefreshServiceTest {
                     folder.root,
                 )
             assertTrue(service.refresh(WereadRefreshRequest("note")).success)
-            assertEquals(listOf("/user/notebooks", "/readdata/detail"), calls.map { it.first })
+            assertEquals(listOf("/shelf/sync", "/user/notebooks", "/readdata/detail"), calls.map { it.first })
             assertEquals(
                 "monthly",
                 calls

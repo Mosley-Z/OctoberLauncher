@@ -217,15 +217,27 @@ internal class WereadReadingPage(
     }
 
     /** 手动按钮强制联网；返回页面时的 refresh 仍仅重载本地。 */
+    private var cancelSyncProgress: (() -> Unit)? = null
+
     private fun refreshRemote() {
         val host = AppServices.wereadSync
         val mode = if (stage == Stage.INSIGHT) "overall" else form.mode
         val base = if (mode == "weekly" || mode == "monthly") currentBase() else 0L
+        cancelSyncProgress?.invoke()
+        cancelSyncProgress =
+            host?.observeProgress { message ->
+                post {
+                    refreshButton.text = message
+                    if (message.startsWith("笔记已检查") || message == "当前项目已更新") refresh()
+                }
+            }
         refreshButton.isEnabled = false
         refreshButton.text = "同步中…"
         val accepted =
             host?.refresh(WereadRefreshRequest(mode, base)) { _, message ->
                 post {
+                    cancelSyncProgress?.invoke()
+                    cancelSyncProgress = null
                     refreshButton.isEnabled = true
                     refreshButton.text = "刷新"
                     refresh()
@@ -233,6 +245,8 @@ internal class WereadReadingPage(
                 }
             } == true
         if (!accepted) {
+            cancelSyncProgress?.invoke()
+            cancelSyncProgress = null
             refreshButton.isEnabled = true
             refreshButton.text = "刷新"
             listener?.onToast(if (host?.isRunning() == true) "同步正在进行" else "请先配置微信读书接口密钥")
@@ -241,6 +255,8 @@ internal class WereadReadingPage(
 
     /** 暂停轮询但保留在途周期，恢复后接续结果。 */
     fun pause() {
+        cancelSyncProgress?.invoke()
+        cancelSyncProgress = null
         handler.removeCallbacks(pollTask)
     }
 

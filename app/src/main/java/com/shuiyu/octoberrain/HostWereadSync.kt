@@ -52,6 +52,24 @@ object HostWereadSync : WereadSyncHost {
     @Volatile
     private var lastReport: WereadSyncReport? = null
 
+    private val progressListeners = java.util.concurrent.CopyOnWriteArrayList<(String) -> Unit>()
+
+    @Volatile private var progressText = ""
+
+    override fun progressText(): String = if (queue.isRunning()) progressText else ""
+
+    override fun observeProgress(listener: (String) -> Unit): () -> Unit {
+        progressListeners.add(listener)
+        return { progressListeners.remove(listener) }
+    }
+
+    private fun publishProgress(message: String) {
+        progressText = message
+        mainHandler.post {
+            progressListeners.forEach { it(message) }
+        }
+    }
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile private var lastImmersiveSuccess = 0L
@@ -109,7 +127,7 @@ object HostWereadSync : WereadSyncHost {
     override fun statusText(): String {
         val state = readState()
         return when {
-            queue.isRunning() -> "正在同步数据"
+            queue.isRunning() -> progressText.ifBlank { "正在同步数据" }
             lastReport != null -> lastReport?.message.orEmpty()
             state != null && state.success -> "上次同步 ${formatTime(state.finishedAtMillis)}"
             state != null -> "上次同步失败：${state.message}"
@@ -199,6 +217,7 @@ object HostWereadSync : WereadSyncHost {
                     lastImmersiveSuccess = System.currentTimeMillis()
                 }
                 lastReport = report
+                publishProgress(report.message)
                 val pending = queue.finish()
                 if (pending.isNotEmpty()) {
                     startWorker(dir, apiKey(), { success, message ->
@@ -229,6 +248,8 @@ object HostWereadSync : WereadSyncHost {
             }
 
         val transport = WereadSyncTransport(gateway::request, budget)
+        val started = SystemClock.elapsedRealtime()
+        var firstReadyMillis: Long? = null
         val report =
             if (request == null || request.mode == "automatic") {
                 WereadSyncService(
@@ -247,8 +268,19 @@ object HostWereadSync : WereadSyncHost {
                     includeLibrary = request == null,
                 )
             } else {
-                WereadCardRefreshService(transport, dir).refresh(request)
+                WereadCardRefreshService(transport, dir, onProgress = { message ->
+                    if (firstReadyMillis == null && (message.startsWith("笔记已检查") || message == "当前项目已更新")) {
+                        firstReadyMillis = SystemClock.elapsedRealtime() - started
+                    }
+                    publishProgress(message)
+                }).refresh(request)
             }
+        com.shuiyu.octoberrain.core.common.InkLog.d(
+            "WereadSyncMetrics",
+            "requests=${transport.requestCount} bytes=${transport.responseBytes} " +
+                "requestMs=${transport.requestMillis} " +
+                "firstReadyMs=${firstReadyMillis ?: -1} totalMs=${SystemClock.elapsedRealtime() - started}",
+        )
         val message = transport.failureMessage ?: return report
         return report.copy(success = false, message = message)
     }

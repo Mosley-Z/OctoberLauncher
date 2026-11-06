@@ -11,6 +11,11 @@ interface WereadSyncHost {
     /** 当前是否正在同步，包含已经受理的下一轮同步。 */
     fun isRunning(): Boolean
 
+    fun progressText(): String = ""
+
+    /** 仅通知已落盘阶段与状态变化；返回取消订阅函数。 */
+    fun observeProgress(listener: (String) -> Unit): () -> Unit = {}
+
     /** 最近一次同步的状态文案，含结果与时刻。 */
     fun statusText(): String
 

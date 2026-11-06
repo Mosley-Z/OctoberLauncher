@@ -18,8 +18,11 @@ class WereadCardRefreshService(
     private val request: WereadRequest,
     private val root: File,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val onProgress: (String) -> Unit = {},
 ) {
     private val store = WereadStore(root)
+    private val bookSync = WereadBookSync(request, root, clock)
+    private var notesUnchanged = false
 
     /** 与全量同步、迁移使用同一互斥门，异常也会释放。 */
     suspend fun refresh(intent: WereadRefreshRequest): WereadSyncReport =
@@ -47,6 +50,7 @@ class WereadCardRefreshService(
         val warnings = mutableListOf<String>()
         var updated = 0
         for (mode in targets) {
+            onProgress(if (mode == intent.mode) "正在同步当前内容" else "正在同步绑定项")
             val saved =
                 when (mode) {
                     "book" -> refreshBook(intent.bookId.ifBlank { store.getString("book_pick").orEmpty() }, warnings)
@@ -54,9 +58,15 @@ class WereadCardRefreshService(
                     else -> refreshPeriod(mode, intent)
                 }
             if (saved) updated++ else warnings += "$mode 刷新未完成，保留已有数据"
+            onProgress(if (saved) "当前项目已更新" else "当前项目未完成，保留已有数据")
         }
         val success = warnings.isEmpty()
-        val message = if (success) "刷新完成：$updated 项" else "部分刷新：${warnings.joinToString("；") }"
+        val message =
+            when {
+                !success -> "部分刷新：${warnings.joinToString("；") }"
+                notesUnchanged -> "检查完成：笔记无变化，已检查 $updated 项"
+                else -> "刷新完成：$updated 项"
+            }
         return WereadSyncReport(success, message)
     }
 
@@ -85,7 +95,7 @@ class WereadCardRefreshService(
         id: String,
         warnings: MutableList<String>,
     ): Boolean {
-        val books = WereadBookSync(request, root, clock)
+        val books = bookSync
         val result = books.currentBook(id)
         warnings += books.warnings
         return result != null &&
@@ -98,7 +108,13 @@ class WereadCardRefreshService(
 
     private fun refreshNotes(warnings: MutableList<String>): Boolean {
         val notes = WereadNoteSync(request, root, clock)
-        val result = notes.sync(force = true)
+        val shelf = bookSync.shelf(refreshCurrent = false)
+        if (shelf == null) {
+            warnings += "阅读状态未取得，保留笔记检查基线"
+            return false
+        }
+        val result = notes.incremental(shelf, onProgress)
+        notesUnchanged = result?.complete == true && result.updatedFiles == 0
         warnings += notes.warnings
         return result != null && store.writeNotes(result.indexJson, result.notes) && result.complete
     }

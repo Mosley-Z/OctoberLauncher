@@ -11,6 +11,8 @@ import com.shuiyu.octoberrain.core.widget.WidgetNoteContent
  * 由组件实现并转交，内核无需直接依赖视图基类。
  */
 interface WereadBoardKernelHost {
+    val refreshStatus: String
+        get() = ""
     val refreshing: Boolean
         get() = false
 

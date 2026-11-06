@@ -182,6 +182,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
     private var switchRenderer: HostSwitchRenderer? = null
     private val landscapeLayout = LandscapeCardLayout { checkNotNull(switchRenderer) }
     private var landscapeHost: (() -> Boolean)? = null
+    private var refreshStatusHost: (() -> String)? = null
     private var refreshingHost: (() -> Boolean)? = null
     private var landscapeFrame: Boolean = false
     private var portraitRefreshArea = RectF()
@@ -284,6 +285,7 @@ internal class KernelWereadBoard : WereadBoardKernel {
     ) {
         landscapeHost = { host.landscape }
         refreshingHost = { host.refreshing }
+        refreshStatusHost = { host.refreshStatus }
         val hostImpl =
             KernelHostImpl(host) {
                 if (!rendering) host.requestDraw()
@@ -345,8 +347,10 @@ internal class KernelWereadBoard : WereadBoardKernel {
         rendering = true
         try {
             filler?.apply(cardState, form, appearance)
+            cardState.setRefreshing(refreshingHost?.invoke() == true)
             if (landscapeFrame) {
-                landscapeLayout.localUpdatedLabel = filler?.localUpdatedLabel(form)
+                landscapeLayout.localUpdatedLabel =
+                    refreshStatusHost?.invoke()?.takeIf { it.isNotBlank() } ?: filler?.localUpdatedLabel(form)
                 landscapeLayout.draw(
                     canvas,
                     width,
@@ -384,6 +388,22 @@ internal class KernelWereadBoard : WereadBoardKernel {
             }
             if (form == CardKernel.FORM_TODO) canvas.clipOutRect(portraitRefreshArea)
             cardKernel.render(cardState, form)
+            if (form != CardKernel.FORM_TODO) {
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                paint.color = android.graphics.Color.WHITE
+                canvas.drawRect(portraitRefreshArea, paint)
+                paint.color = android.graphics.Color.DKGRAY
+                paint.textSize = 13f
+                val label =
+                    if (refreshingHost?.invoke() ==
+                        true
+                    ) {
+                        refreshStatusHost?.invoke().orEmpty().ifBlank { "同步中" }
+                    } else {
+                        (filler?.localUpdatedLabel(form) ?: cardState.updatedLabel()).orEmpty()
+                    }
+                canvas.drawText("↻ $label", portraitRefreshArea.left, height * .055f + 19f, paint)
+            }
         } finally {
             canvas.restoreToCount(saved)
         }
@@ -943,6 +963,7 @@ private class KernelCardFiller(
     /** 后台读取后一次发布，绘制不访问文件、网络或笔记全局锁。 */
     fun prepare() {
         val shelf = source.shelf()
+        val note = source.notes(NOTE_LIMIT).firstOrNull()
         val book = source.currentBook() ?: shelf?.books?.firstOrNull()
         prepared =
             PreparedCard(
@@ -950,7 +971,7 @@ private class KernelCardFiller(
                 book = book,
                 week = source.period("weekly"),
                 month = source.period("monthly"),
-                note = source.notes(NOTE_LIMIT).firstOrNull(),
+                note = note,
                 todos = source.todos(),
                 slot = source.noteSlot(),
                 progress = source.noteProgress(),
@@ -958,29 +979,59 @@ private class KernelCardFiller(
                 appearance = readAppearance(host.filesDir()),
                 failed = source.hasFailure(),
                 readingStats = readImmersiveReadingStats(host.filesDir()),
-                preparedAt = System.currentTimeMillis(),
+                preparedAt = noteFetchedAt(note),
+                bookFetchedAt = bookFetchedAt(book?.bookId),
             )
     }
 
     /** A local next/previous operation must not reload the shelf, covers, periods or todos. */
     fun prepareNote() {
+        val note = source.notes(NOTE_LIMIT).firstOrNull()
         prepared =
             prepared.copy(
-                note = source.notes(NOTE_LIMIT).firstOrNull(),
+                note = note,
+                preparedAt = noteFetchedAt(note),
                 slot = source.noteSlot(),
                 progress = source.noteProgress(),
             )
     }
 
+    private fun bookFetchedAt(bookId: String?): Long {
+        val file = java.io.File(host.filesDir(), "book.json")
+        val storedId =
+            runCatching {
+                val json =
+                    kotlinx.serialization.json.Json.parseToJsonElement(
+                        file.readText(),
+                    ) as? kotlinx.serialization.json.JsonObject
+                (json?.get("bookId") as? kotlinx.serialization.json.JsonPrimitive)?.content
+            }.getOrNull()
+        return if (bookId != null && storedId == bookId) file.lastModified() else 0L
+    }
+
+    private fun noteFetchedAt(note: NoteItem?): Long =
+        if (note == null) {
+            0L
+        } else {
+            maxOf(
+                java.io.File(host.filesDir(), "nt_${note.bookId}.json").lastModified(),
+                java.io.File(host.filesDir(), "ni_${note.bookId}.json").lastModified(),
+            )
+        }
+
     /** Notes use the retrieval time; local todos use the prepared snapshot time, never the draw clock. */
     fun localUpdatedLabel(form: Int): String? {
-        val local = form == CardKernel.FORM_NOTE
-        val hasData = form != CardKernel.FORM_NOTE || prepared.note != null
-        return if (local && hasData && prepared.preparedAt > 0L) {
+        val timestamp =
+            when (form) {
+                CardKernel.FORM_NOTE -> prepared.preparedAt
+                CardKernel.FORM_BOOK -> prepared.bookFetchedAt
+                else -> return null
+            }
+        return if (timestamp > 0L) {
             "更新于 " +
-                java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(prepared.preparedAt))
+                java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(timestamp))
         } else {
-            null
+            "更新于 --:--"
         }
     }
 
@@ -1213,7 +1264,7 @@ private class KernelCardFiller(
         progress.progress = book.progress
         progress.readingSec = book.readingSec
         progress.finished = book.finished
-        progress.fetchedAt = shelf?.fetchedAt ?: 0L
+        progress.fetchedAt = prepared.bookFetchedAt
         cardState.setBook(progress)
         cardState.setCoverBitmap(prepared.cover, book.bookId)
         return true
@@ -1288,4 +1339,5 @@ private data class PreparedCard(
     val failed: Boolean = false,
     val readingStats: ImmersiveReadingStats = ImmersiveReadingStats(),
     val preparedAt: Long = 0L,
+    val bookFetchedAt: Long = 0L,
 )

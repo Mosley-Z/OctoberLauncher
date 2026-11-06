@@ -32,7 +32,7 @@ internal object KernelDataMapper {
         val snapshot = ShelfSnapshot()
         snapshot.books = books
         snapshot.ids = books.map { it.bookId }.toSet()
-        snapshot.fetchedAt = System.currentTimeMillis()
+        snapshot.fetchedAt = 0L
         return snapshot
     }
 
@@ -72,7 +72,7 @@ internal object KernelDataMapper {
         if (stats == null) return null
         val period = PeriodSnapshot()
         period.mode = mode
-        period.fetchedAt = System.currentTimeMillis()
+        period.fetchedAt = 0L
         period.totalSec = stats.totalMinutes * SECONDS_PER_MINUTE
         period.readDays = stats.readDays
         period.avgSec = stats.dayAverageMinutes * SECONDS_PER_MINUTE

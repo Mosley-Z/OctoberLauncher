@@ -39,7 +39,7 @@ internal object LandscapeNoteRenderer {
                 ink.text(
                     chapter,
                     g.body.left,
-                    g.meta.top + 31f * g.unit,
+                    g.meta.top + 38f * g.unit,
                     15f,
                     g.body.width,
                     color = Color.DKGRAY,
@@ -83,7 +83,7 @@ internal object LandscapeNoteRenderer {
                 23f *
                     g.unit
             }
-        return g.meta.top + 31f * g.unit + chapter + 14f * g.unit
+        return g.meta.top + 38f * g.unit + chapter + 14f * g.unit
     }
 
     private fun drawBody(

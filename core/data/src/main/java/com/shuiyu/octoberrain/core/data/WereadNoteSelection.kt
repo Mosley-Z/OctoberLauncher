@@ -68,9 +68,14 @@ class WereadNoteSelection(
             ) {
                 return@synchronized current
             }
-            var batch = batch(slot)
+            val poolStamp =
+                library.books().joinToString("|") {
+                    "${it.text("bookId")}:${it.number("noteCount")}:${it.number("reviewCount") }"
+                } + library.candidates(false).toString() + library.candidates(true).toString()
+            val poolChanged = slot != PICK_SLOT && state.text(key("pool_stamp", slot)) != poolStamp
+            var batch = if (poolChanged) emptyList() else batch(slot)
             var position = state.number(key("batch_pos", slot)).toInt() + 1
-            if (!state.containsKey(key("batch_pos", slot))) position = 0
+            if (poolChanged || !state.containsKey(key("batch_pos", slot))) position = 0
             var note = batch.getOrNull(position)?.let { resolve(it.first, it.second) }
             if (note == null) {
                 batch = newBatch(slot, state.text("pick_book"))
@@ -86,7 +91,14 @@ class WereadNoteSelection(
                     history(state, slot).filterNot {
                         it.first == note.bookId && it.second == note.bookmarkId
                     }
-            writeCurrent(state, slot, note, position, taken, history.take(HISTORY_SIZE))
+            writeCurrent(
+                JsonObject(state + (key("pool_stamp", slot) to JsonPrimitive(poolStamp))),
+                slot,
+                note,
+                position,
+                taken,
+                history.take(HISTORY_SIZE),
+            )
             note
         }
 

@@ -146,7 +146,7 @@ internal class KernelDataSourceImpl(
             ShelfSnapshot().also { snapshot ->
                 snapshot.books = items.toList()
                 snapshot.ids = items.map { book -> book.bookId }.toSet()
-                snapshot.fetchedAt = System.currentTimeMillis()
+                snapshot.fetchedAt = kernelRoot()?.let { File(it, "shelf.json").lastModified() } ?: 0L
             }
         }
 

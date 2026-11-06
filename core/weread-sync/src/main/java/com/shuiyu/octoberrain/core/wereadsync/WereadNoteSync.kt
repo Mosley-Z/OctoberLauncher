@@ -17,7 +17,19 @@ class WereadNoteSync(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val store = WereadStore(root)
+    private var bodyWrites = 0
     private var force = false
+    private var plan: WereadNoteRefreshPlan? = null
+    private var progress: (String) -> Unit = {}
+
+    internal fun incremental(
+        shelf: List<WereadShelfBook>,
+        onProgress: (String) -> Unit,
+    ): WereadNoteBatch? {
+        plan = WereadNoteRefreshPlan(root, shelf, clock)
+        progress = onProgress
+        return sync(force = true)
+    }
 
     /** 本轮同步未完成的原因，供宿主合并到同步结果中展示。 */
     var warnings: List<String> = emptyList()
@@ -28,8 +40,11 @@ class WereadNoteSync(
         force: Boolean = false,
         bookIds: Set<String>? = null,
     ): WereadNoteBatch? {
+        val started = System.nanoTime()
+        bodyWrites = 0
         this.force = force
         warnings = emptyList()
+        progress("正在同步笔记索引")
         val overview = notebooks() ?: return null
         val old = oldIndex().associateBy { it.text("bookId") }
         val books = overview.map { normalizeBook(it, old[it.text("bookId")]) }
@@ -39,19 +54,52 @@ class WereadNoteSync(
                 put("savedAt", JsonPrimitive(clock()))
                 put("books", JsonArray(books))
             }.toString()
+        return if (plan != null &&
+            !store.writeNotes(index, emptyList())
+        ) {
+            null
+        } else {
+            syncBooks(index, books, bookIds, started)
+        }
+    }
+
+    private fun syncBooks(
+        index: String,
+        books: List<JsonObject>,
+        bookIds: Set<String>?,
+        started: Long,
+    ): WereadNoteBatch {
         var remaining = 0
         var updated = 0
-        val selected = if (bookIds == null) books else books.filter { it.text("bookId") in bookIds }
-        for ((position, book) in selected.withIndex()) {
+        val selected =
+            plan?.select(books) ?: if (bookIds == null) books else books.filter { it.text("bookId") in bookIds }
+        for ((position, book) in selected.asSequence().takeWhile { plan?.shouldStart(it) != false }.withIndex()) {
+            if (position == 0) progress("正在检查笔记正文")
             val result = syncBook(book)
             updated += result.updatedFiles
-            if (!result.complete) {
-                // 一次离线即可结束本轮网络访问，余下书籍只检查本地缓存，下次从缺失处续补。
-                remaining = selected.drop(position).count { !cached(it) }
-                warnings = warnings + "笔记正文同步中断，已保存内容保留，下次同步可继续补齐"
-                break
+            if (!result.complete || plan?.completed(book) == false) {
+                // 全局故障立即结束；手动增量中的单书异常不阻塞其余候选。
+                plan?.failed(book)
+                remaining++
+                warnings = (warnings + "笔记正文未完成，已保存内容保留，下次同步可继续补齐").distinct()
+                if (plan == null || request.stopAfterFailure()) {
+                    remaining += selected.size - position - 1
+                    break
+                }
+            } else if (position == 0 || position == selected.lastIndex) {
+                progress("笔记已检查 ${position + 1}/${selected.size}")
             }
         }
+        remaining += plan?.deferredCount ?: 0
+        if (plan?.flush() == false) {
+            warnings = warnings + "笔记检查状态未保存，下次重新检查"
+            remaining++
+        }
+        com.shuiyu.octoberrain.core.common.InkLog.d(
+            "WereadNoteMetrics",
+            "indexed=${books.size} candidates=${selected.size} bodyWrites=$bodyWrites remaining=$remaining " +
+                "elapsedMs=${(System.nanoTime() - started) / 1_000_000}",
+        )
         // 正文已逐本保存，完整索引由同步服务统一发布。
         return WereadNoteBatch(index, emptyList(), remaining == 0, remaining, updated)
     }
@@ -60,6 +108,7 @@ class WereadNoteSync(
     @Suppress("ReturnCount") // 每个请求与落盘检查均为中断点，立即返回保证失败后不再发起请求。
     private fun syncBook(book: JsonObject): BodyResult {
         var updated = 0
+        val initialWrites = bodyWrites
         val id = book.text("bookId")
         val marksName = "nt_$id.json"
         val previousMarks = read(marksName)
@@ -67,6 +116,7 @@ class WereadNoteSync(
         if (!fresh(previousMarks, "marks", book)) {
             val response = request.request("/book/bookmarklist", obj("bookId" to JsonPrimitive(id)))
             val marks = response?.get("updated") as? JsonArray ?: return BodyResult(updated, false)
+            if (marks.any { it !is JsonObject }) return BodyResult(updated, false)
             chapters = response.objects("chapters")
             val normalized =
                 marks
@@ -75,21 +125,16 @@ class WereadNoteSync(
                         withChapter(mark, chapters, "chapterTitle")
                     }.distinctBy { it.text("bookmarkId").ifEmpty { "${it.text("chapterUid")}:${it.text("range")}" } }
             if (!save(marksName, "marks", normalized, book, chapters)) return BodyResult(updated, false)
-            updated++
+            updated = bodyWrites - initialWrites
         }
         val ideasName = "ni_$id.json"
         if (!fresh(read(ideasName), "ideas", book)) {
             val ideas = ideas(id) ?: return BodyResult(updated, false)
             val normalized = ideas.map { withChapter(it, chapters, "chapterName") }
             if (!save(ideasName, "ideas", normalized, book)) return BodyResult(updated, false)
-            updated++
+            updated = bodyWrites - initialWrites
         }
         return BodyResult(updated, true)
-    }
-
-    private fun cached(book: JsonObject): Boolean {
-        val id = book.text("bookId")
-        return fresh(read("nt_$id.json"), "marks", book) && fresh(read("ni_$id.json"), "ideas", book)
     }
 
     private data class BodyResult(
@@ -179,6 +224,7 @@ class WereadNoteSync(
         val nested = source["book"] as? JsonObject
         val fields = previous.orEmpty().toMutableMap()
         fields.putAll(source)
+        markUnknownVersions(source, previous, fields)
         for (key in listOf("title", "author", "cover", "centPrice", "price", "originalPrice", "free")) {
             (nested?.get(key) ?: source[key] ?: previous?.get(key))?.let { fields[key] = it }
         }
@@ -186,6 +232,19 @@ class WereadNoteSync(
         fields["priceY"] = nested?.get("price") ?: source["priceY"] ?: previous?.get("priceY") ?: JsonPrimitive(0)
         fields["origY"] = nested?.get("originalPrice") ?: source["origY"] ?: previous?.get("origY") ?: JsonPrimitive(0)
         return JsonObject(fields)
+    }
+
+    private fun markUnknownVersions(
+        source: JsonObject,
+        previous: JsonObject?,
+        fields: MutableMap<String, kotlinx.serialization.json.JsonElement>,
+    ) {
+        val unknown = listOf("sort", "noteCount", "reviewCount").filter { source.numberOrNull(it) == null }
+        fields["unknownVersions"] = JsonArray(unknown.map(::JsonPrimitive))
+        for (key in unknown) {
+            val old = previous?.get(key)?.takeIf { previous.numberOrNull(key) != null }
+            if (old == null) fields.remove(key) else fields[key] = old
+        }
     }
 
     private fun withChapter(
@@ -216,7 +275,12 @@ class WereadNoteSync(
                 put(key, JsonArray(items))
                 if (key == "marks") put("chapters", JsonArray(chapters))
             }
-        return store.writeNoteFiles(listOf(WereadNoteFile(name, body.toString())))
+        val previous = read(name)
+        val comparable = listOf(key, "chapters")
+        if (plan != null && previous != null && comparable.all { previous[it] == body[it] }) return true
+        val saved = store.writeNoteFiles(listOf(WereadNoteFile(name, body.toString())))
+        if (saved) bodyWrites++
+        return saved
     }
 
     private fun fresh(

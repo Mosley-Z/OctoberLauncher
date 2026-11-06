@@ -225,8 +225,10 @@ class WereadBoardWidget(
     /** 内核宿主适配，转发上下文与重绘请求。 */
     private val kernelHost =
         object : WereadBoardKernelHost {
+            override val refreshStatus: String
+                get() = AppServices.wereadSync?.progressText().orEmpty()
             override val refreshing: Boolean
-                get() = refreshMarkVisible
+                get() = refreshMarkVisible || refreshStatus.isNotEmpty()
             override val context: Context
                 get() = this@WereadBoardWidget.context
 
@@ -247,12 +249,7 @@ class WereadBoardWidget(
             override val content = AppServices.content.takeIf { AppServices.hasContent() }
         }
 
-    /** 刷新标记清除任务。 */
-    private val refreshMarkTask: Runnable =
-        Runnable {
-            refreshMarkVisible = false
-            requestDraw()
-        }
+    private var cancelSyncProgress: (() -> Unit)? = null
 
     /** 是否已启动整分计时。 */
     private var ticking: Boolean = false
@@ -327,7 +324,17 @@ class WereadBoardWidget(
     override fun onHostVisible(visible: Boolean) {
         super.onHostVisible(visible)
         covers.setVisible(visible)
+        cancelSyncProgress?.invoke()
+        cancelSyncProgress = null
         if (visible) {
+            cancelSyncProgress =
+                AppServices.wereadSync?.observeProgress { message ->
+                    if (!destroyed) {
+                        if (message.startsWith("笔记已检查") || message == "当前项目已更新") reload(force = true)
+                        requestDraw()
+                    }
+                }
+            reload(force = true)
             requestCovers()
             if (immersiveBookMode) refreshImmersive(false)
             startTicker()
@@ -645,6 +652,7 @@ class WereadBoardWidget(
 
     /** 组件销毁时释放线程、位图与内核。 */
     override fun onWidgetDestroy() {
+        cancelSyncProgress?.invoke()
         destroyed = true
         ticking = false
         handler.removeCallbacksAndMessages(null)
@@ -762,7 +770,10 @@ class WereadBoardWidget(
                     }
                 }
             }
-        if (!accepted) remoteRefreshing = false
+        if (!accepted) {
+            remoteRefreshing = false
+            if (manual) showSyncMessage(context, if (sync.isRunning()) "同步正在进行" else "无法同步，请检查配置")
+        }
         requestDraw()
         return accepted
     }
@@ -771,27 +782,29 @@ class WereadBoardWidget(
 
     private fun refreshOrdinaryBoard(): Boolean {
         val active = ensureKernel() ?: return false
-        reloadLocal()
-        if (form != WereadBoardForm.TODO) {
-            val mode = refreshModeOf(form)
-            AppServices.wereadSync?.refresh(WereadRefreshRequest(mode, bookId = kernelBookId())) { _, _ ->
-                handler.post { onRemoteRefresh(active) }
-            }
-        }
-        return true
-    }
-
-    /**
-     * 重建内核状态并重读本地缓存，同时在右下角显示刷新标记。
-     *
-     * @param active 已绑定的内核实例
-     */
-    private fun reloadLocal() {
-        refreshMarkVisible = true
-        handler.removeCallbacks(refreshMarkTask)
-        handler.postDelayed(refreshMarkTask, REFRESH_MARK_MS)
-        reload(force = true)
+        val sync = AppServices.wereadSync
+        val accepted =
+            sync?.refresh(WereadRefreshRequest(refreshModeOf(form), bookId = kernelBookId())) { _, message ->
+                handler.post {
+                    if (!destroyed) {
+                        refreshMarkVisible = false
+                        if (active === kernel) reload(force = true)
+                        showSyncMessage(context, message)
+                        requestDraw()
+                    }
+                }
+            } == true
+        refreshMarkVisible = accepted
+        showSyncMessage(
+            context,
+            when {
+                accepted -> "同步中"
+                sync?.isRunning() == true -> "正在同步，请稍后重试"
+                else -> "无法同步，请检查微信读书配置"
+            },
+        )
         requestDraw()
+        return true
     }
 
     /**
@@ -811,16 +824,6 @@ class WereadBoardWidget(
             WereadBoardForm.NOTE -> REFRESH_MODE_NOTE
             WereadBoardForm.TODO -> REFRESH_MODE_TODO
         }
-
-    /**
-     * 远端刷新结束后重建内核并重读本地缓存。
-     *
-     * @param active 已绑定的内核实例
-     */
-    private fun onRemoteRefresh(active: WereadBoardKernel) {
-        if (destroyed || active !== kernel) return
-        reload(force = true)
-    }
 
     /**
      * 刷新请求使用的书目编号：本书形态取中央书目，其余形态取内核当前书目。
@@ -1109,4 +1112,13 @@ private fun renderExpandedNote(
     } finally {
         canvas.restoreToCount(saved)
     }
+}
+
+private fun showSyncMessage(
+    context: Context,
+    message: String,
+) {
+    android.widget.Toast
+        .makeText(context, message, android.widget.Toast.LENGTH_SHORT)
+        .show()
 }
